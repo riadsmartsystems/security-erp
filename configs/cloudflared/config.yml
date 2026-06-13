@@ -1,0 +1,36 @@
+tunnel: fe371e37-f560-45d6-aaf1-db7a208280de
+credentials-file: /etc/cloudflared/creds.json
+
+ingress:
+  # ERPNext
+  - hostname: erp.${DOMAIN}
+    service: http://erpnext-frontend:8080
+    originRequest:
+      noTLSVerify: true
+
+  # Security API
+  - hostname: api.${DOMAIN}
+    service: http://security-api:8000
+    originRequest:
+      noTLSVerify: true
+
+  # n8n
+  - hostname: n8n.${DOMAIN}
+    service: http://n8n:5678
+    originRequest:
+      noTLSVerify: true
+
+  # Grafana
+  - hostname: grafana.${DOMAIN}
+    service: http://grafana:3000
+    originRequest:
+      noTLSVerify: true
+
+  # Traefik Dashboard
+  - hostname: traefik.${DOMAIN}
+    service: http://traefik:8080
+    originRequest:
+      noTLSVerify: true
+
+  # Catch-all
+  - service: http_status:404

@@ -5,7 +5,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_t
 
 from app.core.config import settings
 from app.auth.dependencies import get_current_user, CurrentUser
-from app.auth.permissions import Permission
+from app.auth.permissions import Permission, has_permission
 
 router = APIRouter(tags=["proxy"])
 
@@ -24,20 +24,28 @@ BACKEND_MAP = {
     "/api/v1/configurations": settings.cmdb_service_url,
 }
 
+# Each resource accepts multiple permission levels
 PERMISSION_MAP = {
-    # FSM
-    "/api/v1/tickets": Permission.FSM_FULL,
-    "/api/v1/visits": Permission.FSM_FULL,
-    "/api/v1/maintenance": Permission.FSM_FULL,
-    "/api/v1/warranty": Permission.FSM_FULL,
-    # CMDB
-    "/api/v1/objects": Permission.CMDB_READ,
-    "/api/v1/equipment": Permission.CMDB_READ,
-    "/api/v1/equipment-types": Permission.CMDB_READ,
-    "/api/v1/vendors": Permission.CMDB_READ,
-    "/api/v1/topology": Permission.CMDB_READ,
-    "/api/v1/configurations": Permission.CMDB_READ,
+    # FSM: full > own > read
+    "/api/v1/tickets": [Permission.FSM_FULL, Permission.FSM_OWN],
+    "/api/v1/visits": [Permission.FSM_FULL, Permission.FSM_OWN],
+    "/api/v1/maintenance": [Permission.FSM_FULL],
+    "/api/v1/warranty": [Permission.FSM_FULL],
+    # CMDB: full > read
+    "/api/v1/objects": [Permission.CMDB_FULL, Permission.CMDB_READ],
+    "/api/v1/equipment": [Permission.CMDB_FULL, Permission.CMDB_READ],
+    "/api/v1/equipment-types": [Permission.CMDB_FULL, Permission.CMDB_READ],
+    "/api/v1/vendors": [Permission.CMDB_FULL, Permission.CMDB_READ],
+    "/api/v1/topology": [Permission.CMDB_FULL, Permission.CMDB_READ],
+    "/api/v1/configurations": [Permission.CMDB_FULL, Permission.CMDB_READ],
 }
+
+
+def _has_access(current_user: CurrentUser, path: str) -> bool:
+    for prefix, perms in PERMISSION_MAP.items():
+        if path.startswith(prefix):
+            return any(has_permission(current_user.role, p) for p in perms)
+    return True
 
 
 def _get_backend(path: str) -> str | None:
@@ -64,14 +72,8 @@ async def proxy(
     if not backend_url:
         return Response(status_code=404, content='{"success":false,"error":{"code":"NOT_FOUND","message":"Route not found"}}')
 
-    permission = PERMISSION_MAP.get(full_path.split("?")[0].rstrip("/"))
-    for prefix, perm in PERMISSION_MAP.items():
-        if full_path.startswith(prefix):
-            permission = perm
-            break
-
-    if permission:
-        current_user.require(permission)
+    if not _has_access(current_user, full_path):
+        return Response(status_code=403, content='{"success":false,"error":{"code":"FORBIDDEN","message":"Access denied"}}')
 
     target_url = f"{backend_url}{full_path}"
     headers = dict(request.headers)

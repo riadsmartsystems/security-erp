@@ -100,3 +100,83 @@ async def get_me(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
+
+# =============================================================================
+# User Management (Owner/Director only)
+# =============================================================================
+@router.get("/users")
+async def list_users(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if current_user.role not in ["owner", "director"]:
+        raise HTTPException(status_code=403, detail="Only owner/director can list users")
+
+    result = await db.execute(select(User).order_by(User.created_at.desc()))
+    users = result.scalars().all()
+    return {
+        "success": True,
+        "data": [UserResponse.model_validate(u) for u in users],
+    }
+
+
+@router.post("/users")
+async def create_user(
+    body: UserCreate,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if current_user.role not in ["owner", "director"]:
+        raise HTTPException(status_code=403, detail="Only owner/director can create users")
+
+    # Check if username or email already exists
+    existing = await db.execute(
+        select(User).where((User.username == body.username) | (User.email == body.email))
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Username or email already exists")
+
+    user = User(
+        email=body.email,
+        username=body.username,
+        full_name=body.full_name,
+        hashed_password=hash_password(body.password),
+        role=body.role,
+        employee_id=body.employee_id,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    return {"success": True, "data": UserResponse.model_validate(user)}
+
+
+@router.put("/users/{user_id}")
+async def update_user(
+    user_id: str,
+    body: dict,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if current_user.role not in ["owner", "director"]:
+        raise HTTPException(status_code=403, detail="Only owner/director can update users")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if "role" in body:
+        user.role = body["role"]
+    if "full_name" in body:
+        user.full_name = body["full_name"]
+    if "is_active" in body:
+        user.is_active = body["is_active"]
+    if "password" in body:
+        user.hashed_password = hash_password(body["password"])
+
+    user.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    return {"success": True, "data": UserResponse.model_validate(user)}
