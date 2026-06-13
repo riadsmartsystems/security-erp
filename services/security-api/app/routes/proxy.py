@@ -7,28 +7,28 @@ from app.core.config import settings
 from app.auth.dependencies import get_current_user, CurrentUser
 from app.auth.permissions import Permission
 
-router = APIRouter(prefix="/api/v1", tags=["proxy"])
+router = APIRouter(tags=["proxy"])
 
 BACKEND_MAP = {
-    "/tickets": settings.fsm_service_url,
-    "/visits": settings.fsm_service_url,
-    "/maintenance": settings.fsm_service_url,
-    "/warranty": settings.fsm_service_url,
-    "/objects": settings.cmdb_service_url,
-    "/equipment": settings.cmdb_service_url,
-    "/topology": settings.cmdb_service_url,
-    "/configurations": settings.cmdb_service_url,
+    "/api/v1/tickets": settings.fsm_service_url,
+    "/api/v1/visits": settings.fsm_service_url,
+    "/api/v1/maintenance": settings.fsm_service_url,
+    "/api/v1/warranty": settings.fsm_service_url,
+    "/api/v1/objects": settings.cmdb_service_url,
+    "/api/v1/equipment": settings.cmdb_service_url,
+    "/api/v1/topology": settings.cmdb_service_url,
+    "/api/v1/configurations": settings.cmdb_service_url,
 }
 
 PERMISSION_MAP = {
-    "/tickets": Permission.FSM_FULL,
-    "/visits": Permission.FSM_FULL,
-    "/maintenance": Permission.FSM_FULL,
-    "/warranty": Permission.FSM_FULL,
-    "/objects": Permission.CMDB_READ,
-    "/equipment": Permission.CMDB_READ,
-    "/topology": Permission.CMDB_READ,
-    "/configurations": Permission.CMDB_READ,
+    "/api/v1/tickets": Permission.FSM_FULL,
+    "/api/v1/visits": Permission.FSM_FULL,
+    "/api/v1/maintenance": Permission.FSM_FULL,
+    "/api/v1/warranty": Permission.FSM_FULL,
+    "/api/v1/objects": Permission.CMDB_READ,
+    "/api/v1/equipment": Permission.CMDB_READ,
+    "/api/v1/topology": Permission.CMDB_READ,
+    "/api/v1/configurations": Permission.CMDB_READ,
 }
 
 
@@ -39,19 +39,18 @@ def _get_backend(path: str) -> str | None:
     return None
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_fixed(0.5), retry=retry_if_exception_type(httpx.ConnectError))
 async def _proxy_request(method: str, url: str, headers: dict, body: bytes | None):
     async with httpx.AsyncClient(timeout=30.0) as client:
         return await client.request(method=method, url=url, headers=headers, content=body)
 
 
-@router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+@router.api_route("/api/v1/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"], include_in_schema=False)
 async def proxy(
     path: str,
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    full_path = f"/{path}"
+    full_path = f"/api/v1/{path}"
     backend_url = _get_backend(full_path)
 
     if not backend_url:
@@ -86,8 +85,10 @@ async def proxy(
             status_code=503,
             content='{"success":false,"error":{"code":"SERVICE_UNAVAILABLE","message":"Backend service unavailable"}}',
         )
-    except Exception:
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return Response(
             status_code=502,
-            content='{"success":false,"error":{"code":"BAD_GATEWAY","message":"Backend error"}}',
+            content=f'{{"success":false,"error":{{"code":"BAD_GATEWAY","message":"{str(e)}"}}}}',
         )

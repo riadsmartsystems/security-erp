@@ -1,7 +1,7 @@
 import uuid
 import enum
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, DateTime, Integer, Text, DoublePrecision, ForeignKey, Enum as SAEnum
+from sqlalchemy import Column, String, Boolean, DateTime, Integer, Text, Float, ForeignKey, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase
 
@@ -103,10 +103,10 @@ class Visit(Base):
     planned_start = Column(DateTime(timezone=True), nullable=True)
     actual_start = Column(DateTime(timezone=True), nullable=True)
     actual_finish = Column(DateTime(timezone=True), nullable=True)
-    gps_checkin_lat = Column(DoublePrecision, nullable=True)
-    gps_checkin_lon = Column(DoublePrecision, nullable=True)
-    gps_checkout_lat = Column(DoublePrecision, nullable=True)
-    gps_checkout_lon = Column(DoublePrecision, nullable=True)
+    gps_checkin_lat = Column(Float, nullable=True)
+    gps_checkin_lon = Column(Float, nullable=True)
+    gps_checkout_lat = Column(Float, nullable=True)
+    gps_checkout_lon = Column(Float, nullable=True)
     travel_minutes = Column(Integer, nullable=True)
     work_minutes = Column(Integer, nullable=True)
     notes = Column(Text, nullable=True)
@@ -128,8 +128,8 @@ class VisitPhoto(Base):
     file_id = Column(UUID(as_uuid=True), nullable=False)
     file_path = Column(String(500), nullable=False)
     caption = Column(String(500), nullable=True)
-    gps_lat = Column(DoublePrecision, nullable=True)
-    gps_lon = Column(DoublePrecision, nullable=True)
+    gps_lat = Column(Float, nullable=True)
+    gps_lon = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     created_by = Column(UUID(as_uuid=True), nullable=True)
 
@@ -143,7 +143,7 @@ class VisitMaterial(Base):
     item_code = Column(String(100), nullable=False)
     item_name = Column(String(255), nullable=False)
     serial_number = Column(String(255), nullable=True)
-    quantity = Column(DoublePrecision, nullable=False, default=1)
+    quantity = Column(Float, nullable=False, default=1)
     uom = Column(String(50), default="pcs")
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     created_by = Column(UUID(as_uuid=True), nullable=True)

@@ -2,7 +2,7 @@ import uuid
 import enum
 from datetime import datetime, date, timezone
 from sqlalchemy import (
-    Column, String, Boolean, DateTime, Date, Integer, Text, DoublePrecision,
+    Column, String, Boolean, DateTime, Date, Integer, Text, Float,
     ForeignKey, Enum as SAEnum, UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID, INET, MACADDR
@@ -48,8 +48,8 @@ class SecurityObject(Base):
     customer_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     address = Column(Text, nullable=True)
-    gps_lat = Column(DoublePrecision, nullable=True)
-    gps_lon = Column(DoublePrecision, nullable=True)
+    gps_lat = Column(Float, nullable=True)
+    gps_lon = Column(Float, nullable=True)
     object_type = Column(String(50), nullable=True)  # shop, office, warehouse, apartment, factory, school
     service_level = Column(String(20), default="standard")  # basic, standard, premium, platinum
     status = Column(SAEnum(ObjectStatus), nullable=False, default=ObjectStatus.ACTIVE)
@@ -94,7 +94,7 @@ class Room(Base):
     floor_id = Column(UUID(as_uuid=True), ForeignKey("cmdb.floors.id"), nullable=False)
     name = Column(String(255), nullable=False)
     room_type = Column(String(50), nullable=True)
-    area_sqm = Column(DoublePrecision, nullable=True)
+    area_sqm = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     is_active = Column(Boolean, default=True)
 

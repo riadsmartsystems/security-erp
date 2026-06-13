@@ -1,25 +1,12 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, DateTime, Enum as SAEnum
+from sqlalchemy import Column, String, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase
-import enum
 
 
 class Base(DeclarativeBase):
     pass
-
-
-class UserRole(str, enum.Enum):
-    OWNER = "owner"
-    DIRECTOR = "director"
-    SALES_MANAGER = "sales_manager"
-    PROJECT_MANAGER = "project_manager"
-    SERVICE_MANAGER = "service_manager"
-    ENGINEER = "engineer"
-    WAREHOUSE = "warehouse"
-    ACCOUNTANT = "accountant"
-    VIEWER = "viewer"
 
 
 class User(Base):
@@ -31,7 +18,7 @@ class User(Base):
     username = Column(String(100), unique=True, nullable=False, index=True)
     full_name = Column(String(255), nullable=False)
     hashed_password = Column(String(255), nullable=False)
-    role = Column(SAEnum(UserRole), nullable=False, default=UserRole.VIEWER)
+    role = Column(String(50), nullable=False, default="viewer")
     employee_id = Column(UUID(as_uuid=True), nullable=True)
     is_active = Column(Boolean, default=True)
     mfa_enabled = Column(Boolean, default=False)

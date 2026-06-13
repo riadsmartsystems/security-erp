@@ -43,6 +43,20 @@ GRANT CREATE ON SCHEMA audit TO audit_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA audit GRANT ALL ON TABLES TO audit_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA audit GRANT ALL ON SEQUENCES TO audit_user;
 
+-- Grant CREATE on public schema for ENUM types (SQLAlchemy requirement)
+GRANT CREATE ON SCHEMA public TO fsm_user;
+GRANT CREATE ON SCHEMA public TO cmdb_user;
+GRANT CREATE ON SCHEMA public TO ai_user;
+GRANT CREATE ON SCHEMA public TO integration_user;
+GRANT CREATE ON SCHEMA public TO audit_user;
+
+-- Set search_path for each user
+ALTER USER fsm_user SET search_path TO fsm, public;
+ALTER USER cmdb_user SET search_path TO cmdb, public;
+ALTER USER ai_user SET search_path TO ai, public;
+ALTER USER integration_user SET search_path TO integration, public;
+ALTER USER audit_user SET search_path TO audit, public;
+
 -- Grant postgres user access to all schemas (for migrations)
 GRANT ALL PRIVILEGES ON SCHEMA fsm TO postgres;
 GRANT ALL PRIVILEGES ON SCHEMA cmdb TO postgres;

@@ -6,7 +6,7 @@ import redis.asyncio as redis
 
 from app.core.database import get_db
 from app.core.redis import get_redis
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.schemas.auth import LoginRequest, TokenResponse, RefreshRequest, UserCreate, UserResponse
 from app.auth.jwt import hash_password, verify_password, create_access_token, create_refresh_token, decode_token
 from app.auth.dependencies import get_current_user, CurrentUser
@@ -45,7 +45,7 @@ async def login(
     user.last_login = datetime.now(timezone.utc)
     await db.commit()
 
-    access_token = create_access_token(str(user.id), user.role.value)
+    access_token = create_access_token(str(user.id), user.role)
     refresh_token = create_refresh_token(str(user.id))
 
     await redis_client.setex(f"session:{user.id}", 900, access_token)
@@ -73,7 +73,7 @@ async def refresh(
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
-    access_token = create_access_token(str(user.id), user.role.value)
+    access_token = create_access_token(str(user.id), user.role)
     refresh_token = create_refresh_token(str(user.id))
 
     await redis_client.setex(f"session:{user.id}", 900, access_token)
