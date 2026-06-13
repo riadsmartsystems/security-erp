@@ -253,50 +253,133 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Фото отримано! (Завантаження в MinIO буде реалізовано)")
 
 
-# Conversation state for newticket
 NEW_TICKET_STATES = {}
+
+PRIORITY_KEYBOARD = [
+    ["🟢 Low", "🟡 Medium"],
+    ["🟠 High", "🔴 Critical"],
+]
 
 
 async def cmd_newticket(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
+    NEW_TICKET_STATES[chat_id] = {
+        "step": "title",
+        "title": None,
+        "address": None,
+        "contact": None,
+        "description": None,
+        "priority": "medium",
+    }
+    await update.message.reply_text(
+        "📝 Створення нової заявки (крок 1/5)\n\n"
+        "Введіть коротку назву проблеми:\n"
+        "(напр. Камера не працює, Потрібен монтаж)"
+    )
 
-    if not context.args:
-        NEW_TICKET_STATES[chat_id] = {"step": "title"}
+
+async def _handle_newticket_step(update: Update, chat_id: int, text: str):
+    state = NEW_TICKET_STATES.get(chat_id)
+    if not state:
+        return False
+
+    step = state["step"]
+
+    if step == "title":
+        state["title"] = text
+        state["step"] = "address"
         await update.message.reply_text(
-            "Створення нової заявки\n\n"
-            "Введіть назву заявки (наприклад: Камера не працює на вході):"
+            "📍 Адреса об'єкта (крок 2/5)\n\n"
+            "Введіть адресу:\n"
+            "(напр. вул. Хрещатик 1, Київ)"
         )
-        return
+        return True
 
-    title = " ".join(context.args)
-    await _create_ticket(update, title)
+    elif step == "address":
+        state["address"] = text
+        state["step"] = "contact"
+        await update.message.reply_text(
+            "👤 Контактна особа (крок 3/5)\n\n"
+            "Введіть ПІБ та телефон:\n"
+            "(напр. Іван +380501234567)"
+        )
+        return True
+
+    elif step == "contact":
+        state["contact"] = text
+        state["step"] = "description"
+        await update.message.reply_text(
+            "📋 Опис проблеми (крок 4/5)\n\n"
+            "Детально опишіть що сталось:"
+        )
+        return True
+
+    elif step == "description":
+        state["description"] = text
+        state["step"] = "priority"
+        from telegram import ReplyKeyboardMarkup
+        await update.message.reply_text(
+            "⚡ Пріоритет (крок 5/5)\n\n"
+            "Оберіть пріоритет:",
+            reply_markup=ReplyKeyboardMarkup(
+                PRIORITY_KEYBOARD,
+                one_time_keyboard=True,
+                resize_keyboard=True,
+            ),
+        )
+        return True
+
+    elif step == "priority":
+        priority_map = {
+            "low": "low", "🟢 low": "low",
+            "medium": "medium", "🟡 medium": "medium",
+            "high": "high", "🟠 high": "high",
+            "critical": "critical", "🔴 critical": "critical",
+        }
+        state["priority"] = priority_map.get(text.lower(), "medium")
+        del NEW_TICKET_STATES[chat_id]
+
+        await _create_ticket_full(update, state)
+        return True
+
+    return False
 
 
-async def _create_ticket(update: Update, title: str):
-    await update.message.reply_text("Створюю заявку...")
+async def _create_ticket_full(update: Update, data: dict):
+    from telegram import ReplyKeyboardRemove
+    await update.message.reply_text("⏳ Створюю заявку...", reply_markup=ReplyKeyboardRemove())
 
     try:
+        title = data["title"]
+        if data.get("address"):
+            title = f"{title} | {data['address']}"
+        if data.get("contact"):
+            title = f"{title} | {data['contact']}"
+
         result = await api_post("/api/v1/tickets", {
             "customer_id": "a0000000-0000-0000-0000-000000000001",
             "object_id": "a0000000-0000-0000-0000-000000000002",
             "ticket_type": "service_request",
-            "priority": "medium",
+            "priority": data["priority"],
             "title": title,
+            "description": data.get("description", ""),
         })
         if result.get("success"):
             t = result["data"]
             await update.message.reply_text(
-                f"Заявку створено!\n\n"
+                f"✅ Заявку створено!\n\n"
                 f"Номер: {t['ticket_number']}\n"
-                f"Назва: {t['title']}\n"
-                f"Пріоритет: {t['priority']}\n"
+                f"Проблема: {data['title']}\n"
+                f"Адреса: {data.get('address', '—')}\n"
+                f"Контакт: {data.get('contact', '—')}\n"
+                f"Пріоритет: {data['priority']}\n"
                 f"Статус: {t['status']}\n"
-                f"SLA реакція до: {t.get('sla_response_due', '—')}"
+                f"SLA до: {t.get('sla_response_due', '—')[:16]}"
             )
         else:
-            await update.message.reply_text(f"Помилка: {result}")
+            await update.message.reply_text(f"❌ Помилка: {result}")
     except Exception as e:
-        await update.message.reply_text(f"Помилка: {e}")
+        await update.message.reply_text(f"❌ Помилка: {e}")
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -304,10 +387,8 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
 
     if chat_id in NEW_TICKET_STATES:
-        state = NEW_TICKET_STATES[chat_id]
-        if state["step"] == "title":
-            del NEW_TICKET_STATES[chat_id]
-            await _create_ticket(update, text)
+        handled = await _handle_newticket_step(update, chat_id, text)
+        if handled:
             return
 
 
