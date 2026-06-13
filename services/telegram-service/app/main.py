@@ -307,7 +307,7 @@ async def callback_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 elif v["status"] in ["on_route", "arrived", "working"]:
                     buttons.append([
                         InlineKeyboardButton(f"📸 Фото {v['visit_number']}", callback_data=f"photo_{v['id']}"),
-                        InlineKeyboardButton(f"📦 Матеріали", callback_data=f"mat_{v['visit_id']}"),
+                        InlineKeyboardButton(f"📦 Матеріали", callback_data=f"mat_{v['id']}"),
                     ])
                     buttons.append([InlineKeyboardButton(
                         f"🏁 Завершити {v['visit_number']}",
