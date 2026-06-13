@@ -1,5 +1,7 @@
 import logging
+import json
 import httpx
+import nats
 from telegram import Update, BotCommand, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from app.config import settings
@@ -9,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 API_URL = settings.security_api_url
 BOT_TOKEN = None
+NATS_CLIENT = None
 
 STATES = {}
 
@@ -44,6 +47,146 @@ async def api_post(path: str, data: dict = None) -> dict:
             headers = {"Authorization": f"Bearer {BOT_TOKEN}"} if BOT_TOKEN else {}
             resp = await client.post(f"{API_URL}{path}", headers=headers, json=data)
         return resp.json()
+
+
+def _parse_csv(raw: str) -> list[str]:
+    return [item.strip() for item in (raw or "").split(",") if item.strip()]
+
+
+def _default_notification_targets() -> tuple[list[str], list[str]]:
+    telegram_ids = _parse_csv(settings.notification_telegram_chat_ids)
+    viber_ids = _parse_csv(settings.notification_viber_user_ids)
+    return telegram_ids, viber_ids
+
+
+async def send_telegram_message(application: Application, chat_id: str, message: str) -> bool:
+    try:
+        await application.bot.send_message(chat_id=chat_id, text=message)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send Telegram message to {chat_id}: {e}")
+        return False
+
+
+async def send_viber_message(user_id: str, message: str) -> bool:
+    if not settings.viber_bot_token:
+        logger.warning("Skipping Viber delivery: VIBER_BOT_TOKEN is empty")
+        return False
+
+    payload = {
+        "receiver": user_id,
+        "type": "text",
+        "text": message,
+        "min_api_version": 7,
+    }
+    headers = {
+        "X-Viber-Auth-Token": settings.viber_bot_token,
+        "Content-Type": "application/json",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post("https://chatapi.viber.com/pa/send_message", headers=headers, json=payload)
+        if resp.status_code != 200:
+            logger.error(f"Viber send failed: {resp.status_code} {resp.text[:200]}")
+            return False
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send Viber message to {user_id}: {e}")
+        return False
+
+
+async def process_notification_event(application: Application, payload: dict):
+    message = payload.get("message") or payload.get("text")
+    if not message:
+        logger.warning("Notification dropped: message/text is missing")
+        return
+
+    channels = payload.get("channels")
+    if isinstance(channels, str):
+        channels = [channels]
+    if not channels:
+        channels = [payload.get("channel")] if payload.get("channel") else ["telegram"]
+
+    default_tg_ids, default_viber_ids = _default_notification_targets()
+
+    telegram_ids = payload.get("telegram_chat_ids") or []
+    if payload.get("telegram_chat_id"):
+        telegram_ids.append(payload["telegram_chat_id"])
+    if not telegram_ids:
+        telegram_ids = default_tg_ids
+
+    viber_ids = payload.get("viber_user_ids") or []
+    if payload.get("viber_user_id"):
+        viber_ids.append(payload["viber_user_id"])
+    if not viber_ids:
+        viber_ids = default_viber_ids
+
+    if "telegram" in channels:
+        for chat_id in telegram_ids:
+            await send_telegram_message(application, str(chat_id), message)
+
+    if "viber" in channels:
+        for user_id in viber_ids:
+            await send_viber_message(str(user_id), message)
+
+
+def _build_sla_message(payload: dict) -> str:
+    ticket = payload.get("ticket_number", "unknown")
+    timer_type = payload.get("type", "unknown")
+    priority = payload.get("priority", "unknown")
+    return (
+        "SLA breach detected\n"
+        f"Ticket: {ticket}\n"
+        f"Type: {timer_type}\n"
+        f"Priority: {priority}"
+    )
+
+
+async def start_nats_subscribers(application: Application):
+    global NATS_CLIENT
+    try:
+        NATS_CLIENT = await nats.connect(settings.nats_url)
+        logger.info(f"Connected to NATS at {settings.nats_url}")
+
+        async def notifications_cb(msg):
+            try:
+                payload = json.loads(msg.data.decode())
+                await process_notification_event(application, payload)
+            except Exception as e:
+                logger.error(f"notifications.send processing error: {e}")
+
+        async def sla_breach_cb(msg):
+            try:
+                payload = json.loads(msg.data.decode())
+                event_payload = {
+                    "channels": ["telegram", "viber"],
+                    "message": _build_sla_message(payload),
+                }
+                await process_notification_event(application, event_payload)
+            except Exception as e:
+                logger.error(f"fsm.sla.breached processing error: {e}")
+
+        await NATS_CLIENT.subscribe("notifications.send", cb=notifications_cb)
+        await NATS_CLIENT.subscribe("fsm.sla.breached", cb=sla_breach_cb)
+        logger.info("Subscribed to NATS subjects: notifications.send, fsm.sla.breached")
+    except Exception as e:
+        logger.error(f"NATS subscriber startup failed: {e}")
+
+
+async def stop_nats_subscribers():
+    global NATS_CLIENT
+    if NATS_CLIENT is None:
+        return
+    try:
+        await NATS_CLIENT.drain()
+    except Exception as e:
+        logger.error(f"NATS drain failed: {e}")
+    try:
+        await NATS_CLIENT.close()
+    except Exception as e:
+        logger.error(f"NATS close failed: {e}")
+    NATS_CLIENT = None
 
 
 def status_emoji(status: str) -> str:
@@ -741,7 +884,12 @@ async def post_init(application: Application):
         BotCommand("kpi", "KPI дашборд"),
         BotCommand("help", "Допомога"),
     ])
+    await start_nats_subscribers(application)
     logger.info("Bot commands registered")
+
+
+async def post_shutdown(application: Application):
+    await stop_nats_subscribers()
 
 
 def main():
@@ -749,7 +897,7 @@ def main():
         logger.error("TELEGRAM_BOT_TOKEN not set!")
         return
 
-    app = Application.builder().token(settings.telegram_bot_token).post_init(post_init).build()
+    app = Application.builder().token(settings.telegram_bot_token).post_init(post_init).post_shutdown(post_shutdown).build()
 
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))

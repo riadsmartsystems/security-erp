@@ -142,6 +142,49 @@ GET    /api/v1/topology/{id}    — Топологія мережі
 - **Grafana** — дашборди Infrastructure, ERP Health, FSM KPI
 - **Loki** — централізовані логи всіх контейнерів
 
+## Тест NATS-нотифікацій (Telegram/Viber)
+
+Усе працює через Docker: `telegram-service` підписаний на `notifications.send` та `fsm.sla.breached`.
+
+1) Додайте змінні в `.env`:
+
+```env
+VIBER_BOT_TOKEN=your_viber_bot_token
+NOTIFICATION_TELEGRAM_CHAT_IDS=123456789
+NOTIFICATION_VIBER_USER_IDS=VIBER_USER_ID
+```
+
+2) Запустіть швидкий end-to-end тест однією командою:
+
+```bash
+./scripts/test_notifications.sh
+```
+
+Або передайте IDs явно:
+
+```bash
+./scripts/test_notifications.sh --telegram-ids "123456789" --viber-ids "VIBER_USER_ID"
+```
+
+3) Ручний тест окремих подій з контейнера:
+
+```bash
+# 1) Кастомне повідомлення у Telegram + Viber
+docker compose exec -T telegram-service python scripts/publish_notification.py \
+  --subject notifications.send \
+  --channels telegram viber \
+  --message "Тестова розсилка з NATS" \
+  --telegram-ids "123456789" \
+  --viber-ids "VIBER_USER_ID"
+
+# 2) Тест автоматичного SLA breach-алерту
+docker compose exec -T telegram-service python scripts/publish_notification.py \
+  --subject fsm.sla.breached \
+  --ticket-number "TCK-2026-001" \
+  --sla-type resolution \
+  --priority critical
+```
+
 ## Фази розробки
 
 - [x] Phase 1 MVP: Docker, ERPNext, FSM, CMDB, Telegram, Security API

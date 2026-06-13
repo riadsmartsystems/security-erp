@@ -1,7 +1,9 @@
 {
+  "id": "3a3afa4d-ed7c-41f0-8e6f-7c496e198910",
   "name": "WF-04: SLA Breach",
   "nodes": [
     {
+      "id": "node-webhook-04",
       "parameters": {
         "httpMethod": "POST",
         "path": "sla-breach",
@@ -11,40 +13,32 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        250,
-        300
-      ],
-      "id": "f22f388c-92b0-4a0a-9477-a4bc4f04d4b9"
+      "position": [250, 300]
     },
     {
+      "id": "node-telegram-04",
       "parameters": {
-        "functionCode": "const data = items[0].json.body || items[0].json;\n\nconst message = `\u26a0\ufe0f \u041f\u043e\u0440\u0443\u0448\u0435\u043d\u043d\u044f SLA!\n\n\u0417\u0430\u044f\u0432\u043a\u0430: ${data.ticket_number || 'N/A'}\n\u0422\u0438\u043f \u043f\u043e\u0440\u0443\u0448\u0435\u043d\u043d\u044f: ${data.breach_type || 'N/A'}\n\u041f\u0440\u0456\u043e\u0440\u0438\u0442\u0435\u0442: ${data.priority || 'N/A'}\n\u0427\u0430\u0441 \u0434\u0435\u0434\u043b\u0430\u0439\u043d\u0443: ${data.deadline || 'N/A'}\n\u041f\u043e\u0442\u043e\u0447\u043d\u0438\u0439 \u0447\u0430\u0441: ${new Date().toISOString()}`;\n\nreturn [{ json: { message, chatId: '291657218' } }];"
+        "chatId": "291657218",
+        "text": "=⚠️ Порушення SLA!\n\nЗаявка: {{ $json.body.ticket_number }}\nТип: {{ $json.body.breach_type }}\nПріоритет: {{ $json.body.priority }}\nДедлайн: {{ $json.body.deadline }}",
+        "additionalFields": {}
       },
-      "name": "Format Message",
-      "type": "n8n-nodes-base.function",
+      "name": "Telegram",
+      "type": "n8n-nodes-base.telegram",
       "typeVersion": 1,
-      "position": [
-        500,
-        300
-      ],
-      "id": "d277ab56-c2c6-4ca0-8e98-8f393ea7bcc7"
+      "position": [500, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot-cred",
+          "name": "Telegram Bot"
+        }
+      }
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Format Message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "Telegram", "type": "main", "index": 0}]]
     }
   },
-  "active": false,
-  "settings": {},
-  "id": "3a3afa4d-ed7c-41f0-8e6f-7c496e198910"
+  "active": true,
+  "settings": {}
 }

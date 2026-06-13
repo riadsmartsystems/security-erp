@@ -1,7 +1,9 @@
 {
-  "name": "WF-01: \u041d\u043e\u0432\u0438\u0439 Lead",
+  "id": "17940cb9-aeb3-43b9-b404-e422452aa8c4",
+  "name": "WF-01: Новий Lead",
   "nodes": [
     {
+      "id": "node-webhook-01",
       "parameters": {
         "httpMethod": "POST",
         "path": "new-lead",
@@ -11,40 +13,32 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        250,
-        300
-      ],
-      "id": "ff1a1cd6-15a4-4e59-aabb-c0d2bb0a2614"
+      "position": [250, 300]
     },
     {
+      "id": "node-telegram-01",
       "parameters": {
-        "functionCode": "const data = items[0].json.body || items[0].json;\n\nconst message = `\ud83c\udd95 \u041d\u043e\u0432\u0438\u0439 Lead!\n\n\u0406\u043c'\u044f: ${data.customer_name || 'N/A'}\n\u0422\u0435\u043b\u0435\u0444\u043e\u043d: ${data.phone || 'N/A'}\nEmail: ${data.email || 'N/A'}\n\u0414\u0436\u0435\u0440\u0435\u043b\u043e: ${data.source || 'N/A'}\n\u041c\u0435\u043d\u0435\u0434\u0436\u0435\u0440: ${data.manager || 'N/A'}`;\n\nreturn [{ json: { message, chatId: '291657218' } }];"
+        "chatId": "291657218",
+        "text": "=🆕 Новий Lead!\n\nІм'я: {{ $json.body.customer_name }}\nТелефон: {{ $json.body.phone }}\nEmail: {{ $json.body.email }}\nДжерело: {{ $json.body.source }}\nМенеджер: {{ $json.body.manager }}",
+        "additionalFields": {}
       },
-      "name": "Format Message",
-      "type": "n8n-nodes-base.function",
+      "name": "Telegram",
+      "type": "n8n-nodes-base.telegram",
       "typeVersion": 1,
-      "position": [
-        500,
-        300
-      ],
-      "id": "ec9f5ae6-2cd2-4524-b7bd-4719d5574b0f"
+      "position": [500, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot-cred",
+          "name": "Telegram Bot"
+        }
+      }
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Format Message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "Telegram", "type": "main", "index": 0}]]
     }
   },
-  "active": false,
-  "settings": {},
-  "id": "17940cb9-aeb3-43b9-b404-e422452aa8c4"
+  "active": true,
+  "settings": {}
 }

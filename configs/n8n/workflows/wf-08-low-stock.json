@@ -1,7 +1,9 @@
 {
-  "name": "WF-08: \u041c\u0456\u043d\u0456\u043c\u0430\u043b\u044c\u043d\u0438\u0439 \u0437\u0430\u043b\u0438\u0448\u043e\u043a",
+  "id": "c91e1319-2e43-4ed6-8caa-36b80e248080",
+  "name": "WF-08: Мінімальний залишок",
   "nodes": [
     {
+      "id": "node-webhook-08",
       "parameters": {
         "httpMethod": "POST",
         "path": "low-stock",
@@ -11,40 +13,32 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        250,
-        300
-      ],
-      "id": "21750a05-f9dc-4d70-bcba-f17444a99ddd"
+      "position": [250, 300]
     },
     {
+      "id": "node-telegram-08",
       "parameters": {
-        "functionCode": "const data = items[0].json.body || items[0].json;\n\nconst message = `\ud83d\udce6 \u041c\u0456\u043d\u0456\u043c\u0430\u043b\u044c\u043d\u0438\u0439 \u0437\u0430\u043b\u0438\u0448\u043e\u043a!\n\n\u0422\u043e\u0432\u0430\u0440: ${data.item_name || 'N/A'}\n\u041a\u043e\u0434: ${data.item_code || 'N/A'}\n\u041f\u043e\u0442\u043e\u0447\u043d\u0438\u0439 \u0437\u0430\u043b\u0438\u0448\u043e\u043a: ${data.current_qty || 'N/A'}\n\u041c\u0456\u043d\u0456\u043c\u0443\u043c: ${data.min_qty || 'N/A'}\n\u0421\u043a\u043b\u0430\u0434: ${data.warehouse || 'N/A'}`;\n\nreturn [{ json: { message } }];"
+        "chatId": "291657218",
+        "text": "=📦 Мінімальний залишок!\n\nТовар: {{ $json.body.item_name }}\nКод: {{ $json.body.item_code }}\nЗалишок: {{ $json.body.current_qty }}\nМінімум: {{ $json.body.min_qty }}\nСклад: {{ $json.body.warehouse }}",
+        "additionalFields": {}
       },
-      "name": "Format Message",
-      "type": "n8n-nodes-base.function",
+      "name": "Telegram",
+      "type": "n8n-nodes-base.telegram",
       "typeVersion": 1,
-      "position": [
-        500,
-        300
-      ],
-      "id": "8df728f9-7157-4ccf-a2ae-85b5c1e7ca19"
+      "position": [500, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot-cred",
+          "name": "Telegram Bot"
+        }
+      }
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Format Message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "Telegram", "type": "main", "index": 0}]]
     }
   },
-  "active": false,
-  "settings": {},
-  "id": "c91e1319-2e43-4ed6-8caa-36b80e248080"
+  "active": true,
+  "settings": {}
 }

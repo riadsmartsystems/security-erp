@@ -1,7 +1,9 @@
 {
-  "name": "WF-09: \u041e\u043f\u043b\u0430\u0442\u0430 \u0432\u0456\u0434 \u043a\u043b\u0456\u0454\u043d\u0442\u0430",
+  "id": "e4bdf360-0bb1-4ba4-ad39-283ab4d93585",
+  "name": "WF-09: Оплата від клієнта",
   "nodes": [
     {
+      "id": "node-webhook-09",
       "parameters": {
         "httpMethod": "POST",
         "path": "payment-received",
@@ -11,40 +13,32 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        250,
-        300
-      ],
-      "id": "b3b1c2f6-526e-4d45-bbc4-db1f034802f3"
+      "position": [250, 300]
     },
     {
+      "id": "node-telegram-09",
       "parameters": {
-        "functionCode": "const data = items[0].json.body || items[0].json;\n\nconst message = `\ud83d\udcb0 \u041e\u043f\u043b\u0430\u0442\u0430 \u043e\u0442\u0440\u0438\u043c\u0430\u043d\u0430!\n\n\u041a\u043b\u0456\u0454\u043d\u0442: ${data.customer_name || 'N/A'}\n\u0421\u0443\u043c\u0430: ${data.amount || 'N/A'} ${data.currency || 'UAH'}\n\u0420\u0430\u0445\u0443\u043d\u043e\u043a: ${data.invoice_number || 'N/A'}\n\u0414\u0430\u0442\u0430: ${data.payment_date || new Date().toISOString().split('T')[0]}`;\n\nreturn [{ json: { message } }];"
+        "chatId": "291657218",
+        "text": "=💰 Оплата отримана!\n\nКлієнт: {{ $json.body.customer_name }}\nСума: {{ $json.body.amount }} {{ $json.body.currency }}\nРахунок: {{ $json.body.invoice_number }}\nДата: {{ $json.body.payment_date }}",
+        "additionalFields": {}
       },
-      "name": "Format Message",
-      "type": "n8n-nodes-base.function",
+      "name": "Telegram",
+      "type": "n8n-nodes-base.telegram",
       "typeVersion": 1,
-      "position": [
-        500,
-        300
-      ],
-      "id": "7170637e-66b3-4f32-a630-2a796b6733ad"
+      "position": [500, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot-cred",
+          "name": "Telegram Bot"
+        }
+      }
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Format Message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "Telegram", "type": "main", "index": 0}]]
     }
   },
-  "active": false,
-  "settings": {},
-  "id": "e4bdf360-0bb1-4ba4-ad39-283ab4d93585"
+  "active": true,
+  "settings": {}
 }

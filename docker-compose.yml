@@ -399,9 +399,12 @@ services:
     restart: unless-stopped
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      VIBER_BOT_TOKEN: ${VIBER_BOT_TOKEN}
       SECURITY_API_URL: http://security-api:8000
       NATS_URL: nats://${NATS_USER}:${NATS_PASSWORD}@nats:4222
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      NOTIFICATION_TELEGRAM_CHAT_IDS: ${NOTIFICATION_TELEGRAM_CHAT_IDS}
+      NOTIFICATION_VIBER_USER_IDS: ${NOTIFICATION_VIBER_USER_IDS}
     networks:
       - erpnet
     depends_on:
@@ -436,7 +439,8 @@ services:
       - "5678:5678"
     volumes:
       - n8n_data:/home/node/.n8n
-      - ./configs/n8n/workflows:/home/node/.n8n/import:ro
+      - ./configs/n8n/workflows:/home/node/.n8n/import/workflows:ro
+      - ./configs/n8n/telegram-credentials.json:/home/node/.n8n/import/telegram-credentials.json:ro
     networks:
       - erpnet
       - dbnet
