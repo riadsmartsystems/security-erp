@@ -1,0 +1,24 @@
+{
+    "name": "Estimate Template",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "fields": [
+        {"fieldname": "template_name", "fieldtype": "Data", "label": "Template Name", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "security_type", "fieldtype": "Select", "label": "Security Type", "options": "\nCCTV\nAccess Control\nAlarm\nNetwork\nMixed", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "object_type", "fieldtype": "Select", "label": "Object Type", "options": "\nShop\nOffice\nWarehouse\nFactory\nSchool\nResidential\nOther", "in_list_view": 1},
+        {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+        {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"},
+        {"fieldname": "is_active", "fieldtype": "Check", "label": "Active", "default": 1},
+        {"fieldname": "section_break_items", "fieldtype": "Section Break", "label": "Template Items"},
+        {"fieldname": "items", "fieldtype": "Table", "label": "Items", "options": "Estimate Template Item"}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+        {"role": "Sales Manager", "read": 1, "write": 1, "create": 1}
+    ],
+    "title_field": "template_name",
+    "sort_field": "modified",
+    "sort_order": "DESC"
+}
