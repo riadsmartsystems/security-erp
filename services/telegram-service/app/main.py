@@ -286,7 +286,7 @@ def main():
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 
     logger.info("Starting Telegram bot...")
-    app.run_polling(drop_pending_updates=True)
+    app.run_polling(drop_pending_updates=False)
 
 
 if __name__ == "__main__":
