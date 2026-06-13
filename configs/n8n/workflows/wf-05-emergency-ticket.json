@@ -1,0 +1,50 @@
+{
+  "name": "WF-05: Emergency Ticket",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "emergency-ticket",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "id": "64721cfd-5b82-40d8-8e27-b836a6cec9c5"
+    },
+    {
+      "parameters": {
+        "functionCode": "const data = items[0].json.body || items[0].json;\n\nconst message = `\ud83d\udea8 \u0415\u041a\u0421\u0422\u0420\u0415\u041d\u0410 \u0417\u0410\u042f\u0412\u041a\u0410!\n\n\u041d\u043e\u043c\u0435\u0440: ${data.ticket_number || 'N/A'}\n\u041f\u0440\u043e\u0431\u043b\u0435\u043c\u0430: ${data.title || 'N/A'}\n\u041e\u0431'\u0454\u043a\u0442: ${data.object_name || 'N/A'}\n\u0410\u0434\u0440\u0435\u0441\u0430: ${data.address || 'N/A'}\n\u041a\u043e\u043d\u0442\u0430\u043a\u0442: ${data.contact || 'N/A'}\n\n\u26a0\ufe0f \u041f\u043e\u0442\u0440\u0456\u0431\u0435\u043d \u043d\u0435\u0433\u0430\u0439\u043d\u0438\u0439 \u0432\u0438\u0457\u0437\u0434!`;\n\nreturn [{ json: { message, broadcast: true } }];"
+      },
+      "name": "Format Message",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ],
+      "id": "9baf92e9-ea28-470a-8717-84a0fb79d491"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Format Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "a10d09bf-8ffd-4fd4-80a0-cbcc67b15e44"
+}

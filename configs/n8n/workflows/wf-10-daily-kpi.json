@@ -1,0 +1,54 @@
+{
+  "name": "WF-10: \u0429\u043e\u0434\u0435\u043d\u043d\u0438\u0439 KPI \u0437\u0432\u0456\u0442 (Phase 2+)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "id": "54ce63fe-45a1-4acf-bd32-b81fb3199b42"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Phase 2+: Generate KPI report using AI\n// For now, just a placeholder\n\nconst message = '\ud83d\udcca \u0429\u043e\u0434\u0435\u043d\u043d\u0438\u0439 KPI \u0437\u0432\u0456\u0442 (Phase 2+)';\n\nreturn [{ json: { message } }];"
+      },
+      "name": "Generate Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ],
+      "id": "3a4da551-3baa-4679-95f6-73727c919fa0"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Generate Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "38d7cd36-2fdd-44a0-b372-ced23b58162f"
+}
