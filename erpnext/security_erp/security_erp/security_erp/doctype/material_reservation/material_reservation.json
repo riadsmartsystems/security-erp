@@ -1,0 +1,35 @@
+{
+    "name": "Material Reservation",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "is_submittable": 1,
+    "fields": [
+        {"fieldname": "reservation_number", "fieldtype": "Data", "label": "Reservation Number", "read_only": 1, "unique": 1, "in_list_view": 1},
+        {"fieldname": "project", "fieldtype": "Link", "label": "Project", "options": "Project", "in_list_view": 1},
+        {"fieldname": "ticket", "fieldtype": "Data", "label": "Ticket", "in_list_view": 1},
+        {"fieldname": "reservation_date", "fieldtype": "Date", "label": "Date", "reqd": 1, "default": "Today"},
+        {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+        {"fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "Draft\nReserved\nPartially Issued\nIssued\nCancelled", "default": "Draft", "in_list_view": 1},
+        {"fieldname": "warehouse", "fieldtype": "Link", "label": "Warehouse", "options": "Warehouse", "reqd": 1},
+        {"fieldname": "required_by", "fieldtype": "Date", "label": "Required By"},
+        {"fieldname": "section_break_items", "fieldtype": "Section Break", "label": "Items"},
+        {"fieldname": "items", "fieldtype": "Table", "label": "Items", "options": "Material Reservation Item"},
+        {"fieldname": "section_break_notes", "fieldtype": "Section Break", "label": "Notes"},
+        {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"},
+        {"fieldname": "amended_from", "fieldtype": "Link", "label": "Amended From", "options": "Material Reservation", "read_only": 1, "no_copy": 1}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "submit": 1, "cancel": 1},
+        {"role": "Warehouse Manager", "read": 1, "write": 1, "create": 1, "submit": 1},
+        {"role": "Project Manager", "read": 1, "write": 1, "create": 1},
+        {"role": "Service Manager", "read": 1}
+    ],
+    "autoname": "naming_series:",
+    "naming_series": {"field": "reservation_number", "options": "RSV-.YYYY.-.####"},
+    "title_field": "reservation_number",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 1
+}
