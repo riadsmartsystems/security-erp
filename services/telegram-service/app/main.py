@@ -253,11 +253,70 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Фото отримано! (Завантаження в MinIO буде реалізовано)")
 
 
+# Conversation state for newticket
+NEW_TICKET_STATES = {}
+
+
+async def cmd_newticket(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+
+    if not context.args:
+        NEW_TICKET_STATES[chat_id] = {"step": "title"}
+        await update.message.reply_text(
+            "Створення нової заявки\n\n"
+            "Введіть назву заявки (наприклад: Камера не працює на вході):"
+        )
+        return
+
+    title = " ".join(context.args)
+    await _create_ticket(update, title)
+
+
+async def _create_ticket(update: Update, title: str):
+    await update.message.reply_text("Створюю заявку...")
+
+    try:
+        result = await api_post("/api/v1/tickets", {
+            "customer_id": "a0000000-0000-0000-0000-000000000001",
+            "object_id": "a0000000-0000-0000-0000-000000000002",
+            "ticket_type": "service_request",
+            "priority": "medium",
+            "title": title,
+        })
+        if result.get("success"):
+            t = result["data"]
+            await update.message.reply_text(
+                f"Заявку створено!\n\n"
+                f"Номер: {t['ticket_number']}\n"
+                f"Назва: {t['title']}\n"
+                f"Пріоритет: {t['priority']}\n"
+                f"Статус: {t['status']}\n"
+                f"SLA реакція до: {t.get('sla_response_due', '—')}"
+            )
+        else:
+            await update.message.reply_text(f"Помилка: {result}")
+    except Exception as e:
+        await update.message.reply_text(f"Помилка: {e}")
+
+
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    text = update.message.text
+
+    if chat_id in NEW_TICKET_STATES:
+        state = NEW_TICKET_STATES[chat_id]
+        if state["step"] == "title":
+            del NEW_TICKET_STATES[chat_id]
+            await _create_ticket(update, text)
+            return
+
+
 async def post_init(application: Application):
     await login_as_bot()
     await application.bot.set_my_commands([
         BotCommand("start", "Старт"),
         BotCommand("mytickets", "Мої заявки"),
+        BotCommand("newticket", "Нова заявка"),
         BotCommand("visit_start", "Почати виїзд"),
         BotCommand("visit_finish", "Завершити виїзд"),
         BotCommand("object", "Картка об'єкта"),
@@ -278,12 +337,14 @@ def main():
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(CommandHandler("mytickets", cmd_mytickets))
+    app.add_handler(CommandHandler("newticket", cmd_newticket))
     app.add_handler(CommandHandler("visit_start", cmd_visit_start))
     app.add_handler(CommandHandler("visit_finish", cmd_visit_finish))
     app.add_handler(CommandHandler("object", cmd_object))
     app.add_handler(CommandHandler("sla", cmd_sla))
     app.add_handler(CommandHandler("kpi", cmd_kpi))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
     logger.info("Starting Telegram bot...")
     app.run_polling(drop_pending_updates=False)
