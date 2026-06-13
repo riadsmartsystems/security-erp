@@ -2,25 +2,25 @@ tunnel: fe711e37-f560-45d6-aaf1-db7a208280de
 credentials-file: /etc/cloudflared/creds.json
 
 ingress:
-  # ERPNext
+  # ERPNext (has own auth)
   - hostname: erp.riad.fun
     service: http://erpnext-frontend:8080
     originRequest:
       noTLSVerify: true
 
-  # Security API
+  # Security API (has JWT auth)
   - hostname: api.riad.fun
     service: http://security-api:8000
     originRequest:
       noTLSVerify: true
 
-  # n8n
+  # n8n (protected by Traefik basic auth)
   - hostname: n8n.riad.fun
-    service: http://n8n:5678
+    service: http://traefik:80
     originRequest:
       noTLSVerify: true
 
-  # Grafana
+  # Grafana (has own auth)
   - hostname: grafana.riad.fun
     service: http://grafana:3000
     originRequest:
