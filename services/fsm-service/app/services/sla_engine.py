@@ -115,4 +115,12 @@ async def check_sla_breaches(db: AsyncSession, nats_client):
             except Exception as e:
                 logger.error(f"Failed to publish SLA breach event: {e}")
 
+            # Notify n8n
+            try:
+                import httpx
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    await client.post("http://n8n:5678/webhook/sla-breach", json=breach)
+            except Exception:
+                pass
+
     return breaches

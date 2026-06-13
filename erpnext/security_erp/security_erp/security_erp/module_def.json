@@ -1,0 +1,11 @@
+{
+    "module_name": "Security ERP",
+    "type": "module",
+    "label": "Security ERP",
+    "category": "Modules",
+    "icon": "octicon octicon-shield",
+    "color": "#29CD42",
+    "restrict_to_domain": "",
+    "app_label": "security_erp",
+    "description": "Security ERP Platform customizations"
+}

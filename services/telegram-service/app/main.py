@@ -49,6 +49,15 @@ async def api_post(path: str, data: dict = None) -> dict:
         return resp.json()
 
 
+N8N_URL = "http://n8n:5678"
+
+
+async def api_post_n8n(path: str, data: dict = None) -> dict:
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.post(f"{N8N_URL}{path}", json=data)
+        return resp.json() if resp.status_code == 200 else {"error": resp.status_code}
+
+
 def _parse_csv(raw: str) -> list[str]:
     return [item.strip() for item in (raw or "").split(",") if item.strip()]
 
@@ -624,6 +633,19 @@ async def _newticket_step(update: Update, chat_id: int, text: str) -> bool:
         })
         if result.get("success"):
             t = result["data"]
+
+            # Call n8n webhook for new ticket notification
+            try:
+                await api_post_n8n("/webhook/new-ticket", {
+                    "ticket_number": t["ticket_number"],
+                    "title": data["title"],
+                    "priority": data["priority"],
+                    "object_name": data.get("address", ""),
+                    "customer_name": data.get("contact", ""),
+                })
+            except Exception:
+                pass  # n8n notification is optional
+
             keyboard = [
                 [InlineKeyboardButton("🚗 Створити виїзд", callback_data=f"newvisit_{t['id']}")],
                 [InlineKeyboardButton("📋 Мої заявки", callback_data="back_tickets")],

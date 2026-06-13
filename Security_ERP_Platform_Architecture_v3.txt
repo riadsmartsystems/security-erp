@@ -1,0 +1,1708 @@
+SECURITY ERP PLATFORM
+Архітектурний проект та специфікація реалізації
+ERP | CRM | FSM | CMDB | AI Platform | Telegram | Android
+Версія: 3.0 (Виправлена та вдосконалона)
+Статус: Architecture Freeze
+Сфера: Монтаж та обслуговування систем безпеки (CCTV, СКУД, Сигналізація, Мережі)
+
+РОЗДІЛ 0  —  Виправлення попередньої версії
+Консолідація та виправлення архітектури
+Цей документ є повною переробкою та консолідацією 39 архітектурних етапів попередньої версії. Усі виявлені суперечності, архітектурні розвилки та ризики вирішено та зафіксовано нижче.
+Виправлені проблеми
+1. Вирішена архітектурна розвилка: PostgreSQL vs Neo4j для CMDB
+Попередня версія залишала невирішеним питання бази даних для топології мережі. РІШЕННЯ:
+    • Фаза 1 (MVP): PostgreSQL з таблицею equipment_relations (relation_type: CONNECTED_TO, POWERED_BY, DEPENDS_ON). Достатньо для 2000 об'єктів та 20000 пристроїв.
+    • Фаза 3 (після MVP): міграція топологічного графу в Neo4j, якщо кількість об'єктів перевищить 2000 або з'явиться потреба у складних графових запитах типу "знайди всі пристрої, що залежать від цього маршрутизатора".
+    • PostgreSQL залишається основною БД для всіх інших CMDB-сутностей незалежно від фази.
+2. Усунута суперечність щодо n8n
+Попередня версія в деяких місцях покладала на n8n бізнес-логіку (SLA, FSM). РІШЕННЯ:
+⚠ n8n виконує ВИКЛЮЧНО: нотифікації, ETL-операції, інтеграції з зовнішніми сервісами та планові задачі. Будь-яка бізнес-логіка (SLA, Warranty, Dispatch) реалізується всередині FSM Service.
+3. Уточнено межу між ERPNext і FSM
+Попередня версія непослідовно відносила Service Tickets то до ERPNext, то до FSM. РІШЕННЯ:
+Сутність
+Де живе
+Обґрунтування
+Ticket (заявка)
+FSM Service
+ERPNext Helpdesk занадто обмежений для SLA/FSM
+Visit (виїзд)
+FSM Service
+GPS, чеклісти, фото — специфіка польового сервісу
+SLA Policy
+FSM Service
+Динамічні таймери, паузи, ескалації
+Contract
+ERPNext (кастомний DocType)
+Фінансово-юридичний документ
+Warranty Case
+FSM Service
+Прив'язаний до Equipment та Ticket
+Project
+ERPNext (стандартний модуль)
+Задачі, таймшіти, бюджет
+Invoice / Payment
+ERPNext (стандартний модуль)
+Бухгалтерія
+
+4. Доданий відсутній фінансовий план інфраструктури
+Попередня версія не містила жодних оцінок витрат. Базові орієнтири:
+Компонент
+MVP (місяць)
+Production (місяць)
+VPS / Dedicated Server (APP)
+~$50–120
+~$150–300
+VPS / Dedicated Server (DB)
+спільний з APP
+~$100–200
+Cloudflare (Zero Trust)
+безкоштовно / $7
+$7–50
+MinIO (або S3-сумісне)
+$0 (self-hosted)
+$0–50
+OpenAI API (AI функції)
+$0 (не в MVP)
+$50–200
+Разом (орієнтовно)
+$60–180
+$300–800
+
+5. Реалістична оцінка термінів (ВИПРАВЛЕНО)
+Попередня версія містила оптимістичні оцінки для команди 2-3 розробники. Консолідована оцінка:
+Фаза
+Зміст
+Термін
+Людино-годин
+Phase 1 (MVP)
+ERP Core + FSM + Telegram + Basic CMDB
+12-16 тижнів
+700–1000
+Phase 2
+Digital Twin + AI Search + n8n автоматизації
+6-8 тижнів
+400–600
+Phase 3
+AI Agents + Config Backup + Monitoring
+6-10 тижнів
+400–600
+Phase 4
+Android App + BI + Predictive Analytics
+8-12 тижнів
+500–800
+
+⚠ Обґрунтування корекції Phase 1: ERPNext кастомізація (DocTypes, Workflows, Hooks) + 4 кастомних мікросервіси (FSM, CMDB, Security API, Telegram) + інтеграція між ними + тестування. Реалістичний показник для маленької команди — 12-16 тижнів при 10% буфері на непередбачувані затримки.
+6. Вирішена стратегія AI при недоступності LLM-провайдера
+Попередня версія не описувала fallback-стратегію. РІШЕННЯ:
+    • LLM Abstraction Layer з інтерфейсом, що підтримує OpenAI, Anthropic, Google Gemini, локальний Ollama.
+    • При недоступності провайдера: Circuit Breaker → черга запитів → сповіщення → деградація до RAG-only пошуку без генерації.
+    • AI-залежні функції (генерація КП, кошторисів) деградують gracefully — система продовжує працювати без AI.
+    • Оновлення RAG-індексів: щоночі incremental, щонеділі full. Документи старші 24 годин позначаються як потенційно застарілі.
+7. Додана стратегія навантаження та тестування (НОВЕ)
+Відсутність load testing strategy була виявлена під час аналізу. РІШЕННЯ:
+    • Load testing: k6 або artillery для API Gateway та критичних ендпоінтів (tickets, visits, equipment).
+    • Performance budgets: P95 latency < 200ms для CRUD, < 500ms для list endpoints, < 2s для AI chat.
+    • CI/CD інтеграція: load tests запускаються на staging перед деплоєм в production при зміні API.
+    • Baseline: фіксується при MVP, порівнюється при кожному релізі.
+
+РОЗДІЛ 1  —  Огляд системи
+Огляд платформи
+Призначення
+Security ERP Platform — спеціалізована платформа для компаній, що займаються монтажем та сервісним обслуговуванням систем безпеки: відеоспостереження (CCTV), систем контролю доступу (СКУД), охоронних сигналізацій, мережевої інфраструктури.
+Платформа об'єднує в одному середовищі весь операційний цикл компанії: від першого контакту з клієнтом до довгострокового сервісного обслуговування встановленого обладнання.
+Ключові бізнес-цілі
+    • Єдине вікно для управління клієнтами, об'єктами, обладнанням і сервісом
+    • Повний облік встановленого обладнання з серійними номерами та гарантією (CMDB/Digital Twin)
+    • Контроль прибутковості в розрізі проєкту, клієнта, об'єкта, менеджера
+    • Скорочення часу обробки сервісних заявок через автоматизацію та SLA-контроль
+    • AI-асистент для генерації кошторисів, КП та пошуку по базі знань (Phase 2+)
+    • Мобільна робота інженерів через Telegram та Android
+Масштаб системи (розрахункова ємність)
+Показник
+MVP (рік 1)
+Production (рік 2-3)
+Користувачі ERP
+5–20
+20–100
+Клієнти
+до 500
+до 2000
+Об'єкти безпеки
+до 1000
+до 5000
+Встановлене обладнання
+до 10000
+до 50000
+Сервісні заявки
+до 3000/рік
+до 20000/рік
+Фото та медіафайли
+до 50000
+до 500000
+AI-запити
+0 (AI не в MVP)
+до 10000/міс
+
+РОЗДІЛ 2  —  Фінальна архітектура системи
+Архітектура системи
+Принципи проектування
+    • ERP Core залишається незміненим — жодних модифікацій ядра ERPNext
+    • API First — будь-яка сутність доступна через REST API
+    • Domain Isolation — FSM, CMDB, AI є окремими сервісами зі своїми БД
+    • Zero Direct DB Access — сервіси не звертаються напряму до чужих баз даних
+    • Event Driven — всі важливі зміни генерують події через NATS
+    • Human in the Loop — AI пропонує, людина затверджує
+    • Graceful Degradation — відмова AI не зупиняє ERP
+Рівні системи
+⚠ Всі клієнтські програми (Web, Android, Telegram) звертаються ВИКЛЮЧНО через Security API Gateway. Прямий доступ до сервісів заборонений.
+Клієнтський рівень
+    • ERPNext Web UI — основний інтерфейс для офісних користувачів
+    • Telegram Bot — польовий інтерфейс для інженерів (обмеження Telegram: файли до 50MB, медіа-обробка обмежена)
+    • Android App (Flutter) — розширений мобільний інтерфейс (Phase 4)
+API Gateway рівень
+    • Security API — JWT, RBAC, Rate Limiting, Audit, API Versioning, Routing
+    • Security API Gateway — stateless сервіс, Redis для сесій, Circuit Breaker для кожного бекенду
+    • Traefik — Reverse Proxy, TLS termination, Load Balancing
+    • Cloudflare Tunnel — безпечна публікація без відкриття портів
+Сервісний рівень
+    • ERPNext + security_erp App — CRM, Sales, Finance, Inventory, Projects
+    • FSM Service (Python/FastAPI) — Tickets, Visits, SLA, Maintenance, Warranty
+    • CMDB Service (Python/FastAPI) — Objects, Equipment, Topology, Network, Configurations
+    • AI Service (Python/FastAPI) — RAG, Knowledge Base, Agents, Report Generation (Phase 2+)
+    • Telegram Service — Bot logic, команди, медіа-завантаження
+Інфраструктурний рівень
+    • MariaDB — ERPNext база даних
+    • PostgreSQL (один екземпляр, 5 схем) — FSM, CMDB, AI, Integration, Audit
+    • Redis — кеш, сесії, JWT, Rate Limiting
+    • MinIO — файловий сервер (фото, відео, документи, конфігурації)
+    • Qdrant — векторна БД для RAG (Phase 2+)
+    • NATS — шина подій між сервісами
+    • n8n — автоматизації, нотифікації, ETL (НЕ бізнес-логіка)
+Технологічний стек (фінальний)
+Компонент
+Технологія
+Обґрунтування
+ERP Core
+ERPNext v15+
+Готовий ERP з CRM, Sales, Inventory, Finance, Projects
+Backend Services
+Python + FastAPI
+Сумісність з ERPNext, швидка розробка, чудовий OpenAPI
+Database (ERP)
+MariaDB
+Стандарт ERPNext, не змінювати
+Database (Services)
+PostgreSQL (1 inst, 5 schemas)
+Простіше ніж 5 окремих екземплярів
+CMDB Topology
+PostgreSQL + equipment_relations
+Phase 1; Neo4j при потребі у Phase 3
+File Storage
+MinIO (S3-compatible)
+Self-hosted, версіонування, реплікація
+Vector DB
+Qdrant
+Найкраща підтримка метаданих для RAG
+Event Bus
+NATS
+Простіше за RabbitMQ, достатньо для цього масштабу
+Cache / Session
+Redis
+Стандарт для сесій та кешу
+Automation
+n8n (self-hosted)
+Без-кодова оркестрація нотифікацій та ETL
+Reverse Proxy
+Traefik
+Автоматичний TLS, Docker-native
+Tunnel
+Cloudflare Tunnel
+Без відкриття портів, DDoS-захист
+Containerization
+Docker + Compose
+Простота для команди < 10 розробників
+LLM
+OpenAI (з LLM Abstraction Layer)
+Fallback на Anthropic, Google або Ollama
+Mobile
+Flutter
+Android + iOS з однієї кодової бази
+Monitoring
+Prometheus + Grafana + Loki
+Стандарт для Docker-стеку
+Load Testing
+k6 (або artillery)
+CI/CD інтеграція, performance budgets
+Config Backup
+Oxidized
+Готовий інструмент для MikroTik, UniFi, Cisco
+BI
+Metabase
+Self-hosted, простий для нетехнічних користувачів
+
+РОЗДІЛ 3  —  Доменна модель та розподіл відповідальності
+Доменна модель
+Власники доменів (System of Record)
+Дані / Сутність
+Власник
+Примітка
+Customer, Contact, Address
+ERPNext
+Стандартний CRM модуль
+Lead, Opportunity
+ERPNext
+Стандартний CRM модуль
+Contract, ContractSLA
+ERPNext (кастомний DocType)
+Фінансово-юридичний документ
+Quotation, Estimate, SalesOrder
+ERPNext
+Стандартний Sales модуль
+Invoice, Payment
+ERPNext
+Стандартний Accounts модуль
+Project, Task, Timesheet
+ERPNext
+Стандартний Projects модуль
+Item, Warehouse, SerialNo
+ERPNext
+Стандартний Inventory модуль
+Employee, Department
+ERPNext
+Стандартний HR модуль
+Ticket, Visit, SLA, Maintenance
+FSM Service
+Спеціалізований Field Service
+Warranty Case
+FSM Service
+Пов'язаний з Ticket + Equipment
+SecurityObject, Building, Room
+CMDB Service
+Digital Twin об'єктів
+Equipment, Network, IP, Topology
+CMDB Service
+Configuration Management DB
+ConfigBackup, ConfigVersion
+CMDB Service + Oxidized
+Резервні копії конфігурацій
+KnowledgeBase, Embeddings
+AI Service + Qdrant
+RAG векторна база знань
+AIConversation, AIReport
+AI Service
+Логи та звіти AI
+Files (всі типи)
+MinIO
+Єдине файлове сховище
+
+Домен CRM
+Сутності
+    • Lead (джерело, статус, опис запиту, бюджет, відповідальний менеджер)
+    • Opportunity (стадія, вірогідність, сума, дата закриття)
+    • Customer (код, тип юр./фіз., ЄДРПОУ, сервісний рівень, менеджер)
+    • Contact (ПІБ, телефон, email, посада, основний контакт)
+    • Address (тип, місто, регіон, повна адреса)
+Workflow Lead
+New → Contacted → Qualified → Survey Required → Proposal Sent → Negotiation → Won | Lost
+⚠ При переході в Won: автоматично створюється Customer (якщо новий), Contract (чернетка), Project (чернетка). Реалізується через ERPNext Hooks + n8n нотифікація.
+
+Домен FSM (Field Service Management)
+Сутності
+    • ServiceTicket — головна сутність сервісу (номер, клієнт, об'єкт, договір, тип, пріоритет, статус)
+    • ServiceVisit — виїзд на об'єкт (інженер, GPS чекін/чекаут, час прибуття/виїзду, статус)
+    • VisitPhoto — фотодоказ (тип: before/after/problem/equipment, файл, GPS, час)
+    • VisitMaterial — використані матеріали (позиція, серійний номер, кількість)
+    • VisitChecklist — чеклист виконання (шаблон, результати по кожному пункту)
+    • SLAPolicy — SLA угода (час реакції, час прибуття, час вирішення, робочий календар)
+    • SLAEvent — фіксація подій по SLA (тип події, час, порушення)
+    • MaintenancePlan — план планового ТО (об'єкт, частота, дата наступного виконання)
+    • WarrantyCase — гарантійний випадок (пристрій, опис, рішення, статус)
+Типи заявок
+Incident | Service Request | Preventive Maintenance | Installation | Warranty | Inspection | Emergency
+Пріоритети та SLA
+Пріоритет
+Приклад
+Час реакції
+Час прибуття
+Час вирішення
+Critical (P1)
+Не працює вся система охорони
+30 хв
+2 год
+8 год
+High (P2)
+Критична камера offline
+2 год
+8 год
+24 год
+Medium (P3)
+Часткова несправність
+8 год
+24 год
+72 год
+Low (P4)
+Планове обслуговування
+24 год
+За графіком
+За графіком
+
+Workflow Ticket
+New → Triage → Assigned → Accepted → On Route → Working → Waiting Parts → Resolved → Closed
+⚠ Таймер SLA стартує при створенні Ticket. Пауза дозволена ЛИШЕ у статусах Waiting Parts та Waiting Customer. При порушенні SLA: Telegram сервіс-менеджеру → email керівнику. Реалізується всередині FSM Service, НЕ в n8n.
+
+Реалізація SLA Engine (НОВЕ)
+SLA таймери реалізовуються всередині FSM Service через фоновий процес:
+    • APScheduler: перевірка кожні 1-5 хвилин (конфігуровано)
+    • Або pg_cron: PostgreSQL scheduler для перевірки SLA breach без зовнішнього процесу
+    • Логіка: при кожній перевірці — порівняння поточного часу з SLA deadlines (sla_response_due, sla_resolution_due)
+    • При breach: публікація події fsm.sla.breached в NATS → споживачі (Telegram, email) отримують сповіщення
+    • Пауза SLA: при статусах Waiting Parts та Waiting Customer таймер зупиняється, накопичений час зберігається в sla_pause_minutes
+    • При відновленні: deadline перераховується з урахуванням накопиченої паузи
+    • Гарантія: якщо FSM Service недоступний — n8n Scheduler як fallback (але без business logic)
+
+Домен CMDB / Digital Twin
+Концепція Digital Twin
+Для кожного об'єкта клієнта система зберігає повний цифровий двійник: фізична інфраструктура, встановлене обладнання, мережева топологія, конфігурації, документи та повна сервісна історія.
+Ієрархія об'єкта
+SecurityObject → Building → Floor → Room → Equipment → Interfaces/Ports → NetworkConnections
+Ключові сутності CMDB
+    • SecurityObject (код, клієнт, адреса, GPS, тип, сервісний рівень, статус)
+    • Equipment / CI (тип, виробник, модель, серійний номер, прошивка, статус, гарантія)
+    • EquipmentRelation (source, target, тип зв'язку: CONNECTED_TO | POWERED_BY | DEPENDS_ON)
+    • Network (підмережа, шлюз, DNS для кожного об'єкта) — Phase 2+
+    • VLAN (ID, назва, призначення) — Phase 2+
+    • IPAddress (адреса, пристрій, статус) — Phase 2+
+    • ConfigurationBackup (версія, дата, файл у MinIO, diff від попередньої) — Phase 2+
+Рішення щодо топологічної БД (ФІНАЛЬНЕ)
+Фаза
+Технологія
+Умова переходу
+Phase 1–2
+PostgreSQL + equipment_relations table
+До 2000 об'єктів або відсутність складних графових запитів
+Phase 3+
+Додаємо Neo4j для графових запитів
+При потребі: "знайди все залежне обладнання"
+Завжди
+PostgreSQL залишається для всіх інших CMDB-сутностей
+Neo4j тільки для топологічного графу
+
+⚠ CMDB в Phase 1 — спрощений обсяг:
+    • SecurityObject + Equipment з серійними номерами
+    • EquipmentRelation (базові зв'язки)
+    • БЕЗ мережевої топології, VLAN, IP-планування (додається в Phase 2)
+    • БЕЗ Configuration Backup (додається в Phase 2 з Oxidized)
+    • Це дає реальну цінність: реєстрація обладнання при монтажі + сервісна історія
+
+Lifecycle статуси обладнання
+Planned → In Stock → Reserved → Installed → Active → Service → Repair → Replaced → Retired
+
+Домен AI
+⚠ AI Service НЕ входить до Phase 1 (MVP). Розробка починається з Phase 2.
+Можливості AI в системі
+    • AI Estimate Generator — генерація чернетки кошторису на основі ТЗ клієнта
+    • AI Proposal Generator — комерційна пропозиція на основі затвердженого кошторису
+    • AI Knowledge Search — RAG-пошук по базі документів, договорів, заявок, технічних паспортів
+    • AI Service Expert — пошук схожих інцидентів та рекомендації для інженерів
+    • AI Report Generator — автоматичні звіти по KPI, проєктах, клієнтах
+    • AI Configuration Analyzer — аналіз backup-конфігурацій MikroTik/UniFi на помилки
+Принципи роботи AI (КРИТИЧНО)
+⚠ AI НІКОЛИ не має прямого доступу до БД. Всі дані отримуються через Tool Calls → API Layer. AI успадковує права доступу користувача (RBAC). AI пропонує, людина затверджує.
+    • Tool Calls: GetCustomer, GetTicket, GetObject, GetEquipment, SearchDocuments, SearchKnowledge
+    • RAG: документи, договори, технічні паспорти, заявки, конфігурації
+    • Fallback при недоступності LLM: деградація до RAG-only пошуку без генерації тексту
+    • RAG оновлення: incremental щоночі, full rebuild щонеділі
+    • Застарілі документи (>24 год без переіндексації) позначаються в метаданих
+
+РОЗДІЛ 4  —  Фізична модель даних
+База даних та схеми
+Загальна структура PostgreSQL
+Один екземпляр PostgreSQL з п'ятьма схемами. Кожен сервіс має окремого користувача БД з правами тільки на свою схему.
+Схема
+Власник
+Призначення
+fsm
+fsm_user
+Tickets, Visits, SLA, Maintenance, Warranty, Checklists
+cmdb
+cmdb_user
+Objects, Equipment, Network, Topology, Configurations
+ai
+ai_user
+KnowledgeBase, Embeddings, Conversations, AIReports
+integration
+integration_user
+Event Outbox, Sync Logs, API Tokens, Webhooks
+audit
+audit_user (write)
+AuditLog, ChangeHistory, SecurityEvents, LoginEvents
+
+Загальні поля всіх таблиць (BaseEntity)
+Поле
+Тип
+Примітка
+id
+UUID v7
+Публічний ідентифікатор (не auto-increment)
+created_at
+TIMESTAMPTZ
+Час створення (UTC)
+updated_at
+TIMESTAMPTZ
+Час останнього оновлення
+created_by
+UUID
+FK → user.id
+updated_by
+UUID
+FK → user.id
+is_active
+BOOLEAN
+Soft delete флаг
+deleted_at
+TIMESTAMPTZ NULL
+NULL = активний, NOT NULL = видалений
+
+Схема FSM — ключові таблиці
+tickets
+Поле
+Тип
+Опис
+ticket_number
+VARCHAR(20) UNIQUE
+TKT-000001, формується автоматично
+customer_id
+UUID NOT NULL
+FK → ERP Customer (через API)
+object_id
+UUID NOT NULL
+FK → cmdb.objects.id
+contract_id
+UUID NULL
+FK → ERP Contract (через API)
+ticket_type
+ENUM
+incident|service_request|maintenance|installation|warranty|emergency
+priority
+ENUM
+critical|high|medium|low
+status
+ENUM
+new|triage|assigned|accepted|on_route|working|waiting_parts|resolved|closed|cancelled
+sla_response_due
+TIMESTAMPTZ
+Дедлайн реакції (розраховується автоматично)
+sla_resolution_due
+TIMESTAMPTZ
+Дедлайн вирішення
+sla_paused_at
+TIMESTAMPTZ NULL
+Час постановки SLA на паузу
+sla_pause_minutes
+INTEGER DEFAULT 0
+Накопичений час паузи
+
+visits
+Поле
+Тип
+Опис
+visit_number
+VARCHAR(20) UNIQUE
+VIS-000001
+ticket_id
+UUID NOT NULL
+FK → fsm.tickets.id
+engineer_id
+UUID NOT NULL
+FK → ERP Employee (через API)
+status
+ENUM
+planned|accepted|on_route|arrived|working|completed
+planned_start
+TIMESTAMPTZ
+Планований час початку
+actual_start
+TIMESTAMPTZ NULL
+Фактичний час початку
+actual_finish
+TIMESTAMPTZ NULL
+Фактичний час завершення
+gps_checkin_lat/lon
+DOUBLE PRECISION
+GPS координати чекіну
+gps_checkout_lat/lon
+DOUBLE PRECISION
+GPS координати чекауту
+travel_minutes
+INTEGER NULL
+Час у дорозі (розраховується)
+work_minutes
+INTEGER NULL
+Час роботи (розраховується)
+customer_signature_file
+UUID NULL
+FK → файл підпису в MinIO
+
+Схема CMDB — ключові таблиці
+objects
+Поле
+Тип
+Опис
+object_code
+VARCHAR(20) UNIQUE
+OBJ-000001
+customer_id
+UUID NOT NULL
+FK → ERP Customer (через API)
+name
+VARCHAR(255) NOT NULL
+Назва об'єкта
+address
+TEXT
+Повна адреса
+gps_lat / gps_lon
+DOUBLE PRECISION
+Координати об'єкта
+object_type
+VARCHAR(50)
+shop|office|warehouse|apartment|factory|school
+service_level
+VARCHAR(20)
+basic|standard|premium|platinum
+status
+ENUM
+active|suspended|archived
+
+equipment
+Поле
+Тип
+Опис
+equipment_code
+VARCHAR(20) UNIQUE
+CI-000001
+object_id
+UUID NOT NULL
+FK → cmdb.objects.id
+room_id
+UUID NULL
+FK → cmdb.rooms.id
+equipment_type_id
+UUID NOT NULL
+FK → cmdb.equipment_types.id
+vendor_id
+UUID NOT NULL
+FK → cmdb.vendors.id
+model
+VARCHAR(255) NOT NULL
+Модель пристрою
+serial_number
+VARCHAR(255) UNIQUE
+Серійний номер (унікальний глобально)
+firmware_version
+VARCHAR(100)
+Поточна версія прошивки
+ip_address
+INET NULL
+Основна IP адреса
+mac_address
+MACADDR NULL
+MAC адреса
+install_date
+DATE
+Дата монтажу
+warranty_end_date
+DATE NULL
+Дата закінчення гарантії
+status
+ENUM
+planned|in_stock|reserved|installed|active|service|repair|replaced|retired
+lifecycle_project_id
+UUID NULL
+Проєкт монтажу (FK через API)
+
+equipment_relations
+Поле
+Тип
+Опис
+source_equipment_id
+UUID NOT NULL
+Вихідний пристрій
+target_equipment_id
+UUID NOT NULL
+Цільовий пристрій
+relation_type
+ENUM
+CONNECTED_TO|POWERED_BY|DEPENDS_ON|INSTALLED_IN|BACKUP_OF
+port_label
+VARCHAR(50) NULL
+Порт (наприклад: "Port 3", "GE1/0/1")
+notes
+TEXT NULL
+Додаткові примітки
+
+MinIO — структура бакетів
+Бакет
+Призначення
+Приклад шляху
+Версіонування
+contracts
+Підписані договори
+customer-001/contract-005/signed.pdf
+Так
+objects
+Документи, схеми, фото об'єктів
+object-025/photos/survey-2024.jpg
+Так
+visits
+Фото виїздів (before/after)
+visit-1234/before/img001.jpg
+Ні
+projects
+Фото монтажу, акти
+project-007/act-signed.pdf
+Так
+configs
+Резервні копії конфігурацій
+equip-001/2024-01-15/backup.rsc
+Так
+reports
+Згенеровані AI-звіти
+reports/2024/01/monthly-report.pdf
+Ні
+tmp
+Тимчасові файли
+upload-session-xyz/chunk-001.bin
+Ні
+
+Ключові індекси
+Таблиця
+Поля
+Тип
+fsm.tickets
+ticket_number
+UNIQUE
+fsm.tickets
+(status, priority, created_at)
+Composite
+fsm.tickets
+object_id
+B-tree
+fsm.visits
+(ticket_id, status)
+Composite
+fsm.visits
+engineer_id, planned_start
+Composite
+cmdb.equipment
+serial_number
+UNIQUE
+cmdb.equipment
+(object_id, status)
+Composite
+cmdb.ip_addresses
+ip_address
+UNIQUE per object
+audit.audit_log
+(entity_type, entity_id)
+Composite
+audit.audit_log
+user_id, created_at
+Composite
+
+РОЗДІЛ 5  —  Безпека та модель доступу
+RBAC та безпека
+Ролі та доступи
+Роль
+CRM
+Sales
+Projects
+FSM
+CMDB
+Inventory
+Finance
+AI
+Owner
+Full
+Full
+Full
+Full
+Full
+Full
+Full
+Full
+Director
+Read
+Read
+Full
+Read
+Read
+Read
+Full
+Full
+Sales Manager
+Full
+Full
+Read
+-
+Read
+Read
+Read
+Limited
+Project Manager
+Read
+Read
+Full
+Read
+Full
+Full
+Read
+Limited
+Service Manager
+Read
+-
+Read
+Full
+Full
+Read
+-
+Limited
+Engineer
+-
+-
+Own
+Own
+Read
+Use
+-
+Own
+Warehouse
+-
+-
+Read
+-
+Read
+Full
+-
+-
+Accountant
+Read
+Read
+Read
+Read
+-
+Read
+Full
+-
+Viewer
+Read
+Read
+Read
+Read
+Read
+Read
+Read
+-
+
+⚠ Engineer бачить ЛИШЕ власні заявки, виїзди та задачі. Object-Level Security реалізується на рівні API — інженер A не може отримати дані об'єктів, до яких не прикріплений.
+Матриця погодження документів
+Документ / Сума
+Рівень 1
+Рівень 2
+Рівень 3
+Кошторис до 50 000 грн
+Sales Manager
+—
+—
+Кошторис 50–300 тис грн
+Sales Manager
+Operations Director
+—
+Кошторис >300 тис грн
+Sales Manager
+Operations Director
+Owner
+Закупівля до 20 тис грн
+Warehouse Manager
+—
+—
+Закупівля 20–100 тис грн
+Warehouse Manager
+Operations Director
+—
+Закупівля >100 тис грн
+Warehouse Manager
+Operations Director
+Owner
+Витрати до 10 тис грн
+Department Head
+—
+—
+Витрати до 50 тис грн
+Department Head
+Finance Director
+—
+Витрати >50 тис грн
+Department Head
+Finance Director
+Owner
+
+Вимоги безпеки
+Автентифікація
+    • JWT Access Token: термін 15 хвилин
+    • JWT Refresh Token: термін 7 днів
+    • MFA (TOTP): обов'язково для Owner, Director, Accountant; рекомендовано для всіх
+    • SSH доступ до серверів: тільки SSH-ключі, пароль заборонений
+    • Блокування акаунту: після 5 невдалих спроб на 15 хвилин
+    • Автоматичний logout: через 8 годин неактивності
+Шифрування
+    • In Transit: HTTPS + TLS 1.3 для всіх з'єднань
+    • At Rest: LUKS disk encryption на сервері
+    • Файли MinIO: server-side encryption
+    • Резервні копії: шифруються перед відправкою в offsite
+    • Secrets: Docker Secrets або HashiCorp Vault (не зберігати у Git)
+Аудит (логуються обов'язково)
+    • Login / Logout / Failed Login
+    • CRUD операції над критичними сутностями (договори, фінанси, права)
+    • Експорт даних (CSV, Excel, PDF)
+    • Зміни ролей та прав доступу
+    • Всі API-виклики сервісних акаунтів (AI, Telegram, n8n)
+Безпека файлів
+    • Файли не публікуються напряму з MinIO
+    • Доступ через Presigned URL з TTL 5 хвилин (фото) / 15 хвилин (документи)
+    • Перевірка прав доступу виконується до генерації URL
+Безпека Telegram
+    • Прив'язка: кожен Telegram User → Employee (без прив'язки — доступ заборонений)
+    • Першочергова верифікація через OTP при першому логіні
+    • Інженер бачить через Telegram ЛИШЕ: свої заявки, виїзди, об'єкти свого регіону
+    • Логується кожна команда
+    • Обмеження Telegram API: файли до 50MB, медіа-обробка обмежена (для фото-звітів прийнятне)
+Безпека AI
+    • AI успадковує права поточного користувача (не суперюзер)
+    • Захист від Prompt Injection: фільтр вхідних промптів
+    • AI не може: закривати заявки, списувати матеріали, видаляти дані, змінювати фінанси
+    • Всі AI-запити логуються (промпт, контекст, відповідь, вартість, модель)
+    • Ліміти вартості: по користувачу, по відділу, по місяцю
+
+РОЗДІЛ 6  —  API архітектура
+API архітектура
+Принципи
+    • Єдина точка входу: Security API Gateway
+    • Версіонування: /api/v1/ (підтримка версії мінімум 24 місяці)
+    • Всі сервіси мають OpenAPI 3.1 специфікацію на /openapi.json
+    • Стандартний формат відповіді: { success, data } або { success, error: {code, message} }
+    • Pagination: limit + offset для всіх списків
+    • Tracing: кожен запит отримує trace_id, що передається через всі сервіси
+Security API Gateway (ДЕТАЛІЗОВАНО)
+    • Стан: повністю stateless — всі дані сесії зберігаються в Redis
+    • Circuit Breaker: для кожного бекенду окремий circuit breaker (tenacity або pybreaker)
+    • Логіка: при 5 послідовних помилках сервісу → circuit open 30 секунд → half-open → закриття
+    • Fallback: при недоступності FSM Service — повернення cached даних (якщо є) або 503 з Retry-After
+    • Rate Limiting: Redis-based sliding window, ліміти в залежності від клієнта (див. Rate Limits)
+Основні API домени
+Аутентифікація
+    • POST /api/v1/auth/login — логін, повертає access + refresh tokens
+    • POST /api/v1/auth/refresh — оновлення access token
+    • POST /api/v1/auth/logout — інвалідація токенів
+    • GET /api/v1/me — профіль поточного користувача
+ERP (через ERPNext REST API)
+    • GET/POST /api/v1/customers — клієнти
+    • GET/POST /api/v1/contracts — договори
+    • GET/POST /api/v1/projects — проєкти
+    • GET/POST /api/v1/items — позиції каталогу
+    • GET/POST /api/v1/stock/reserve — резервування матеріалів
+FSM
+    • GET/POST /api/v1/tickets — сервісні заявки
+    • POST /api/v1/tickets/{id}/assign — призначення інженера
+    • POST /api/v1/tickets/{id}/close — закриття заявки
+    • GET/POST /api/v1/visits — виїзди
+    • POST /api/v1/visits/start — старт виїзду (GPS чекін)
+    • POST /api/v1/visits/finish — завершення виїзду (GPS чекаут)
+    • POST /api/v1/visits/{id}/photos — завантаження фото
+    • GET/POST /api/v1/maintenance — плани ТО
+    • GET/POST /api/v1/warranty — гарантійні випадки
+CMDB
+    • GET/POST /api/v1/objects — об'єкти безпеки
+    • GET /api/v1/objects/{id}/timeline — повна сервісна історія об'єкта
+    • GET /api/v1/objects/{id}/equipment — обладнання на об'єкті
+    • GET/POST /api/v1/equipment — пристрої
+    • POST /api/v1/equipment/install — монтаж пристрою на об'єкт
+    • GET /api/v1/topology/{object_id} — топологія мережі (Phase 2+)
+    • GET/POST /api/v1/configurations/{equipment_id}/backups — резервні копії (Phase 2+)
+AI (Phase 2+)
+    • POST /api/v1/ai/chat — чат з AI асистентом (tool-calling)
+    • POST /api/v1/ai/estimate — генерація кошторису
+    • POST /api/v1/ai/proposal — генерація КП
+    • POST /api/v1/ai/search — семантичний пошук по базі знань
+    • POST /api/v1/ai/report — генерація звіту
+Mobile / Field (оптимізовані для мобільних)
+    • GET /api/v1/mobile/dashboard — дашборд інженера
+    • GET /api/v1/mobile/my-tasks — мої задачі і заявки
+    • POST /api/v1/mobile/sync — офлайн синхронізація (Phase 4)
+    • POST /api/v1/mobile/upload — chunked upload для фото (retry logic для нестабільних мереж)
+Rate Limits
+Клієнт
+Ліміт
+Примітка
+Web ERP
+1000 req/min
+Для офісних користувачів
+Android App
+300 req/min
+На пристрій
+Telegram Bot
+100 req/min
+Загальний ліміт бота
+AI Service
+100 req/min
+Обмеження для уникнення надмірних витрат
+n8n / Internal
+500 req/min
+Для автоматизацій
+Public API
+20 req/min
+Для зовнішніх партнерів
+
+Performance Budgets (НОВЕ)
+Метрика
+Budget
+Призначення
+CRUD API P95
+< 200ms
+Стандартні операції
+List API P95
+< 500ms
+Списки з пагінацією
+AI Chat P95
+< 2000ms
+AI відповіді (Phase 2+)
+File Upload P95
+< 5000ms
+Завантаження фото (5-10MB)
+Telegram Bot Response
+< 3000ms
+Відповідь на команду
+
+РОЗДІЛ 7  —  Бізнес-процеси
+Ключові бізнес-процеси
+P1: Процес продажу
+Lead → Contacted → Qualified → Survey Required → Estimate Preparation → Commercial Proposal Sent → Negotiation → Won → Contract Signed → Project Created
+Крок
+Хто виконує
+Система
+Автоматизація (n8n)
+Новий Lead
+CRM
+ERPNext
+Нотифікація менеджеру, задача follow-up
+Кваліфікація
+Sales Manager
+ERPNext
+—
+Обстеження об'єкта
+Engineer + Sales
+ERPNext + CMDB
+—
+Кошторис
+Sales Manager + AI (Phase 2+)
+ERPNext + AI (Phase 2+)
+AI генерує чернетку (Phase 2+)
+КП
+Sales Manager + AI (Phase 2+)
+ERPNext + AI (Phase 2+)
+AI генерує КП з кошторису (Phase 2+)
+Прострочена КП
+Sales Manager
+n8n
+Нагадування через 3 дні без відповіді
+Won → Проєкт
+Sales Manager
+ERPNext
+Автостворення Contract + Project
+
+P2: Процес монтажу
+Project Created → Planning → Material Reservation → Installation → Testing → Commissioning → Acceptance Act Signed → Warranty Activated → Closed
+Крок
+Хто виконує
+Система
+Автоматизація
+Створення проєкту
+Project Manager
+ERPNext
+Задача менеджеру, підготовка матеріалів
+Резервування матеріалів
+Warehouse + PM
+ERPNext Stock
+Нотифікація складу
+Монтаж
+Engineer
+Telegram + CMDB
+Задача в Telegram, фото-звіт
+Реєстрація в CMDB
+Engineer
+CMDB
+Автоматично при Install Equipment
+Фотозвіт
+Engineer
+Telegram/Android
+—
+Акт підписання
+Project Manager
+ERPNext
+Генерація PDF, підпис
+Активація гарантії
+System
+CMDB
+Автоматично при закритті проєкту
+
+P3: Процес сервісу
+Ticket Created → Triage → Assigned → Accepted → On Route → Working → Resolved → Closed
+Крок
+Хто виконує
+Система
+SLA дія
+Нова заявка
+Client/Manager/Engineer
+FSM
+Старт SLA таймерів
+Тріаж
+Service Manager
+FSM
+Визначення пріоритету
+Призначення
+Service Manager/Auto
+FSM
+Telegram інженеру
+Прийняття
+Engineer
+Telegram/Android
+SLA Arrival таймер
+Прибуття
+Engineer
+FSM (GPS)
+Зупинка Arrival таймера
+Робота
+Engineer
+FSM
+Чеклист, фото, матеріали
+Вирішення
+Engineer
+FSM
+Підпис клієнта
+Закриття
+System/SM
+FSM
+Зупинка Resolution таймера, звіт
+
+⚠ SLA Breach: при порушенні будь-якого таймера FSM автоматично відправляє Telegram сервіс-менеджеру та email керівнику. Логіка реалізована у FSM Service (APScheduler/pg_cron), НЕ в n8n.
+P4: Планове ТО
+Maintenance Plan → Auto-Generated Ticket (monthly/quarterly) → Assigned → Checklist Execution → Photo Report → Customer Confirmation → Closed
+    • Автоматична генерація Ticket: FSM Scheduler перевіряє плани щодня о 00:00
+    • Чеклист: специфічний для типу обладнання (Camera, NVR, Ajax Hub, MikroTik)
+    • Обов'язкові фото: before + after для кожного обслуговуваного пристрою
+    • Звіт: генерується автоматично у PDF, підписується клієнтом
+P5: Гарантійний випадок
+Warranty Claim → Verification (перевірка: чи активна гарантія?) → Approved/Rejected → Repair/Replacement → Manufacturer Claim (якщо потрібно) → Closed
+    • Верифікація: автоматична перевірка warranty_end_date в CMDB
+    • При відмові: обґрунтування + пропозиція платного ремонту
+    • При заміні: автоматичне оновлення Equipment в CMDB (серійний номер, статус)
+
+РОЗДІЛ 8  —  Інтеграції
+Інтеграційна архітектура
+Внутрішня шина подій (NATS)
+Всі зміни стану критичних сутностей публікують події в NATS. Споживачі підписуються на потрібні теми та реагують асинхронно.
+Подія
+Продюсер
+Споживачі
+crm.customer.created
+ERPNext
+FSM (sync), CMDB (sync)
+crm.lead.won
+ERPNext
+n8n (нотифікація), ERPNext (create project)
+fsm.ticket.created
+FSM
+n8n (нотифікація)
+fsm.ticket.closed
+FSM
+n8n (звіт), ERP (invoice trigger)
+fsm.visit.started
+FSM
+n8n (нотифікація клієнту)
+fsm.visit.completed
+FSM
+ERP (списання матеріалів), n8n (звіт)
+cmdb.equipment.installed
+CMDB
+ERP (warranty activation)
+cmdb.config.backup
+CMDB/Oxidized
+— (Phase 2+)
+ai.estimate.generated
+AI (Phase 2+)
+n8n (нотифікація менеджеру)
+
+⚠ Події AI та CMDB config indexed — НЕ в Phase 1. Додаються при впровадженні відповідних сервісів.
+
+n8n Workflows (нотифікації та ETL)
+Workflow
+Тригер
+Дія
+WF-01 Новий Lead
+crm.lead.created
+Telegram менеджеру, задача follow-up
+WF-02 Прострочена КП
+Scheduler (щодня)
+Email/Telegram нагадування
+WF-03 Нова заявка
+fsm.ticket.created
+Telegram сервіс-менеджеру
+WF-04 SLA Breach
+fsm.sla.breached
+Telegram + Email керівнику
+WF-05 Emergency Ticket
+fsm.ticket.created (P1)
+Broadcast Telegram всім доступним інженерам
+WF-06 Планове ТО нагадування
+Scheduler (7 днів до)
+Email клієнту, Telegram менеджеру
+WF-07 Закінчення гарантії
+Scheduler (30 днів до)
+Email/Telegram менеджеру з пропозицією
+WF-08 Мінімальний залишок
+ERP Stock Event
+Telegram складу, Telegram закупівлі
+WF-09 Оплата від клієнта
+ERP Payment Event
+Email підтвердження клієнту
+WF-10 Щоденний AI звіт
+Scheduler (08:00)
+Генерація KPI звіту → Telegram власнику (Phase 2+)
+
+Telegram інтеграція
+Telegram виступає польовим інтерфейсом для інженерів та сервісників. Архітектура:
+Telegram → Webhook → Telegram Service → Security API → FSM/CMDB
+Команда
+Роль
+Дія
+/mytickets
+Engineer/Service
+Список своїх відкритих заявок
+/visit start {id}
+Engineer
+GPS чекін, старт виїзду
+/visit finish {id}
+Engineer
+GPS чекаут, завершення виїзду
+/photo {visit_id}
+Engineer
+Завантаження фото (before/after/problem)
+/materials {visit_id}
+Engineer
+Введення використаних матеріалів
+/object {code}
+Engineer/SM
+Картка об'єкта (обладнання, активні заявки)
+/newticket
+Service Manager
+Створення нової заявки
+/sla
+Service Manager
+Поточний статус SLA (порушення)
+/kpi
+Manager/Owner
+KPI дашборд
+/ai {question}
+All
+Запит до AI асистента (Phase 2+)
+
+Зовнішні інтеграції (пріоритизовані)
+Інтеграція
+Пріоритет
+Використання
+Monobank API
+Phase 1
+Автоматичне підтягування платежів, звірка рахунків
+ПриватБанк API
+Phase 1
+Виписки, платежі
+Oxidized
+Phase 2
+Резервне копіювання конфігурацій MikroTik, UniFi, Cisco
+Вчасно
+Phase 2
+Підписання актів та договорів через ЕЦП
+Дія.Підпис
+Phase 2
+Підписання актів клієнтами
+MikroTik RouterOS API
+Phase 2
+Статус, конфігурації, VPN tunnel
+UniFi API
+Phase 2
+Пристрої, клієнти, топологія WiFi
+Hikvision SDK/API
+Phase 3
+Статус камер, прошивки, стан запису
+Ajax API
+Phase 3
+Стан хаба, батарей, події, тривоги
+Zabbix/LibreNMS
+Phase 3
+Моніторинг онлайн-статусу обладнання
+Google Workspace
+Phase 3
+Синхронізація календарів, листування
+IP Телефонія (Binotel)
+Phase 4
+Попап картки клієнта при дзвінку
+
+РОЗДІЛ 9  —  Інфраструктура та DevOps
+Інфраструктура та DevOps
+Серверна стратегія
+Фаза
+Конфігурація
+Специфікація
+Phase 1 (MVP)
+1 сервер
+CPU: 8 vCPU, RAM: 32 GB, SSD: 500 GB NVMe
+Phase 2
+2 сервери
+APP: 16 vCPU / 64 GB; DB: 16 vCPU / 64 GB / 1 TB NVMe
+Phase 3+
+3+ сервери або Kubernetes
+HA PostgreSQL, MinIO cluster, Qdrant cluster
+
+Docker Compose сервіси
+Контейнер
+Image
+Призначення
+erpnext
+frappe/erpnext
+ERPNext + custom apps
+erpnext-worker
+frappe/erpnext
+Фонові задачі ERPNext
+mariadb
+mariadb:10.6
+БД для ERPNext
+redis
+redis:7
+Кеш, черги, сесії
+security-api
+custom
+API Gateway + Auth + RBAC
+fsm-service
+custom
+Field Service Management
+cmdb-service
+custom
+CMDB + Digital Twin
+ai-service
+custom
+AI + RAG (Phase 2+)
+telegram-service
+custom
+Telegram Bot
+postgres
+postgres:15
+БД для FSM, CMDB, AI, Audit
+minio
+minio/minio
+Файлове сховище
+qdrant
+qdrant/qdrant
+Векторна БД (Phase 2+)
+nats
+nats:2
+Шина подій
+n8n
+n8nio/n8n
+Автоматизації
+traefik
+traefik:3
+Reverse Proxy + TLS
+prometheus
+prom/prometheus
+Збір метрик
+grafana
+grafana/grafana
+Дашборди моніторингу
+loki
+grafana/loki
+Централізовані логи
+oxidized
+oxidized/oxidized
+Backup конфігурацій мережевого обладнання (Phase 2+)
+watchtower
+containrrr/watchtower
+Автооновлення Docker images
+
+Стратегія резервного копіювання
+Дані
+Частота
+Метод
+Зберігання
+MariaDB (ERP)
+Щогодини incremental + щодня full
+mysqldump + binlog
+Локально + offsite
+PostgreSQL
+Щодня full + WAL streaming
+pg_dump + pg_basebackup
+Локально + offsite
+MinIO
+Щодня sync
+mc mirror
+Offsite S3/Backblaze B2
+Qdrant (Phase 2+)
+Щодня snapshot
+API snapshot
+MinIO backup бакет
+n8n workflows
+При змінах
+Git export
+Git репозиторій
+Конфігурації серверів
+При змінах
+Ansible / Git
+Git репозиторій
+
+⚠ Правило 3-2-1: 3 копії, 2 різних носії, 1 offsite. Тестове відновлення виконується щомісяця з документацією результату.
+Disaster Recovery
+Показник
+MVP
+Production
+RPO (Recovery Point Objective)
+24 години
+15 хвилин
+RTO (Recovery Time Objective)
+4 години
+30 хвилин
+Доступність (Availability)
+99%
+99.9%
+
+CI/CD Pipeline
+Git → GitHub Actions → Build → Tests → Security Scan → Load Test → Deploy Stage → Manual Approval → Deploy Prod
+    • Branch strategy: main (prod), develop (stage), feature/* (dev)
+    • Commit format: feat: | fix: | refactor: | test: | docs: (Conventional Commits)
+    • Security scanning: Bandit (Python), Trivy (Docker images), Semgrep (SAST)
+    • Load testing: k6 artillery tests запускаються при зміні API або performance-critical коду
+    • Performance budgets: P95 latency порівнюється з baseline; регресія блокує деплой
+    • Test coverage: мінімум 80% для всіх модулів, 90% для FSM та CMDB
+    • ERPNext оновлення: окремий pipeline з обов'язковим backup та тестуванням на Stage
+Моніторинг
+    • Prometheus: метрики CPU, RAM, Disk, API latency, error rate, DB connections
+    • Grafana: дашборди Infrastructure, ERP Health, FSM KPI, AI Usage (Phase 2+), Cost
+    • Loki: централізовані логи всіх контейнерів з пошуком по trace_id
+    • Alerting: Grafana Alerting → Telegram (критичні), Email (попереджувальні)
+    • Контролюються: ERP, DB, API, n8n, Telegram, MinIO, NATS
+
+РОЗДІЛ 10  —  Master Data Management
+Master Data Management (MDM)
+MDM — єдині централізовані довідники, що використовуються всіма модулями системи. Без MDM виникають дублікати (Hikvision DS-2CD2043 vs HIK DS2CD2043 vs Камера Hikvision 4MP), що призводить до помилок аналітики та AI.
+Ключові довідники
+Довідник
+Приклади значень
+Використовується в
+Vendors / Manufacturers
+Hikvision, Dahua, Ajax, MikroTik, Ubiquiti, Ruijie
+CMDB, Inventory
+Equipment Categories
+CCTV > Camera, NVR; Network > Router, Switch, WiFi AP
+CMDB, Inventory, Checklists
+Equipment Models
+Hikvision DS-2CD2043G2-I (з тех. параметрами)
+CMDB, Estimates
+Work Types
+CAM_INSTALL (1.5h), ROUTER_CONFIG (0.5h), SURVEY (2h)
+Projects, Finance
+Service Catalog
+Survey, Installation, Maintenance, Repair, Emergency
+FSM, Finance
+Material Catalog
+UTP Cat6, FTP Cat6, Fiber, Connector RJ45, PVC Conduit
+Inventory, Projects
+SLA Templates
+Platinum, Gold, Silver, Bronze
+FSM, Contracts
+Checklist Templates
+Camera Install, Router Config, Maintenance Visit
+FSM, Projects
+Estimate Templates
+Small Shop CCTV, Office Network, Warehouse ACS
+Sales
+Failure Classification
+Hardware, Software, Network, Power, Human Error
+FSM
+Root Cause Catalog
+PoE Failure, HDD Failure, Firmware Bug, Config Error
+FSM
+Object Types
+Shop, Warehouse, Office, Factory, School, Apartment
+CMDB
+Region Directory
+Країна > Регіон > Місто > Район
+CMDB, FSM, SLA, Logistics
+
+Governance MDM
+    • Data Steward: відповідальна особа за кожен довідник (зазвичай Service Manager або Project Manager)
+    • Зміни до довідників проходять через затвердження (не редагуються довільно)
+    • Версіонування: кожна версія довідника зберігається (Checklist Camera v1, v2, v3)
+    • Автоматична дедуплікація (Phase 2+): AI допомагає знаходити дублікати в каталогах
+
+РОЗДІЛ 11  —  План реалізації
+План реалізації (Roadmap)
+Фазовий підхід
+⚠ Ніколи не будуйте все одночасно. Кожна фаза повинна давати реальну бізнес-цінність. Phase 1 сама по собі вже є повноцінною робочою системою.
+Phase 1 — Operational MVP (12–16 тижнів)
+Scope
+    • ERPNext Core: CRM, Sales (Estimate + Quotation), Contracts, Inventory, Projects, Finance basic
+    • FSM Service: Tickets, Visits, SLA Engine (APScheduler), Basic Checklist, Warranty
+    • CMDB Service: Objects, Equipment, Basic Network (без топологічного графу)
+    • Telegram Bot: MyTickets, StartVisit, FinishVisit, UploadPhoto, Materials
+    • Security API: JWT, RBAC, Circuit Breaker, основні endpoints
+    • n8n: 10 базових workflow (нотифікації, нагадування)
+    • Monitoring: Prometheus + Grafana + Loki
+    • Backup: щоденні резервні копії
+    • Load Testing: k6 baseline для API Gateway
+Out of Scope (Phase 1)
+    • Android App, BI/Analytics, AI (будь-який), Neo4j, Config Backup (Oxidized)
+    • Predictive Analytics, зовнішні інтеграції (крім банків)
+    • Мережева топологія (VLAN, IP planning), Config Backup
+Критерії готовності Phase 1
+✅ Менеджер може створити Lead → Estimate → Contract → Project
+✅ Інженер може отримати задачу в Telegram та звітувати фото
+✅ Сервісна заявка: від створення до закриття з SLA контролем
+✅ Склад: приймання → резервування → видача на об'єкт
+✅ CMDB: реєстрація обладнання при монтажі з серійним номером
+✅ Автоматичний backup та перевірений restore
+✅ Load testing baseline зафіксовано
+
+Phase 2 — Field Service Excellence (6–8 тижнів)
+    • FSM: GPS tracking, повний Checklist Engine, підпис клієнта на Android
+    • CMDB: Топологія мережі (PostgreSQL equipment_relations), Photo Documentation
+    • AI Basic: Knowledge Search (RAG), Estimate Generator (Draft)
+    • Config Backup: Oxidized для MikroTik та UniFi
+    • Bank Integration: Monobank/ПриватБанк платежі
+    • Digital Signature: Вчасно або Дія.Підпис для актів
+Phase 3 — Intelligence Layer (6–10 тижнів)
+    • AI Full: Proposal Generator, Service Expert (аналіз інцидентів), KPI Reports
+    • CMDB Advanced: MikroTik API, UniFi API, Hikvision status integration
+    • FSM Advanced: Auto Dispatch (за навичками та геолокацією), Predictive Maintenance
+    • Monitoring Integration: Zabbix/LibreNMS Events → FSM Ticket (автозаявки)
+    • BI: Metabase з Data Warehouse для аналітики
+Phase 4 — Mobile & Scale (8–12 тижнів)
+    • Android App (Flutter): повний офлайн-режим, QR-сканування, GPS, push-нотифікації
+    • Customer Portal: клієнт може переглядати свої об'єкти та заявки
+    • Public API: для партнерів та інтеграторів
+    • Neo4j (за потреби): міграція топологічного графу якщо >2000 об'єктів
+    • Local LLM: Ollama для зниження витрат на AI при великих обсягах
+
+Sprint Plan (Phase 1)
+Sprint
+Тижні
+Зміст
+Sprint 1
+1–2
+Infrastructure: Docker, MariaDB, PostgreSQL, Redis, MinIO, Traefik, Cloudflare
+Sprint 2
+2–3
+ERPNext: базовий setup, RBAC, Workspaces, CRM (Lead, Customer)
+Sprint 3
+3–4
+Sales: Estimate Builder (кастомний DocType), Quotation, Contract
+Sprint 4
+4–5
+Inventory: Items, Serial Numbers, Warehouse, Reservations
+Sprint 5
+5–6
+Projects: Project, Tasks, Material Usage, Installation Acts
+Sprint 6
+6–7
+CMDB Service: Objects, Equipment, Basic Network
+Sprint 7
+7–8
+FSM Service: Tickets, Visits, SLA Engine, Checklists
+Sprint 8
+8–9
+Security API Gateway: JWT, RBAC, Circuit Breaker, routing
+Sprint 9
+9–10
+Telegram Bot: MyTickets, Visit Start/Finish, Photo Upload
+Sprint 10
+10–11
+n8n: 10 базових workflows, нотифікації
+Sprint 11
+11–12
+Data Migration: клієнти, об'єкти, обладнання
+Sprint 12
+12–13
+Load Testing: k6 baseline, performance budgets
+Sprint 13
+14–16
+UAT, Bug fixes, Hardening, Go-Live
+
+⚠ Sprint 12 (load testing) та додатковий буфер (13-16 тижні) — для реалістичного покриття непередбачуваних затримок. При ідеальному сценарії — Go-Live на 12-13 тижні.
+
+РОЗДІЛ 12  —  KPI та аналітика
+KPI та аналітика
+KPI для власника / директора
+KPI
+Джерело даних
+Частота
+Revenue (план vs факт)
+ERPNext Finance
+Щодня
+Gross Profit по проєктах
+ERPNext Finance + FSM
+Щотижня
+Lead → Contract Conversion Rate
+ERPNext CRM
+Щотижня
+Open Tickets Count by Priority
+FSM
+Щодня
+SLA Compliance % (по рівнях)
+FSM
+Щодня
+Service Contract Profitability
+ERPNext + FSM
+Щомісяця
+Cash Flow (7/30/90 днів)
+ERPNext Finance
+Щодня
+AI Cost vs Value (час заощаджений)
+AI Service
+Щомісяця (Phase 2+)
+
+KPI для Service Manager
+KPI
+Значення
+MTTR (Mean Time to Resolution)
+Середній час від створення до закриття заявки
+MTTF (Mean Time to First Response)
+Час від створення до призначення інженера
+SLA Breach Rate
+% заявок з порушенням SLA (ціль: <5%)
+First Call Resolution Rate
+% заявок закритих з першого виїзду (ціль: >70%)
+Repeat Incident Rate
+% об'єктів з повторними заявками <30 днів
+Engineer Utilization
+Відпрацьовані / доступні години
+Maintenance Compliance
+% виконаних планових ТО у терміни (ціль: >95%)
+
+Фінансова аналітика по проєктах
+Система рахує прибутковість не лише по компанії загалом, але і в розрізі: проєкт, клієнт, об'єкт, менеджер, інженер, сервісний договір.
+Показник
+Формула / джерело
+Contract Revenue
+Сума договору монтажу
+Material Cost
+Фактичне списання зі складу (ERP)
+Labor Cost
+Години × ставка (FSM WorkLog)
+Visit Cost
+Виїзди × вартість (FSM + ERP)
+Gross Profit
+Revenue - Material Cost - Labor Cost
+Net Profit
+Gross Profit - Overhead allocation
+Planned Margin
+Закладено у кошторисі
+Actual Margin
+Розраховується після закриття проєкту
+Deviation
+Actual - Planned (причини відхилення)
+
+РОЗДІЛ 13  —  Checklist готовності до запуску
+Checklist готовності до Production
+Infrastructure
+    • Docker Compose налаштовано та протестовано
+    • Cloudflare Tunnel підключено (порти назовні закриті)
+    • TLS 1.3 для всіх публічних ендпоінтів
+    • Backup щоденний налаштовано та протестовано
+    • Restore протестовано з документацією результату
+    • Monitoring дашборди налаштовано (Grafana)
+    • Alerting налаштовано (Telegram + Email)
+    • Load testing baseline зафіксовано (k6)
+Security
+    • MFA увімкнено для Owner, Director, Accountant
+    • JWT налаштовано (15 хв / 7 днів)
+    • RBAC налаштовано та протестовано для всіх ролей
+    • Audit logging увімкнено та перевірено
+    • SSH паролі відключено, тільки ключі
+    • Fail2Ban налаштовано
+    • Secrets у Docker Secrets (не в коді)
+Business Process
+✅ Lead → Contract — повний цикл пройдено в тестовому режимі
+✅ Project → Completion — монтаж від початку до підписаного акту
+✅ Ticket → Close — сервісна заявка з SLA контролем
+✅ Telegram: Інженер отримав задачу, звітував фото, закрив виїзд
+✅ Inventory: приймання → резервування → списання
+✅ RBAC: кожна роль перевірена окремо
+Data Migration
+    • Wave 1: Клієнти та контакти перенесено
+    • Wave 2: Об'єкти та активні договори перенесено
+    • Wave 3: Обладнання та серійні номери перенесено
+    • Wave 4: Відкриті сервісні заявки перенесено
+    • Wave 5: Документи та фото перенесено в MinIO
+Training
+    • Sales Manager: 4 години (CRM, Estimates, Proposals)
+    • Project Manager: 6 годин (Projects, Tasks, CMDB)
+    • Service Manager: 6 годин (FSM, SLA, Telegram)
+    • Engineer: 2 години (Telegram Bot, Photo Upload)
+    • Warehouse: 4 години (Inventory, Serial Numbers)
+    • Owner/Director: 2 години (Dashboards, Reports)
+Post Go-Live (перші 30 днів)
+    • Щоденний моніторинг помилок та продуктивності
+    • Щотижневий review KPI з командою
+    • Корекція SLA параметрів на основі реальних даних
+    • Документування відхилень від архітектури (ADR)
+
+РОЗДІЛ 14  —  Управління архітектурою
+Governance та управління змінами
+Architecture Decision Records (ADR)
+Будь-яка зміна архітектурних рішень вимагає ADR. Шаблон:
+    • Назва: ADR-NNN: [Коротка назва]
+    • Статус: Proposed | Accepted | Deprecated | Superseded
+    • Контекст: опис проблеми
+    • Рішення: що вирішено
+    • Наслідки: плюси, мінуси, компроміси
+⚠ ЗАБОРОНЕНО змінювати: API версіонування, Event схему NATS, ERD без ADR та review.
+Definition of Done для кожної функції
+    • Код написаний та пройшов code review
+    • Unit тести написані (coverage ≥ 80%)
+    • Integration тести написані для API
+    • OpenAPI специфікація оновлена
+    • Міграція БД створена (якщо потрібно)
+    • Audit logging додано
+    • README / документація оновлена
+    • CI pipeline проходить
+    • Load tests проходять при performance budget (Phase 1+)
+LLM Development Rules
+При використанні AI для генерації коду:
+    1. Спочатку прочитати ERD та OpenAPI специфікацію
+    2. Генерувати код ЛИШЕ в межах заданої архітектури
+    3. Порядок генерації: DTO → Domain Model → Repository Interface → Service Layer → API Controller → Tests → Migration
+    4. ЗАБОРОНЕНО: вигадувати нові сутності, змінювати ERD, порушувати Domain Boundaries
+    5. При неясній специфікації: ЗУПИНИТИСЬ та запитати уточнення (не вгадувати)
+    6. Кожна функція завершена тільки при виконанні всіх критеріїв DoD
+Контакти та відповідальність
+Роль
+Відповідальність
+Solution Architect
+Архітектурні рішення, ADR, Technical Review
+ERP Developer
+ERPNext customization, DocTypes, Workflows
+Backend Developer
+FSM, CMDB, AI, Security API сервіси
+DevOps Engineer
+Infrastructure, CI/CD, Monitoring, Backup, Load Testing
+Data Steward
+MDM довідники, якість даних, дедуплікація
+
+Документ Security ERP Platform Architecture v3.0 є фінальним консолідованим архітектурним рішенням з урахуванням реалістичних оцінок термінів, стратегії навантаження та спрощеного CMDB для Phase 1. Всі наступні зміни вносяться через ADR процес.
+— Кінець документа —

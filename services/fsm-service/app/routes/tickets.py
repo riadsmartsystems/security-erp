@@ -106,6 +106,20 @@ async def create_ticket(
     await db.commit()
     await db.refresh(ticket)
 
+    # Notify n8n webhook
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post("http://n8n:5678/webhook/new-ticket", json={
+                "ticket_number": ticket.ticket_number,
+                "title": ticket.title,
+                "priority": ticket.priority.value if hasattr(ticket.priority, 'value') else ticket.priority,
+                "object_name": str(ticket.object_id),
+                "customer_name": str(ticket.customer_id),
+            })
+    except Exception:
+        pass  # n8n notification is optional
+
     return {"success": True, "data": TicketResponse.model_validate(ticket)}
 
 
