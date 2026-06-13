@@ -17,7 +17,7 @@ async def login_as_bot():
     global BOT_TOKEN
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.post(f"{API_URL}/api/v1/auth/login", json={
-            "username": "admin", "password": "admin123",
+            "username": "joker", "password": "jokerLA23",
         })
         if resp.status_code == 200:
             BOT_TOKEN = resp.json().get("access_token")
@@ -57,6 +57,8 @@ def status_emoji(status: str) -> str:
 # /start
 # =============================================================================
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    logger.info(f"Chat ID: {chat_id} from {update.effective_user.first_name}")
     keyboard = [
         ["📋 Мої заявки", "📝 Нова заявка"],
         ["📊 SLA", "📈 KPI"],

@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const data = items[0].json.body || items[0].json;\n\nconst priorityEmoji = {\n  critical: '\ud83d\udd34',\n  high: '\ud83d\udfe0',\n  medium: '\ud83d\udfe1',\n  low: '\ud83d\udfe2'\n};\n\nconst message = `${priorityEmoji[data.priority] || '\ud83d\udccb'} \u041d\u043e\u0432\u0430 \u0437\u0430\u044f\u0432\u043a\u0430!\n\n\u041d\u043e\u043c\u0435\u0440: ${data.ticket_number || 'N/A'}\n\u041f\u0440\u043e\u0431\u043b\u0435\u043c\u0430: ${data.title || 'N/A'}\n\u041f\u0440\u0456\u043e\u0440\u0438\u0442\u0435\u0442: ${data.priority || 'N/A'}\n\u041e\u0431'\u0454\u043a\u0442: ${data.object_name || 'N/A'}\n\u041a\u043b\u0456\u0454\u043d\u0442: ${data.customer_name || 'N/A'}`;\n\nreturn [{ json: { message, chatId: data.chat_id || '' } }];"
+        "functionCode": "const data = items[0].json.body || items[0].json;\n\nconst priorityEmoji = {\n  critical: '\ud83d\udd34',\n  high: '\ud83d\udfe0',\n  medium: '\ud83d\udfe1',\n  low: '\ud83d\udfe2'\n};\n\nconst message = `${priorityEmoji[data.priority] || '\ud83d\udccb'} \u041d\u043e\u0432\u0430 \u0437\u0430\u044f\u0432\u043a\u0430!\n\n\u041d\u043e\u043c\u0435\u0440: ${data.ticket_number || 'N/A'}\n\u041f\u0440\u043e\u0431\u043b\u0435\u043c\u0430: ${data.title || 'N/A'}\n\u041f\u0440\u0456\u043e\u0440\u0438\u0442\u0435\u0442: ${data.priority || 'N/A'}\n\u041e\u0431'\u0454\u043a\u0442: ${data.object_name || 'N/A'}\n\u041a\u043b\u0456\u0454\u043d\u0442: ${data.customer_name || 'N/A'}`;\n\nreturn [{ json: { message, chatId: '291657218' } }];"
       },
       "name": "Format Message",
       "type": "n8n-nodes-base.function",
