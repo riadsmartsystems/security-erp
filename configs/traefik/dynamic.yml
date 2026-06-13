@@ -3,7 +3,7 @@ http:
     basic-auth:
       basicAuth:
         users:
-          - "admin:$apr1$AH.V2qSj$nfPYFpud51GKch695h/.41"
+          - "joker:$apr1$UChSy978$lQQ9arJlqEgB4HE2YXjNJ."
         realm: "Security ERP"
 
     security-headers:
