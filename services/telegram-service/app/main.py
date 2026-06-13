@@ -249,7 +249,7 @@ async def cmd_mytickets(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             keyboard = [[
                 InlineKeyboardButton("📋 Деталі", callback_data=f"ticket_{t['id']}"),
-                InlineKeyboardButton("🚗 Виїзд", callback_data=f"visit_start_{t['id']}"),
+                InlineKeyboardButton("🚗 Створити виїзд", callback_data=f"newvisit_{t['id']}"),
             ]]
             await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -263,6 +263,7 @@ async def cmd_mytickets(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def callback_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+    logger.info(f"callback_ticket called: data={query.data}")
 
     ticket_id = query.data.replace("ticket_", "")
     await query.edit_message_text("🔄 Завантажую деталі...")
@@ -922,6 +923,22 @@ def main():
 
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+
+    # Error handler
+    async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+        logger.error(f"Exception while handling an update: {context.error}", exc_info=context.error)
+        if update and hasattr(update, 'callback_query') and update.callback_query:
+            try:
+                await update.callback_query.answer("❌ Сталася помилка", show_alert=True)
+            except Exception:
+                pass
+        elif update and hasattr(update, 'message') and update.message:
+            try:
+                await update.message.reply_text("❌ Сталася помилка. Спробуйте ще раз.")
+            except Exception:
+                pass
+
+    app.add_error_handler(error_handler)
 
     logger.info("Starting Telegram bot...")
     app.run_polling(drop_pending_updates=False)

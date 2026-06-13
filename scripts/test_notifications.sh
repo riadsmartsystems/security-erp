@@ -67,13 +67,23 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "1) Building and restarting telegram-service..."
+echo "1) Building and restarting services..."
 docker compose up -d --build telegram-service
+
+echo "2) Waiting for NATS to be ready..."
+for i in $(seq 1 15); do
+  if docker compose exec -T nats wget -q --spider http://localhost:8222/healthz 2>/dev/null; then
+    echo "   NATS is ready (attempt $i)"
+    break
+  fi
+  echo "   Waiting... ($i/15)"
+  sleep 2
+done
 
 echo "Telegram IDs: ${TG_IDS:-<using service defaults>}"
 echo "Viber IDs: ${VIBER_IDS:-<using service defaults>}"
 
-echo "2) Sending custom notification event..."
+echo "3) Sending custom notification event..."
 CMD=(
   docker compose exec -T telegram-service
   python scripts/publish_notification.py
@@ -92,7 +102,7 @@ fi
 
 "${CMD[@]}"
 
-echo "3) Sending SLA breach test event..."
+echo "4) Sending SLA breach test event..."
 docker compose exec -T telegram-service \
   python scripts/publish_notification.py \
   --subject fsm.sla.breached \
@@ -100,7 +110,7 @@ docker compose exec -T telegram-service \
   --sla-type resolution \
   --priority critical
 
-echo "4) Recent telegram-service logs..."
+echo "5) Recent telegram-service logs..."
 docker compose logs --tail 80 telegram-service
 
 echo "=== Done ==="

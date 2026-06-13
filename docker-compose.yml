@@ -153,7 +153,7 @@ services:
     image: nats:2-alpine
     container_name: nats
     restart: unless-stopped
-    command: "--user ${NATS_USER} --pass ${NATS_PASSWORD} -js"
+    command: "--user ${NATS_USER} --pass ${NATS_PASSWORD} -js -m 8222"
     ports:
       - "4222:4222"
       - "8222:8222"
@@ -162,7 +162,7 @@ services:
     networks:
       - erpnet
     healthcheck:
-      test: ["CMD", "nats-server", "--signal", "ldm="]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8222/healthz || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -356,7 +356,7 @@ services:
       redis:
         condition: service_healthy
       nats:
-        condition: service_started
+        condition: service_healthy
 
   # =========================================================================
   # CMDB SERVICE
@@ -386,7 +386,7 @@ services:
       minio:
         condition: service_healthy
       nats:
-        condition: service_started
+        condition: service_healthy
 
   # =========================================================================
   # TELEGRAM SERVICE
@@ -408,8 +408,10 @@ services:
     networks:
       - erpnet
     depends_on:
-      - security-api
-      - nats
+      security-api:
+        condition: service_started
+      nats:
+        condition: service_healthy
 
   # =========================================================================
   # AUTOMATION (n8n)

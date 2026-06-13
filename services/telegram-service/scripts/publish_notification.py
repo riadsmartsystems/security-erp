@@ -41,16 +41,28 @@ async def publish(args: argparse.Namespace):
     payload = build_payload(args)
     nats_url = args.nats_url or os.getenv("NATS_URL", "nats://nats:nats_secret@nats:4222")
 
-    print(f"Connecting to NATS: {nats_url}")
-    nc = await nats.connect(nats_url)
-    try:
-        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        await nc.publish(args.subject, body)
-        await nc.flush()
-        print(f"Published to subject: {args.subject}")
-        print(f"Payload: {json.dumps(payload, ensure_ascii=False)}")
-    finally:
-        await nc.close()
+    max_retries = 5
+    for attempt in range(1, max_retries + 1):
+        try:
+            print(f"Connecting to NATS: {nats_url} (attempt {attempt}/{max_retries})")
+            nc = await nats.connect(nats_url)
+            try:
+                body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+                await nc.publish(args.subject, body)
+                await nc.flush()
+                print(f"Published to subject: {args.subject}")
+                print(f"Payload: {json.dumps(payload, ensure_ascii=False)}")
+            finally:
+                await nc.close()
+            return
+        except Exception as e:
+            print(f"Connection failed: {e}")
+            if attempt < max_retries:
+                print(f"Retrying in 2 seconds...")
+                await asyncio.sleep(2)
+            else:
+                print(f"Failed after {max_retries} attempts")
+                raise
 
 
 def build_parser() -> argparse.ArgumentParser:
