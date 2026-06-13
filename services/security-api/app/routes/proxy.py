@@ -10,23 +10,31 @@ from app.auth.permissions import Permission
 router = APIRouter(tags=["proxy"])
 
 BACKEND_MAP = {
+    # FSM
     "/api/v1/tickets": settings.fsm_service_url,
     "/api/v1/visits": settings.fsm_service_url,
     "/api/v1/maintenance": settings.fsm_service_url,
     "/api/v1/warranty": settings.fsm_service_url,
+    # CMDB
     "/api/v1/objects": settings.cmdb_service_url,
     "/api/v1/equipment": settings.cmdb_service_url,
+    "/api/v1/equipment-types": settings.cmdb_service_url,
+    "/api/v1/vendors": settings.cmdb_service_url,
     "/api/v1/topology": settings.cmdb_service_url,
     "/api/v1/configurations": settings.cmdb_service_url,
 }
 
 PERMISSION_MAP = {
+    # FSM
     "/api/v1/tickets": Permission.FSM_FULL,
     "/api/v1/visits": Permission.FSM_FULL,
     "/api/v1/maintenance": Permission.FSM_FULL,
     "/api/v1/warranty": Permission.FSM_FULL,
+    # CMDB
     "/api/v1/objects": Permission.CMDB_READ,
     "/api/v1/equipment": Permission.CMDB_READ,
+    "/api/v1/equipment-types": Permission.CMDB_READ,
+    "/api/v1/vendors": Permission.CMDB_READ,
     "/api/v1/topology": Permission.CMDB_READ,
     "/api/v1/configurations": Permission.CMDB_READ,
 }
