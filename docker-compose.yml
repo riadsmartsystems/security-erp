@@ -36,7 +36,7 @@ services:
     container_name: traefik
     restart: unless-stopped
     command:
-      - "--api.dashboard=true"
+      - "--api.dashboard=false"
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
@@ -59,7 +59,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)"
       - "traefik.http.routers.dashboard.service=api@internal"
-      - "traefik.http.routers.dashboard.middlewares=basic-auth"
+      - "traefik.http.routers.dashboard.middlewares=basic-auth@file"
 
   # =========================================================================
   # DATABASES
@@ -189,7 +189,7 @@ services:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.erpnext.rule=Host(`${SITE_NAME}`)"
+      - "traefik.http.routers.erpnext.rule=Host(`${SITE_NAME}`) || Host(`erp.riad.fun`)"
       - "traefik.http.services.erpnext.loadbalancer.server.port=8080"
 
   erpnext-backend:
