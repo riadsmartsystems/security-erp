@@ -32,7 +32,7 @@ services:
   # REVERSE PROXY
   # =========================================================================
   traefik:
-    image: traefik:v3.1
+    image: traefik:latest
     container_name: traefik
     restart: unless-stopped
     command:
@@ -40,14 +40,9 @@ services:
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=erpnet"
+      - "--providers.docker.network=security-erp_erpnet"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
       - "--log.level=WARN"
       - "--accesslog=false"
     ports:
@@ -180,7 +175,7 @@ services:
     environment:
       BACKEND: erpnext-backend:8000
       SOCKETIO_PORT: 9000
-      FRAPPE_SITE_NAME_HEADER: Host
+      FRAPPE_SITE_NAME_HEADER: erp.localhost
     volumes:
       - erpnext_sites:/home/frappe/frappe-bench/sites
       - erpnext_assets:/home/frappe/frappe-bench/sites/assets
@@ -206,7 +201,7 @@ services:
       REDIS_QUEUE: redis://:${REDIS_PASSWORD}@redis:6379/2
       REDIS_SOCKETIO: redis://:${REDIS_PASSWORD}@redis:6379/3
       SOCKETIO_PORT: 9000
-      FRAPPE_SITE_NAME_HEADER: Host
+      FRAPPE_SITE_NAME_HEADER: erp.localhost
     volumes:
       - erpnext_sites:/home/frappe/frappe-bench/sites
       - erpnext_assets:/home/frappe/frappe-bench/sites/assets
@@ -220,7 +215,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/method/ping"]
+      test: ["CMD", "curl", "-fsS", "-H", "Host: erp.localhost", "http://localhost:8000/api/method/ping"]
       interval: 15s
       timeout: 10s
       retries: 10
