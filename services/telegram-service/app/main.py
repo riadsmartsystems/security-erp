@@ -1,26 +1,264 @@
-from fastapi import FastAPI
-from contextlib import asynccontextmanager
+import logging
+import httpx
+from telegram import Update, BotCommand
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from app.config import settings
 
-app = FastAPI(title="Telegram Service", version="1.0.0")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    yield
-
-
-app = FastAPI(
-    title="Telegram Service",
-    version="1.0.0",
-    lifespan=lifespan,
-)
+API_URL = settings.security_api_url
 
 
-@app.get("/health")
-async def health():
-    return {"status": "ok", "version": "1.0.0"}
+async def get_user_token(user_id: int) -> str | None:
+    return None
 
 
-@app.post("/api/v1/telegram/webhook")
-async def telegram_webhook(update: dict):
-    return {"ok": True}
+async def api_request(method: str, path: str, token: str = None, data: dict = None) -> dict:
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        if method == "GET":
+            resp = await client.get(f"{API_URL}{path}", headers=headers)
+        else:
+            resp = await client.post(f"{API_URL}{path}", headers=headers, json=data)
+        return resp.json()
+
+
+async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "🔧 *Security ERP Bot*\n\n"
+        "Доступні команди:\n"
+        "/mytickets — Мої заявки\n"
+        "/visit \\_start {id} — Почати виїзд\n"
+        "/visit \\_finish {id} — Завершити виїзд\n"
+        "/object {code} — Картка об'єкта\n"
+        "/newticket — Нова заявка\n"
+        "/sla — Статус SLA\n"
+        "/kpi — KPI дашборд\n"
+        "/help — Допомога",
+        parse_mode="MarkdownV2",
+    )
+
+
+async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "📋 *Довідка по командах*\n\n"
+        "*/mytickets* — Список ваших відкритих заявок\n"
+        "*/visit start* \\{id\\} — GPS чекін та старт виїзду\n"
+        "*/visit finish* \\{id\\} — GPS чекаут та завершення\n"
+        "*/object* \\{code\\} — Інформація про об'єкт\n"
+        "*/newticket* — Створити нову заявку\n"
+        "*/sla* — Поточний статус SLA\n"
+        "*/kpi* — KPI дашборд",
+        parse_mode="MarkdownV2",
+    )
+
+
+async def cmd_mytickets(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    await update.message.reply_text("🔄 Завантажую заявки...")
+
+    try:
+        result = await api_request("GET", "/api/v1/tickets?limit=10")
+        if result.get("success"):
+            tickets = result.get("data", [])
+            if not tickets:
+                await update.message.reply_text("📭 Немає відкритих заявок")
+                return
+
+            text = "📋 *Ваші заявки:*\n\n"
+            for t in tickets[:10]:
+                status_emoji = {
+                    "new": "🆕", "triage": "🔍", "assigned": "👤",
+                    "accepted": "✅", "on_route": "🚗", "working": "🔧",
+                    "waiting_parts": "⏳", "resolved": "✔️", "closed": "🔒",
+                }.get(t["status"], "❓")
+
+                text += (
+                    f"{status_emoji} *{t['ticket_number']}*\n"
+                    f"   {t['title']}\n"
+                    f"   Пріоритет: {t['priority']} | Статус: {t['status']}\n\n"
+                )
+
+            await update.message.reply_text(text, parse_mode="Markdown")
+        else:
+            await update.message.reply_text("❌ Помилка отримання заявок")
+    except Exception as e:
+        logger.error(f"Error fetching tickets: {e}")
+        await update.message.reply_text(f"❌ Помилка: {e}")
+
+
+async def cmd_visit_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Використання: /visit_start {visit_id}")
+        return
+
+    visit_id = context.args[0]
+    await update.message.reply_text(f"🚗 Старт виїзду {visit_id}...")
+
+    try:
+        result = await api_request("POST", f"/api/v1/visits/{visit_id}/start", data={
+            "lat": 0.0,
+            "lon": 0.0,
+        })
+        if result.get("success"):
+            await update.message.reply_text(f"✅ Виїзд {visit_id} розпочато!")
+        else:
+            await update.message.reply_text(f"❌ Помилка: {result}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Помилка: {e}")
+
+
+async def cmd_visit_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Використання: /visit_finish {visit_id}")
+        return
+
+    visit_id = context.args[0]
+    await update.message.reply_text(f"🏁 Завершення виїзду {visit_id}...")
+
+    try:
+        result = await api_request("POST", f"/api/v1/visits/{visit_id}/finish", data={
+            "lat": 0.0,
+            "lon": 0.0,
+        })
+        if result.get("success"):
+            await update.message.reply_text(f"✅ Виїзд {visit_id} завершено!")
+        else:
+            await update.message.reply_text(f"❌ Помилка: {result}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Помилка: {e}")
+
+
+async def cmd_object(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Використання: /object {code}")
+        return
+
+    obj_code = context.args[0]
+    await update.message.reply_text(f"🔍 Пошук об'єкта {obj_code}...")
+
+    try:
+        result = await api_request("GET", "/api/v1/objects?limit=100")
+        if result.get("success"):
+            objects = result.get("data", [])
+            found = None
+            for obj in objects:
+                if obj.get("object_code") == obj_code:
+                    found = obj
+                    break
+
+            if found:
+                text = (
+                    f"🏢 *{found['name']}*\n"
+                    f"Код: {found['object_code']}\n"
+                    f"Тип: {found.get('object_type', '—')}\n"
+                    f"Рівень сервісу: {found['service_level']}\n"
+                    f"Статус: {found['status']}\n"
+                    f"Адреса: {found.get('address', '—')}"
+                )
+                await update.message.reply_text(text, parse_mode="Markdown")
+            else:
+                await update.message.reply_text(f"❌ Об'єкт {obj_code} не знайдено")
+        else:
+            await update.message.reply_text("❌ Помилка пошуку")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Помилка: {e}")
+
+
+async def cmd_sla(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("📊 Завантажую SLA статус...")
+
+    try:
+        result = await api_request("GET", "/api/v1/tickets?limit=100")
+        if result.get("success"):
+            tickets = result.get("data", [])
+            total = len(tickets)
+            breached = sum(1 for t in tickets if t.get("sla_response_breached") or t.get("sla_resolution_breached"))
+            open_tickets = sum(1 for t in tickets if t["status"] not in ["closed", "cancelled", "resolved"])
+
+            text = (
+                f"📊 *SLA Статус*\n\n"
+                f"Всього заявок: {total}\n"
+                f"Відкритих: {open_tickets}\n"
+                f"Порушено SLA: {breached}\n"
+                f"Комплаєнс: {((total - breached) / total * 100) if total > 0 else 100:.1f}%"
+            )
+            await update.message.reply_text(text, parse_mode="Markdown")
+        else:
+            await update.message.reply_text("❌ Помилка отримання даних")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Помилка: {e}")
+
+
+async def cmd_kpi(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("📈 Завантажую KPI...")
+
+    try:
+        tickets_result = await api_request("GET", "/api/v1/tickets?limit=100")
+        objects_result = await api_request("GET", "/api/v1/objects?limit=100")
+
+        tickets = tickets_result.get("data", []) if tickets_result.get("success") else []
+        objects = objects_result.get("data", []) if objects_result.get("success") else []
+
+        total_tickets = len(tickets)
+        open_tickets = sum(1 for t in tickets if t["status"] not in ["closed", "cancelled", "resolved"])
+        critical = sum(1 for t in tickets if t["priority"] == "critical" and t["status"] not in ["closed", "cancelled"])
+        total_objects = len(objects)
+
+        text = (
+            f"📈 *KPI Дашборд*\n\n"
+            f"🏢 Об'єктів: {total_objects}\n"
+            f"📋 Всього заявок: {total_tickets}\n"
+            f"📂 Відкритих: {open_tickets}\n"
+            f"🔴 Критичних: {critical}\n"
+        )
+        await update.message.reply_text(text, parse_mode="Markdown")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Помилка: {e}")
+
+
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("📸 Фото отримано! (Завантаження в MinIO буде реалізовано)")
+
+
+async def post_init(application: Application):
+    await application.bot.set_my_commands([
+        BotCommand("start", "Старт"),
+        BotCommand("mytickets", "Мої заявки"),
+        BotCommand("visit_start", "Почати виїзд"),
+        BotCommand("visit_finish", "Завершити виїзд"),
+        BotCommand("object", "Картка об'єкта"),
+        BotCommand("sla", "Статус SLA"),
+        BotCommand("kpi", "KPI дашборд"),
+        BotCommand("help", "Допомога"),
+    ])
+    logger.info("Bot commands registered")
+
+
+def main():
+    if not settings.telegram_bot_token:
+        logger.error("TELEGRAM_BOT_TOKEN not set!")
+        return
+
+    app = Application.builder().token(settings.telegram_bot_token).post_init(post_init).build()
+
+    app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("mytickets", cmd_mytickets))
+    app.add_handler(CommandHandler("visit_start", cmd_visit_start))
+    app.add_handler(CommandHandler("visit_finish", cmd_visit_finish))
+    app.add_handler(CommandHandler("object", cmd_object))
+    app.add_handler(CommandHandler("sla", cmd_sla))
+    app.add_handler(CommandHandler("kpi", cmd_kpi))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+
+    logger.info("Starting Telegram bot...")
+    app.run_polling(drop_pending_updates=True)
+
+
+if __name__ == "__main__":
+    main()
