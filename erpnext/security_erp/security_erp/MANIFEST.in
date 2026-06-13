@@ -1,0 +1,13 @@
+include MANIFEST.in
+include requirements.txt
+include *.md
+include *.py
+include *.json
+include *.txt
+recursive-include security_erp *.py
+recursive-include security_erp *.json
+recursive-include security_erp *.html
+recursive-include security_erp *.css
+recursive-include security_erp *.js
+recursive-include security_erp *.py
+recursive-include security_erp *.csv

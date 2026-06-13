@@ -1,21 +1,16 @@
-import frappe
+from setuptools import setup, find_packages
 
+with open("requirements.txt") as f:
+    install_requires = f.read().strip().split("\n")
 
-def after_install():
-    """Runs after app installation. Sets up roles, workspaces, etc."""
-    create_roles()
-    frappe.db.commit()
-
-
-def create_roles():
-    """Create Security ERP specific roles if they don't exist."""
-    roles = [
-        "Service Manager",
-        "Engineer",
-        "Warehouse Manager",
-    ]
-    for role in roles:
-        if not frappe.db.exists("Role", role):
-            frappe.get_doc(
-                {"doctype": "Role", "role_name": role, "desk_access": 1}
-            ).insert(ignore_permissions=True)
+setup(
+    name="security_erp",
+    version="1.0.0",
+    description="Security ERP Platform customizations",
+    author="Riad Smart Systems",
+    author_email="info@riad.fun",
+    packages=find_packages(),
+    zip_safe=False,
+    include_package_data=True,
+    install_requires=install_requires,
+)
