@@ -1,0 +1,17 @@
+{
+    "name": "Visit Photo",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "istable": 1,
+    "fields": [
+        {"fieldname": "photo_type", "fieldtype": "Select", "label": "Photo Type", "options": "Before\nAfter\nProblem\nEquipment", "in_list_view": 1, "reqd": 1},
+        {"fieldname": "photo", "fieldtype": "Attach Image", "label": "Photo", "in_list_view": 1},
+        {"fieldname": "caption", "fieldtype": "Data", "label": "Caption"},
+        {"fieldname": "gps_lat", "fieldtype": "Float", "label": "GPS Lat"},
+        {"fieldname": "gps_lon", "fieldtype": "Float", "label": "GPS Lon"}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1},
+        {"role": "Engineer", "read": 1, "write": 1, "create": 1}
+    ]
+}

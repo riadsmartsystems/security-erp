@@ -1,0 +1,23 @@
+{
+    "name": "Object Room",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "fields": [
+        {"fieldname": "room_name", "fieldtype": "Data", "label": "Room Name", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "floor", "fieldtype": "Link", "label": "Floor", "options": "Object Floor", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "room_type", "fieldtype": "Data", "label": "Room Type"},
+        {"fieldname": "area_sqm", "fieldtype": "Float", "label": "Area (sqm)"},
+        {"fieldname": "is_active", "fieldtype": "Check", "label": "Active", "default": 1}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+        {"role": "Service Manager", "read": 1, "write": 1, "create": 1},
+        {"role": "Project Manager", "read": 1, "write": 1}
+    ],
+    "title_field": "room_name",
+    "search_fields": "room_name,floor",
+    "sort_field": "modified",
+    "sort_order": "DESC"
+}

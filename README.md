@@ -4,11 +4,11 @@
 
 ## Архітектура
 
-- **ERPNext** — CRM, Sales, Finance, Inventory, Projects
-- **Security API Gateway** — JWT, RBAC, Circuit Breaker, Routing
-- **FSM Service** — Tickets, Visits, SLA Engine, Warranty
-- **CMDB Service** — Objects, Equipment, Topology, Digital Twin
-- **Telegram Service** — Bot для інженерів
+**Єдина база даних (MariaDB)** — всі дані зберігаються в ERPNext.
+
+- **ERPNext** — CRM, Sales, Finance, Inventory, Projects, FSM (Service Tickets, Visits, SLA), CMDB (Objects, Equipment, Topology)
+- **Security API Gateway** — JWT автентифікація, RBAC, проксі до Frappe REST API
+- **Telegram Service** — Бот для інженерів (створення заявок, виїзди, фото, матеріали)
 - **n8n** — Автоматизації та нотифікації
 
 ## Швидкий старт
@@ -16,7 +16,7 @@
 ```bash
 # 1. Клонувати репозиторій
 git clone <repo-url>
-cd security-erp
+cd "RIAD CRM"
 
 # 2. Налаштувати змінні середовища
 cp .env.example .env
@@ -28,7 +28,12 @@ docker compose up -d
 # 4. Ініціалізувати ERPNext (перший запуск)
 docker compose exec erpnext-backend bench new-site erp.localhost --mariadb-root-password mariadb_root_secret --admin-password ChangeMeNow!
 docker compose exec erpnext-backend bench --site erp.localhost install-app erpnext
+docker compose exec erpnext-backend bench --site erp.localhost install-app security_erp
 docker compose exec erpnext-backend bench --site erp.localhost set-config developer_mode 1
+
+# 5. Створити API ключ для Security API
+docker compose exec erpnext-backend bench --site erp.localhost new-api-key --user Administrator
+# Додайте отримані key/secret в .env як FRAPPE_API_KEY / FRAPPE_API_SECRET
 ```
 
 ## Сервіси
@@ -37,9 +42,7 @@ docker compose exec erpnext-backend bench --site erp.localhost set-config develo
 |--------|------|-----|
 | ERPNext | 8080 | http://erp.localhost |
 | Security API | 8000 | http://api.localhost |
-| FSM Service | 8001 | http://localhost:8001 |
-| CMDB Service | 8002 | http://localhost:8002 |
-| Telegram Service | 8003 | http://localhost:8003 |
+| Telegram Service | — | (internal) |
 | n8n | 5678 | http://localhost:5678 |
 | MinIO Console | 9001 | http://localhost:9001 |
 | Grafana | 3000 | http://localhost:3000 |
@@ -49,42 +52,57 @@ docker compose exec erpnext-backend bench --site erp.localhost set-config develo
 ## Структура проєкту
 
 ```
-security-erp/
+RIAD CRM/
 ├── docker-compose.yml
 ├── .env
 ├── services/
-│   ├── security-api/          # API Gateway
-│   ├── fsm-service/           # Field Service Management
-│   ├── cmdb-service/          # Configuration Management DB
+│   ├── security-api/          # API Gateway (thin proxy to Frappe)
 │   └── telegram-service/      # Telegram Bot
+├── erpnext/
+│   └── security_erp/          # Frappe custom app (DocTypes, events, scheduled tasks)
 ├── configs/
-│   ├── postgres/init/         # PostgreSQL initialization
 │   ├── prometheus/            # Prometheus config
 │   ├── grafana/               # Grafana provisioning
 │   ├── loki/                  # Loki config
-│   └── promtail/              # Promtail config
+│   ├── promtail/              # Promtail config
+│   ├── n8n/                   # n8n workflows
+│   ├── traefik/               # Traefik config
+│   └── cloudflared/           # Cloudflare tunnel
 ├── scripts/
 │   ├── start.sh               # Startup script
-│   └── init-minio.sh          # MinIO bucket initialization
+│   ├── backup.sh              # Backup script
+│   └── migration/             # Data migration scripts
 ├── tests/
+│   └── load/                  # k6 load tests
 └── docs/
 ```
 
-## Бази даних
+## DocTypes (ERPNext)
 
-| БД | Призначення | Схеми |
-|----|-------------|-------|
-| MariaDB | ERPNext | erpnext |
-| PostgreSQL | Мікросервіси | fsm, cmdb, ai, integration, audit |
+### FSM (Field Service Management)
+- **Service Ticket** — заявки з SLA, пріоритетами, статусами
+- **Visit** — виїзди інженерів з GPS, фото, матеріалами
+- **Maintenance Plan** — планове обслуговування
+- **Warranty Case** — гарантійні випадки
+
+### CMDB (Configuration Management)
+- **Security Object** — об'єкти клієнтів (будівлі, адреси)
+- **Equipment** — обладнання (камери, сервери, UPS)
+- **Equipment Type** — типи обладнання
+- **Vendor** — виробники
+- **Object Building / Floor / Room** — ієрархія приміщень
+- **Equipment Relation** — топологія з'єднань
 
 ## API
+
+Всі API проксуються через Security API Gateway → Frappe REST API.
 
 ### Автентифікація
 ```
 POST /api/v1/auth/login       — Логін (username + password)
 POST /api/v1/auth/refresh     — Оновлення токену
 POST /api/v1/auth/logout      — Вихід
-GET  /api/v1/me               — Профіль
+GET  /api/v1/auth/me          — Профіль
 ```
 
 ### Tickets (FSM)
@@ -142,52 +160,10 @@ GET    /api/v1/topology/{id}    — Топологія мережі
 - **Grafana** — дашборди Infrastructure, ERP Health, FSM KPI
 - **Loki** — централізовані логи всіх контейнерів
 
-## Тест NATS-нотифікацій (Telegram/Viber)
-
-Усе працює через Docker: `telegram-service` підписаний на `notifications.send` та `fsm.sla.breached`.
-
-1) Додайте змінні в `.env`:
-
-```env
-VIBER_BOT_TOKEN=your_viber_bot_token
-NOTIFICATION_TELEGRAM_CHAT_IDS=123456789
-NOTIFICATION_VIBER_USER_IDS=VIBER_USER_ID
-```
-
-2) Запустіть швидкий end-to-end тест однією командою:
-
-```bash
-./scripts/test_notifications.sh
-```
-
-Або передайте IDs явно:
-
-```bash
-./scripts/test_notifications.sh --telegram-ids "123456789" --viber-ids "VIBER_USER_ID"
-```
-
-3) Ручний тест окремих подій з контейнера:
-
-```bash
-# 1) Кастомне повідомлення у Telegram + Viber
-docker compose exec -T telegram-service python scripts/publish_notification.py \
-  --subject notifications.send \
-  --channels telegram viber \
-  --message "Тестова розсилка з NATS" \
-  --telegram-ids "123456789" \
-  --viber-ids "VIBER_USER_ID"
-
-# 2) Тест автоматичного SLA breach-алерту
-docker compose exec -T telegram-service python scripts/publish_notification.py \
-  --subject fsm.sla.breached \
-  --ticket-number "TCK-2026-001" \
-  --sla-type resolution \
-  --priority critical
-```
-
 ## Фази розробки
 
 - [x] Phase 1 MVP: Docker, ERPNext, FSM, CMDB, Telegram, Security API
+- [x] Phase 1.5: Single-database architecture (all data in MariaDB via ERPNext)
 - [ ] Phase 2: AI Search, Config Backup, Bank Integration
 - [ ] Phase 3: AI Full, Predictive Maintenance, Monitoring Integration
 - [ ] Phase 4: Android App, Customer Portal, BI

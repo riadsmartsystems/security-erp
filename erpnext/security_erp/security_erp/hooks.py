@@ -16,7 +16,7 @@ app_include_js = "/assets/security_erp/js/security_erp.js"
 # Installation
 # --------------------------------------------------------------------------
 
-after_install = "security_erp.setup.after_install"
+after_install = "security_erp.events.after_install"
 
 # --------------------------------------------------------------------------
 # Document Events
@@ -38,6 +38,10 @@ doc_events = {
     "Project": {
         "on_update": "security_erp.events.project_on_update",
     },
+    "Service Ticket": {
+        "on_update": "security_erp.events.ticket_on_update",
+        "after_insert": "security_erp.events.ticket_after_insert",
+    },
 }
 
 # --------------------------------------------------------------------------
@@ -50,7 +54,7 @@ scheduler_events = {
         "security_erp.tasks.daily.check_sla_compliance",
     ],
     "hourly": [
-        "security_erp.tasks.hourly.sync_fsm_tickets",
+        "security_erp.tasks.hourly.check_sla_breaches",
     ],
 }
 

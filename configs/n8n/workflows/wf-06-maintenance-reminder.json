@@ -18,7 +18,7 @@
       "id": "node-http-06",
       "parameters": {
         "method": "GET",
-        "url": "http://fsm-service:8001/api/v1/maintenance",
+        "url": "http://security-api:8000/api/v1/maintenance",
         "options": {}
       },
       "name": "Get Maintenance Plans",

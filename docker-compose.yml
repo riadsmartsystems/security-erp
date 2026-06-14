@@ -1,9 +1,8 @@
 # =============================================================================
-# Security ERP Platform - Docker Compose (Phase 1 MVP)
+# Security ERP Platform - Docker Compose
 # =============================================================================
-# Services: ERPNext, MariaDB, PostgreSQL, Redis, MinIO, NATS, n8n,
-#           Traefik, Prometheus, Grafana, Loki, Security API, FSM, CMDB,
-#           Telegram Service
+# Single-database architecture: ERPNext (MariaDB) is the only database.
+# All services communicate via Frappe REST API.
 # =============================================================================
 
 networks:
@@ -15,7 +14,6 @@ networks:
 
 volumes:
   mariadb_data:
-  postgres_data:
   redis_data:
   minio_data:
   erpnext_sites:
@@ -62,7 +60,7 @@ services:
       - "traefik.http.routers.dashboard.middlewares=basic-auth@file"
 
   # =========================================================================
-  # DATABASES
+  # DATABASE (MariaDB - single source of truth)
   # =========================================================================
   mariadb:
     image: mariadb:10.6
@@ -81,26 +79,6 @@ services:
       - dbnet
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  postgres:
-    image: postgres:15-alpine
-    container_name: postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./configs/postgres/init:/docker-entrypoint-initdb.d:ro
-    networks:
-      - erpnet
-      - dbnet
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -168,7 +146,7 @@ services:
       retries: 5
 
   # =========================================================================
-  # ERPNEXT
+  # ERPNEXT (single database, all business logic here)
   # =========================================================================
   erpnext-frontend:
     image: frappe/erpnext:${ERPNEXT_VERSION}
@@ -297,7 +275,7 @@ services:
       - erpnext-backend
 
   # =========================================================================
-  # SECURITY API GATEWAY
+  # SECURITY API GATEWAY (thin proxy to Frappe REST API)
   # =========================================================================
   security-api:
     build:
@@ -306,87 +284,24 @@ services:
     container_name: security-api
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      FRAPPE_URL: http://erpnext-backend:8000
+      FRAPPE_API_KEY: ${FRAPPE_API_KEY}
+      FRAPPE_API_SECRET: ${FRAPPE_API_SECRET}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
-      NATS_URL: nats://${NATS_USER}:${NATS_PASSWORD}@nats:4222
       SECRET_KEY: ${SECURITY_API_SECRET_KEY}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL}
-      FSM_SERVICE_URL: http://fsm-service:8001
-      CMDB_SERVICE_URL: http://cmdb-service:8002
-      ERPNEXT_URL: http://erpnext-backend:8000
     ports:
       - "8000:8000"
     networks:
       - erpnet
-      - dbnet
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
+      erpnext-backend:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.api.rule=Host(`api.${DOMAIN}`)"
       - "traefik.http.services.api.loadbalancer.server.port=8000"
-
-  # =========================================================================
-  # FSM SERVICE
-  # =========================================================================
-  fsm-service:
-    build:
-      context: ./services/fsm-service
-      dockerfile: Dockerfile
-    container_name: fsm-service
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql+asyncpg://${FSM_DB_USER}:${FSM_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
-      NATS_URL: nats://${NATS_USER}:${NATS_PASSWORD}@nats:4222
-      ERP_API_URL: http://erpnext-backend:8000
-      SCHEMA_NAME: fsm
-    ports:
-      - "8001:8001"
-    networks:
-      - erpnet
-      - dbnet
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      nats:
-        condition: service_healthy
-
-  # =========================================================================
-  # CMDB SERVICE
-  # =========================================================================
-  cmdb-service:
-    build:
-      context: ./services/cmdb-service
-      dockerfile: Dockerfile
-    container_name: cmdb-service
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql+asyncpg://${CMDB_DB_USER}:${CMDB_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
-      NATS_URL: nats://${NATS_USER}:${NATS_PASSWORD}@nats:4222
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
-      SCHEMA_NAME: cmdb
-    ports:
-      - "8002:8002"
-    networks:
-      - erpnet
-      - dbnet
-    depends_on:
-      postgres:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      nats:
-        condition: service_healthy
 
   # =========================================================================
   # TELEGRAM SERVICE
@@ -445,10 +360,6 @@ services:
       - ./configs/n8n/telegram-credentials.json:/home/node/.n8n/import/telegram-credentials.json:ro
     networks:
       - erpnet
-      - dbnet
-    depends_on:
-      postgres:
-        condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.n8n.rule=Host(`n8n.${DOMAIN}`)"

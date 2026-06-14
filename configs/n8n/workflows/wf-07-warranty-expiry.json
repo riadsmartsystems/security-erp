@@ -18,7 +18,7 @@
       "id": "node-http-07",
       "parameters": {
         "method": "GET",
-        "url": "http://cmdb-service:8002/api/v1/equipment?limit=100",
+        "url": "http://security-api:8000/api/v1/equipment?limit=100",
         "options": {}
       },
       "name": "Get Equipment",

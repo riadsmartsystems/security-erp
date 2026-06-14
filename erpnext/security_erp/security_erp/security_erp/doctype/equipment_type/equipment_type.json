@@ -1,0 +1,23 @@
+{
+    "name": "Equipment Type",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "fields": [
+        {"fieldname": "type_name", "fieldtype": "Data", "label": "Type Name", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "type_code", "fieldtype": "Data", "label": "Type Code", "reqd": 1, "unique": 1, "in_list_view": 1},
+        {"fieldname": "category", "fieldtype": "Select", "label": "Category", "options": "CCTV\nNetwork\nACS\nAlarm\nServer\nUPS\nOther", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "parent_type", "fieldtype": "Link", "label": "Parent Type", "options": "Equipment Type"},
+        {"fieldname": "is_active", "fieldtype": "Check", "label": "Active", "default": 1}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+        {"role": "Service Manager", "read": 1, "write": 1, "create": 1},
+        {"role": "Project Manager", "read": 1}
+    ],
+    "title_field": "type_name",
+    "search_fields": "type_name,type_code,category",
+    "sort_field": "modified",
+    "sort_order": "DESC"
+}

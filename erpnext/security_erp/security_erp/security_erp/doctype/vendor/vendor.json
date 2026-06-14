@@ -1,0 +1,26 @@
+{
+    "name": "Vendor",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "fields": [
+        {"fieldname": "vendor_name", "fieldtype": "Data", "label": "Vendor Name", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "vendor_code", "fieldtype": "Data", "label": "Vendor Code", "unique": 1, "in_list_view": 1},
+        {"fieldname": "website", "fieldtype": "Data", "label": "Website"},
+        {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+        {"fieldname": "support_email", "fieldtype": "Data", "label": "Support Email"},
+        {"fieldname": "support_phone", "fieldtype": "Data", "label": "Support Phone"},
+        {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"},
+        {"fieldname": "is_active", "fieldtype": "Check", "label": "Active", "default": 1}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+        {"role": "Service Manager", "read": 1, "write": 1, "create": 1},
+        {"role": "Purchase Manager", "read": 1, "write": 1, "create": 1}
+    ],
+    "title_field": "vendor_name",
+    "search_fields": "vendor_name,vendor_code",
+    "sort_field": "modified",
+    "sort_order": "DESC"
+}

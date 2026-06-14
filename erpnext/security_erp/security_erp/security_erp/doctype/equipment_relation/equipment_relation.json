@@ -1,0 +1,23 @@
+{
+    "name": "Equipment Relation",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "fields": [
+        {"fieldname": "source_equipment", "fieldtype": "Link", "label": "Source Equipment", "options": "Equipment", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "target_equipment", "fieldtype": "Link", "label": "Target Equipment", "options": "Equipment", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "relation_type", "fieldtype": "Select", "label": "Relation Type", "options": "Connected To\nPowered By\nDepends On\nInstalled In\nBackup Of", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+        {"fieldname": "port_label", "fieldtype": "Data", "label": "Port Label"},
+        {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"},
+        {"fieldname": "is_active", "fieldtype": "Check", "label": "Active", "default": 1}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+        {"role": "Service Manager", "read": 1, "write": 1, "create": 1},
+        {"role": "Project Manager", "read": 1, "write": 1}
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC"
+}

@@ -1,0 +1,37 @@
+{
+    "name": "Security Object",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "fields": [
+        {"fieldname": "object_code", "fieldtype": "Data", "label": "Object Code", "read_only": 1, "unique": 1, "in_list_view": 1},
+        {"fieldname": "customer", "fieldtype": "Link", "label": "Customer", "options": "Customer", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "customer_name", "fieldtype": "Data", "label": "Customer Name", "fetch_from": "customer.customer_name", "read_only": 1},
+        {"fieldname": "object_name", "fieldtype": "Data", "label": "Object Name", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+        {"fieldname": "object_type", "fieldtype": "Select", "label": "Object Type", "options": "Shop\nOffice\nWarehouse\nApartment\nFactory\nSchool\nOther"},
+        {"fieldname": "service_level", "fieldtype": "Select", "label": "Service Level", "options": "Basic\nStandard\nPremium\nPlatinum", "default": "Standard"},
+        {"fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "Active\nSuspended\nArchived", "default": "Active", "in_list_view": 1},
+        {"fieldname": "section_address", "fieldtype": "Section Break", "label": "Location"},
+        {"fieldname": "address", "fieldtype": "Small Text", "label": "Address"},
+        {"fieldname": "gps_lat", "fieldtype": "Float", "label": "GPS Lat"},
+        {"fieldname": "gps_lon", "fieldtype": "Float", "label": "GPS Lon"},
+        {"fieldname": "section_notes", "fieldtype": "Section Break", "label": "Notes"},
+        {"fieldname": "notes", "fieldtype": "Text Editor", "label": "Notes"},
+        {"fieldname": "is_active", "fieldtype": "Check", "label": "Active", "default": 1, "hidden": 1}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+        {"role": "Service Manager", "read": 1, "write": 1, "create": 1},
+        {"role": "Project Manager", "read": 1, "write": 1, "create": 1},
+        {"role": "Engineer", "read": 1}
+    ],
+    "autoname": "naming_series:",
+    "naming_series": {"field": "object_code", "options": "OBJ-.######"},
+    "title_field": "object_name",
+    "search_fields": "object_code,customer,customer_name,object_name,address",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 1
+}

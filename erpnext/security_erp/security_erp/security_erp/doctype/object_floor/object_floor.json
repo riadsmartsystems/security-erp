@@ -1,0 +1,22 @@
+{
+    "name": "Object Floor",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "fields": [
+        {"fieldname": "floor_name", "fieldtype": "Data", "label": "Floor Name", "in_list_view": 1},
+        {"fieldname": "building", "fieldtype": "Link", "label": "Building", "options": "Object Building", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "level", "fieldtype": "Int", "label": "Level", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"},
+        {"fieldname": "is_active", "fieldtype": "Check", "label": "Active", "default": 1}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+        {"role": "Service Manager", "read": 1, "write": 1, "create": 1},
+        {"role": "Project Manager", "read": 1, "write": 1}
+    ],
+    "search_fields": "floor_name,building",
+    "sort_field": "modified",
+    "sort_order": "DESC"
+}

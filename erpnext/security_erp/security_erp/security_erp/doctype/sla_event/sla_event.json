@@ -1,0 +1,16 @@
+{
+    "name": "SLA Event",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "istable": 1,
+    "fields": [
+        {"fieldname": "event_type", "fieldtype": "Select", "label": "Event Type", "options": "Started\nPaused\nResumed\nBreached\nResolved", "in_list_view": 1, "reqd": 1},
+        {"fieldname": "timer_type", "fieldtype": "Select", "label": "Timer Type", "options": "Response\nArrival\nResolution", "in_list_view": 1, "reqd": 1},
+        {"fieldname": "occurred_at", "fieldtype": "Datetime", "label": "Occurred At", "in_list_view": 1, "default": "now"},
+        {"fieldname": "details", "fieldtype": "Small Text", "label": "Details"}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1},
+        {"role": "Service Manager", "read": 1}
+    ]
+}

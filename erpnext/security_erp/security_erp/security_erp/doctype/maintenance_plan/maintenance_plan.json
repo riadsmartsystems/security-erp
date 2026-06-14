@@ -1,0 +1,27 @@
+{
+    "name": "Maintenance Plan",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "fields": [
+        {"fieldname": "plan_name", "fieldtype": "Data", "label": "Plan Name", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "security_object", "fieldtype": "Link", "label": "Security Object", "options": "Security Object", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "customer", "fieldtype": "Link", "label": "Customer", "options": "Customer", "reqd": 1},
+        {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+        {"fieldname": "frequency", "fieldtype": "Select", "label": "Frequency", "options": "Monthly\nQuarterly\nSemi-Annual\nAnnual", "default": "Monthly", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "next_due_date", "fieldtype": "Date", "label": "Next Due Date", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "last_executed", "fieldtype": "Date", "label": "Last Executed", "read_only": 1},
+        {"fieldname": "is_active", "fieldtype": "Check", "label": "Active", "default": 1}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+        {"role": "Service Manager", "read": 1, "write": 1, "create": 1},
+        {"role": "Project Manager", "read": 1}
+    ],
+    "title_field": "plan_name",
+    "search_fields": "plan_name,customer,security_object",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 1
+}

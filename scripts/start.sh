@@ -23,7 +23,7 @@ chmod +x scripts/init-minio.sh
 
 # Build custom images
 echo "Building custom service images..."
-docker compose build security-api fsm-service cmdb-service telegram-service
+docker compose build security-api telegram-service
 
 # Start all services
 echo "Starting all services..."
@@ -42,10 +42,14 @@ echo ""
 echo "=== Health Checks ==="
 sleep 10
 
-for svc in security-api fsm-service cmdb-service; do
-    status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:${PORT:-8000}/health 2>/dev/null || echo "000")
+for svc in security-api; do
+    status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null || echo "000")
     echo "$svc: $status"
 done
+
+# Check ERPNext
+status=$(curl -s -o /dev/null -w "%{http_code}" -H "Host: erp.localhost" http://localhost:8000/api/method/ping 2>/dev/null || echo "000")
+echo "erpnext-backend: $status"
 
 echo ""
 echo "=== Done ==="
