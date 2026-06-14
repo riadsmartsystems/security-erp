@@ -304,6 +304,62 @@ services:
       - "traefik.http.services.api.loadbalancer.server.port=8000"
 
   # =========================================================================
+  # FSM SERVICE (Field Service Management)
+  # =========================================================================
+  fsm-service:
+    build:
+      context: ./services/fsm-service
+      dockerfile: Dockerfile
+    container_name: fsm-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://fsm_user:fsm_secret@postgres:5432/security_erp
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      NATS_URL: nats://${NATS_USER}:${NATS_PASSWORD}@nats:4222
+      ERP_API_URL: http://erpnext-backend:8000
+      SCHEMA_NAME: fsm
+    ports:
+      - "8001:8001"
+    networks:
+      - erpnet
+
+  # =========================================================================
+  # CMDB SERVICE (Configuration Management Database)
+  # =========================================================================
+  cmdb-service:
+    build:
+      context: ./services/cmdb-service
+      dockerfile: Dockerfile
+    container_name: cmdb-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://cmdb_user:cmdb_secret@postgres:5432/security_erp
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      NATS_URL: nats://${NATS_USER}:${NATS_PASSWORD}@nats:4222
+      ERP_API_URL: http://erpnext-backend:8000
+      SCHEMA_NAME: cmdb
+    ports:
+      - "8002:8002"
+    networks:
+      - erpnet
+
+  # =========================================================================
+  # AI SERVICE (Knowledge Base & AI Features)
+  # =========================================================================
+  ai-service:
+    build:
+      context: ./services/ai-service
+      dockerfile: Dockerfile
+    container_name: ai-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://ai_user:ai_secret@postgres:5432/security_erp
+    ports:
+      - "8003:8003"
+    networks:
+      - erpnet
+
+  # =========================================================================
   # TELEGRAM SERVICE
   # =========================================================================
   telegram-service:

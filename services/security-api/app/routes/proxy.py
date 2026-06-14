@@ -1,6 +1,5 @@
 import json
 import httpx
-from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Request, Response
 from app.core.config import settings
 from app.auth.dependencies import get_current_user, CurrentUser
@@ -8,22 +7,22 @@ from app.auth.permissions import Permission, has_permission
 
 router = APIRouter(tags=["proxy"])
 
-# Map API paths to Frappe DocType resources
-FRAPPE_DOCTYPE_MAP = {
-    "/api/v1/tickets": "Service Ticket",
-    "/api/v1/visits": "Visit",
-    "/api/v1/maintenance": "Maintenance Plan",
-    "/api/v1/warranty": "Warranty Case",
-    "/api/v1/objects": "Security Object",
-    "/api/v1/equipment": "Equipment",
-    "/api/v1/equipment-types": "Equipment Type",
-    "/api/v1/vendors": "Vendor",
-    "/api/v1/topology": "Equipment Relation",
-    "/api/v1/photos": "Visit Photo",
-    "/api/v1/backups": "Config Backup",
-    "/api/v1/integrations": "Vendor",
-    "/api/v1/dispatch": "Service Ticket",
-    "/api/v1/ai": "Service Ticket",
+SERVICE_MAP = {
+    "/api/v1/tickets": settings.fsm_service_url,
+    "/api/v1/visits": settings.fsm_service_url,
+    "/api/v1/maintenance": settings.fsm_service_url,
+    "/api/v1/warranty": settings.fsm_service_url,
+    "/api/v1/checklists": settings.fsm_service_url,
+    "/api/v1/dispatch": settings.fsm_service_url,
+    "/api/v1/objects": settings.cmdb_service_url,
+    "/api/v1/equipment": settings.cmdb_service_url,
+    "/api/v1/equipment-types": settings.cmdb_service_url,
+    "/api/v1/vendors": settings.cmdb_service_url,
+    "/api/v1/topology": settings.cmdb_service_url,
+    "/api/v1/photos": settings.cmdb_service_url,
+    "/api/v1/backups": settings.cmdb_service_url,
+    "/api/v1/integrations": settings.cmdb_service_url,
+    "/api/v1/ai": settings.ai_service_url,
 }
 
 PERMISSION_MAP = {
@@ -36,6 +35,7 @@ PERMISSION_MAP = {
     "/api/v1/equipment-types": [Permission.CMDB_FULL, Permission.CMDB_READ],
     "/api/v1/vendors": [Permission.CMDB_FULL, Permission.CMDB_READ],
     "/api/v1/topology": [Permission.CMDB_FULL, Permission.CMDB_READ],
+    "/api/v1/checklists": [Permission.FSM_FULL, Permission.FSM_OWN],
     "/api/v1/photos": [Permission.CMDB_FULL, Permission.CMDB_READ],
     "/api/v1/backups": [Permission.CMDB_FULL],
     "/api/v1/integrations": [Permission.CMDB_FULL],
@@ -45,50 +45,16 @@ PERMISSION_MAP = {
 
 
 def _has_access(current_user: CurrentUser, path: str) -> bool:
-    """Check access using Frappe role-based model"""
-    # Map Frappe roles to permissions
-    frappe_role_permissions = {
-        "/api/v1/tickets": ["Service Manager", "System Manager", "Projects Manager"],
-        "/api/v1/visits": ["Service Manager", "System Manager", "Projects Manager"],
-        "/api/v1/maintenance": ["Service Manager", "System Manager", "Projects Manager"],
-        "/api/v1/warranty": ["Service Manager", "System Manager", "Projects Manager"],
-        "/api/v1/objects": ["Service Manager", "System Manager", "Projects Manager", "Warehouse Manager"],
-        "/api/v1/equipment": ["Service Manager", "System Manager", "Projects Manager", "Warehouse Manager"],
-        "/api/v1/equipment-types": ["Service Manager", "System Manager", "Projects Manager", "Warehouse Manager"],
-        "/api/v1/vendors": ["Service Manager", "System Manager", "Projects Manager", "Warehouse Manager"],
-        "/api/v1/topology": ["Service Manager", "System Manager", "Projects Manager", "Warehouse Manager"],
-        "/api/v1/photos": ["Service Manager", "System Manager", "Projects Manager", "Warehouse Manager"],
-        "/api/v1/backups": ["Service Manager", "System Manager"],
-        "/api/v1/integrations": ["Service Manager", "System Manager"],
-        "/api/v1/dispatch": ["Service Manager", "System Manager"],
-        "/api/v1/ai": ["Service Manager", "System Manager"],
-    }
-    
-    # Map our internal roles to Frappe roles
-    frappe_roles = {
-        "owner": ["System Manager", "Service Manager", "Projects Manager", "Warehouse Manager"],
-        "director": ["System Manager", "Service Manager", "Projects Manager", "Warehouse Manager"],
-        "service_manager": ["Service Manager"],
-        "project_manager": ["Projects Manager", "Service Manager"],
-        "engineer": ["Engineer"],
-        "warehouse": ["Warehouse Manager"],
-        "sales_manager": ["Sales Manager"],
-        "accountant": ["Accounts Manager"],
-        "viewer": [],
-    }
-    
-    user_roles = frappe_roles.get(current_user.role, [])
-    
-    for prefix, required_roles in frappe_role_permissions.items():
+    for prefix, perms in PERMISSION_MAP.items():
         if path.startswith(prefix):
-            return any(role in required_roles for role in user_roles)
+            return any(has_permission(current_user.role, p) for p in perms)
     return True
 
 
-def _get_doctype(path: str) -> str | None:
-    for prefix, doctype in FRAPPE_DOCTYPE_MAP.items():
+def _get_service_url(path: str) -> str | None:
+    for prefix, url in SERVICE_MAP.items():
         if path.startswith(prefix):
-            return doctype
+            return url
     return None
 
 
@@ -99,9 +65,9 @@ async def proxy(
     current_user: CurrentUser = Depends(get_current_user),
 ):
     full_path = f"/api/v1/{path}"
-    doctype = _get_doctype(full_path)
+    service_url = _get_service_url(full_path)
 
-    if not doctype:
+    if not service_url:
         return Response(
             status_code=404,
             content=json.dumps({"success": False, "error": "Route not found"}),
@@ -115,7 +81,9 @@ async def proxy(
             media_type="application/json",
         )
 
-    frappe_url = f"{settings.frappe_url}/api/resource/{doctype.replace(' ', '%20')}"
+    target_url = f"{service_url}{request.url.path}"
+    if request.url.query:
+        target_url += f"?{request.url.query}"
 
     body = None
     if request.method in ("POST", "PUT", "PATCH"):
@@ -126,14 +94,15 @@ async def proxy(
 
     headers = {
         "Content-Type": request.headers.get("content-type", "application/json"),
-        "Authorization": f"token {settings.frappe_api_key}:{settings.frappe_api_secret}",
+        "X-User-Id": current_user.user_id,
+        "X-User-Role": current_user.role.value,
     }
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.request(
                 method=request.method,
-                url=frappe_url,
+                url=target_url,
                 content=body,
                 headers=headers,
             )
@@ -146,7 +115,7 @@ async def proxy(
     except httpx.ConnectError:
         return Response(
             status_code=502,
-            content=json.dumps({"success": False, "error": "Frappe unavailable"}),
+            content=json.dumps({"success": False, "error": f"Service unavailable: {service_url}"}),
             media_type="application/json",
         )
     except Exception as e:
