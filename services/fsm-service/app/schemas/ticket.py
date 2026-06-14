@@ -59,9 +59,16 @@ class VisitResponse(BaseModel):
     ticket_id: UUID
     engineer_id: UUID
     status: str
-    planned_start: Optional[datetime]
-    actual_start: Optional[datetime]
-    actual_finish: Optional[datetime]
+    planned_start: Optional[datetime] = None
+    actual_start: Optional[datetime] = None
+    actual_finish: Optional[datetime] = None
+    gps_checkin_lat: Optional[float] = None
+    gps_checkin_lon: Optional[float] = None
+    gps_checkout_lat: Optional[float] = None
+    gps_checkout_lon: Optional[float] = None
+    travel_minutes: Optional[int] = None
+    work_minutes: Optional[int] = None
+    notes: Optional[str] = None
     created_at: datetime
 
     class Config:

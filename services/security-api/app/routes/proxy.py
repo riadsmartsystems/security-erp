@@ -8,22 +8,22 @@ from app.auth.permissions import Permission, has_permission
 
 router = APIRouter(tags=["proxy"])
 
-SERVICE_MAP = {
-    "/api/v1/tickets": settings.fsm_service_url,
-    "/api/v1/visits": settings.fsm_service_url,
-    "/api/v1/maintenance": settings.fsm_service_url,
-    "/api/v1/warranty": settings.fsm_service_url,
-    "/api/v1/checklists": settings.fsm_service_url,
-    "/api/v1/dispatch": settings.fsm_service_url,
-    "/api/v1/objects": settings.cmdb_service_url,
-    "/api/v1/equipment": settings.cmdb_service_url,
-    "/api/v1/equipment-types": settings.cmdb_service_url,
-    "/api/v1/vendors": settings.cmdb_service_url,
-    "/api/v1/topology": settings.cmdb_service_url,
-    "/api/v1/photos": settings.cmdb_service_url,
-    "/api/v1/backups": settings.cmdb_service_url,
-    "/api/v1/integrations": settings.cmdb_service_url,
-    "/api/v1/ai": settings.ai_service_url,
+# Map API paths to Frappe DocType resources
+FRAPPE_DOCTYPE_MAP = {
+    "/api/v1/tickets": "Service Ticket",
+    "/api/v1/visits": "Visit",
+    "/api/v1/maintenance": "Maintenance Plan",
+    "/api/v1/warranty": "Warranty Case",
+    "/api/v1/objects": "Security Object",
+    "/api/v1/equipment": "Equipment",
+    "/api/v1/equipment-types": "Equipment Type",
+    "/api/v1/vendors": "Vendor",
+    "/api/v1/topology": "Equipment Relation",
+    "/api/v1/photos": "Visit Photo",
+    "/api/v1/backups": "Config Backup",
+    "/api/v1/integrations": "Vendor",
+    "/api/v1/dispatch": "Service Ticket",
+    "/api/v1/ai": "Service Ticket",
 }
 
 PERMISSION_MAP = {
@@ -36,7 +36,6 @@ PERMISSION_MAP = {
     "/api/v1/equipment-types": [Permission.CMDB_FULL, Permission.CMDB_READ],
     "/api/v1/vendors": [Permission.CMDB_FULL, Permission.CMDB_READ],
     "/api/v1/topology": [Permission.CMDB_FULL, Permission.CMDB_READ],
-    "/api/v1/checklists": [Permission.FSM_FULL, Permission.FSM_OWN],
     "/api/v1/photos": [Permission.CMDB_FULL, Permission.CMDB_READ],
     "/api/v1/backups": [Permission.CMDB_FULL],
     "/api/v1/integrations": [Permission.CMDB_FULL],
@@ -52,10 +51,10 @@ def _has_access(current_user: CurrentUser, path: str) -> bool:
     return True
 
 
-def _get_service_url(path: str) -> str | None:
-    for prefix, url in SERVICE_MAP.items():
+def _get_doctype(path: str) -> str | None:
+    for prefix, doctype in FRAPPE_DOCTYPE_MAP.items():
         if path.startswith(prefix):
-            return url
+            return doctype
     return None
 
 
@@ -66,9 +65,9 @@ async def proxy(
     current_user: CurrentUser = Depends(get_current_user),
 ):
     full_path = f"/api/v1/{path}"
-    service_url = _get_service_url(full_path)
+    doctype = _get_doctype(full_path)
 
-    if not service_url:
+    if not doctype:
         return Response(
             status_code=404,
             content=json.dumps({"success": False, "error": "Route not found"}),
@@ -82,9 +81,7 @@ async def proxy(
             media_type="application/json",
         )
 
-    target_url = f"{service_url}{request.url.path}"
-    if request.url.query:
-        target_url += f"?{request.url.query}"
+    frappe_url = f"{settings.frappe_url}/api/resource/{doctype.replace(' ', '%20')}"
 
     body = None
     if request.method in ("POST", "PUT", "PATCH"):
@@ -95,15 +92,14 @@ async def proxy(
 
     headers = {
         "Content-Type": request.headers.get("content-type", "application/json"),
-        "X-User-Id": current_user.user_id,
-        "X-User-Role": current_user.role.value,
+        "Authorization": f"token {settings.frappe_api_key}:{settings.frappe_api_secret}",
     }
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.request(
                 method=request.method,
-                url=target_url,
+                url=frappe_url,
                 content=body,
                 headers=headers,
             )
@@ -116,12 +112,15 @@ async def proxy(
     except httpx.ConnectError:
         return Response(
             status_code=502,
-            content=json.dumps({"success": False, "error": f"Service unavailable: {service_url}"}),
+            content=json.dumps({"success": False, "error": "Frappe unavailable"}),
             media_type="application/json",
         )
     except Exception as e:
         return Response(
             status_code=500,
+            content=json.dumps({"success": False, "error": str(e)}),
+            media_type="application/json",
+        )
             content=json.dumps({"success": False, "error": str(e)}),
             media_type="application/json",
         )
