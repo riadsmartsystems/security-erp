@@ -7,6 +7,9 @@ from app.routes.auth import router as auth_router
 from app.routes.proxy import router as proxy_router
 from app.routes.banking import router as banking_router
 from app.routes.signatures import router as signatures_router
+from app.routes.portal import router as portal_router
+from app.routes.public_api import router as public_router
+from app.routes.mobile import router as mobile_router
 
 
 @asynccontextmanager
@@ -34,6 +37,9 @@ app.mount("/metrics", metrics_app)
 app.include_router(auth_router)
 app.include_router(banking_router)
 app.include_router(signatures_router)
+app.include_router(portal_router)
+app.include_router(public_router)
+app.include_router(mobile_router)
 app.include_router(proxy_router)
 
 
