@@ -1,0 +1,4 @@
+object_code,customer_name,name,address,gps_lat,gps_lon,object_type,service_level
+OBJ-0001,ТОВ "Безпека Плюс",Магазин "Електрон",вул. Хрещатик 1,50.4501,30.5234,shop,Premium
+OBJ-0002,ТОВ "Безпека Плюс",Офіс "Центр",пр. Перемоги 25,50.4488,30.5198,office,Standard
+OBJ-0003,АТ "Охорона",Склад "Захід",вул. Промислова 10,50.4520,30.5300,warehouse,Platinum

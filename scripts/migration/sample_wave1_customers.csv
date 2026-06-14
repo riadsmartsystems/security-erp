@@ -1,0 +1,4 @@
+name,type,edrpou,phone,email,service_level,contact_name,contact_phone,contact_email
+ТОВ "Безпека Плюс",Company,12345678,+380501234567,info@bezpeka.ua,Premium,Іван Петренко,+380501234568,ivan@bezpeka.ua
+ФОП Шевченко,Individual,,,,Standard,Олексій Шевченко,+380671234569,oleksiy@mail.ua
+АТ "Охорона",Company,87654321,+380441234560,office@ohorona.ua,Platinum,Марія Коваленко,+380441234561,maria@ohorona.ua

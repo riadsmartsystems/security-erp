@@ -1,0 +1,6 @@
+equipment_code,object_code,equipment_type,vendor,model,serial_number,firmware,status,install_date,warranty_end
+CI-0001,OBJ-0001,Camera,Hikvision,DS-2CD2043G2-I,HIK2024001,V5.7.100,active,2024-06-15,2027-06-15
+CI-0002,OBJ-0001,NVR,Hikvision,DS-7608NI-K2,HIKNVR2024,V4.62.000,active,2024-06-15,2027-06-15
+CI-0003,OBJ-0002,Router,MikroTik,CCR2004-1G-12S+2XS,MT2024001,V7.12,active,2024-03-01,2026-03-01
+CI-0004,OBJ-0002,Switch,MikroTik,CRS326-24G-2S+,MTSW2024001,V7.12,active,2024-03-01,2026-03-01
+CI-0005,OBJ-0003,Camera,Dahua,IPC-HDW5442T,AHD2024001,V2.820,active,2024-01-10,2026-01-10

@@ -1,0 +1,4 @@
+ticket_number,customer_name,object_code,ticket_type,priority,status,description,created_at
+TCK-2024-001,ТОВ "Безпека Плюс",OBJ-0001,incident,high,new,Камера CI-0001 не передає відео,NOW()
+TCK-2024-002,АТ "Охорона",OBJ-0003,service_request,medium,new,Планове обслуговування NVR,NOW()
+TCK-2024-003,ТОВ "Безпека Плюс",OBJ-0002,maintenance,low,new,Заміна кабелю UTP в офісі,NOW()
