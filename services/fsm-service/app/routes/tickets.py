@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from uuid import UUID
@@ -359,3 +359,51 @@ async def list_warranty_cases(
     result = await db.execute(select(WarrantyCase).order_by(WarrantyCase.created_at.desc()))
     cases = result.scalars().all()
     return {"success": True, "data": cases}
+
+
+# --- PHOTOS ---
+
+@router.post("/visits/{visit_id}/photos")
+async def upload_photo(
+    visit_id: UUID,
+    photo_type: str = Query("problem"),
+    caption: str = Query(None),
+    gps_lat: float = Query(None),
+    gps_lon: float = Query(None),
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Visit).where(Visit.id == visit_id, Visit.is_active == True))
+    visit = result.scalar_one_or_none()
+    if not visit:
+        raise HTTPException(status_code=404, detail="Visit not found")
+
+    import uuid
+    file_id = uuid.uuid4()
+    file_path = f"visits/{visit_id}/{file_id}_{file.filename}"
+
+    photo = VisitPhoto(
+        visit_id=visit_id,
+        photo_type=photo_type,
+        file_id=file_id,
+        file_path=file_path,
+        caption=caption,
+        gps_lat=gps_lat,
+        gps_lon=gps_lon,
+    )
+    db.add(photo)
+    await db.commit()
+
+    return {"success": True, "data": {"id": str(photo.id), "file_path": file_path}}
+
+
+@router.get("/visits/{visit_id}/photos")
+async def list_photos(
+    visit_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(VisitPhoto).where(VisitPhoto.visit_id == visit_id).order_by(VisitPhoto.created_at)
+    )
+    photos = result.scalars().all()
+    return {"success": True, "data": photos}

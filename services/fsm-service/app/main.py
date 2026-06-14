@@ -7,6 +7,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.core.database import engine
 from app.models.ticket import Base
 from app.routes.tickets import router as tickets_router
+from app.routes.checklists import router as checklists_router
 from app.services.sla_engine import check_sla_breaches
 
 scheduler = AsyncIOScheduler()
@@ -53,6 +54,7 @@ metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
 app.include_router(tickets_router)
+app.include_router(checklists_router)
 
 
 @app.get("/health")

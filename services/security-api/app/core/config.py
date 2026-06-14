@@ -5,7 +5,6 @@ class Settings(BaseSettings):
     app_name: str = "Security ERP API Gateway"
     debug: bool = False
 
-    database_url: str = "postgresql+asyncpg://postgres:postgres_root_secret@postgres:5432/security_erp"
     redis_url: str = "redis://:redis_secret@redis:6379/0"
     nats_url: str = "nats://nats:nats_secret@nats:4222"
 
@@ -14,9 +13,10 @@ class Settings(BaseSettings):
     jwt_access_ttl: int = 900
     jwt_refresh_ttl: int = 604800
 
-    fsm_service_url: str = "http://fsm-service:8001"
-    cmdb_service_url: str = "http://cmdb-service:8002"
-    erpnext_url: str = "http://erpnext-backend:8000"
+    frappe_url: str = "http://erpnext-backend:8000"
+
+    frappe_api_key: str = ""
+    frappe_api_secret: str = ""
 
     rate_limit_default: int = 1000
     rate_limit_window: int = 60
