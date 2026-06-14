@@ -1,0 +1,41 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import make_asgi_app
+from contextlib import asynccontextmanager
+
+from app.core.database import engine
+from app.models.knowledge import Base
+from app.routes.search import router as search_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all, checkfirst=True)
+    yield
+    await engine.dispose()
+
+
+app = FastAPI(
+    title="AI Service",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+
+app.include_router(search_router)
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "version": "1.0.0"}

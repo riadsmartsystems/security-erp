@@ -19,6 +19,7 @@ FRAPPE_DOCTYPE_MAP = {
     "/api/v1/topology": "Equipment Relation",
     "/api/v1/checklists": "Checklist",
     "/api/v1/photos": "Photo Documentation",
+    "/api/v1/ai": "AI Knowledge Base",
 }
 
 PERMISSION_MAP = {
@@ -33,6 +34,7 @@ PERMISSION_MAP = {
     "/api/v1/topology": [Permission.CMDB_FULL, Permission.CMDB_READ],
     "/api/v1/checklists": [Permission.FSM_FULL, Permission.FSM_OWN],
     "/api/v1/photos": [Permission.CMDB_FULL, Permission.CMDB_READ, Permission.FSM_FULL, Permission.FSM_OWN],
+    "/api/v1/ai": [Permission.AI_READ, Permission.AI_FULL],
     "/api/v1/topology": [Permission.CMDB_FULL, Permission.CMDB_READ],
 }
 

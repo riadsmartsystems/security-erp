@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from uuid import UUID
 import json
+import math
 
 from app.core.database import get_db
 from app.models.ticket import (
@@ -23,6 +24,14 @@ router = APIRouter(prefix="/api/v1", tags=["tickets"])
 
 def _get_user_id(headers: dict) -> str | None:
     return headers.get("x-user-id")
+
+
+def haversine_km(lat1, lon1, lat2, lon2):
+    R = 6371
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
+    return R * 2 * math.asin(math.sqrt(a))
 
 
 # --- TICKETS ---
@@ -291,6 +300,10 @@ async def finish_visit(
 
     if visit.actual_start:
         visit.work_minutes = int((now - visit.actual_start).total_seconds() / 60)
+
+    if all([visit.gps_checkin_lat, visit.gps_checkin_lon, body.lat, body.lon]):
+        distance = haversine_km(visit.gps_checkin_lat, visit.gps_checkin_lon, body.lat, body.lon)
+        visit.notes = (visit.notes or "") + f"\nTravel distance: {distance:.2f} km"
 
     await db.commit()
     return {"success": True, "data": VisitResponse.model_validate(visit)}
