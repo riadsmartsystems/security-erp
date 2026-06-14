@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     jwt_refresh_ttl: int = 604800
 
     frappe_url: str = "http://erpnext-backend:8000"
+    fsm_service_url: str = "http://fsm-service:8001"
+    cmdb_service_url: str = "http://cmdb-service:8002"
+    ai_service_url: str = "http://ai-service:8003"
 
     frappe_api_key: str = ""
     frappe_api_secret: str = ""

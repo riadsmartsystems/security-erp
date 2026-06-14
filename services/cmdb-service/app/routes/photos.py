@@ -66,7 +66,12 @@ async def list_object_photos(
     photo_type: str = None,
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(PhotoDocumentation).where(PhotoDocumentation.object_id == object_id)
+    try:
+        obj_uuid = uuid.UUID(object_id)
+    except ValueError:
+        return {"success": True, "data": []}
+
+    query = select(PhotoDocumentation).where(PhotoDocumentation.object_id == obj_uuid)
     if photo_type:
         query = query.where(PhotoDocumentation.photo_type == photo_type)
     query = query.order_by(PhotoDocumentation.created_at.desc())
@@ -140,9 +145,14 @@ async def get_object_timeline(
     limit: int = Query(50, le=200),
     db: AsyncSession = Depends(get_db),
 ):
+    try:
+        obj_uuid = uuid.UUID(object_id)
+    except ValueError:
+        return {"success": True, "data": []}
+
     result = await db.execute(
         select(ObjectTimeline)
-        .where(ObjectTimeline.object_id == object_id)
+        .where(ObjectTimeline.object_id == obj_uuid)
         .order_by(ObjectTimeline.created_at.desc())
         .limit(limit)
     )
