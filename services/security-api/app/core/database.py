@@ -2,10 +2,13 @@ import httpx
 from app.core.config import settings
 
 
-async def frappe_get(path: str, params: dict = None) -> dict:
+async def frappe_get(path: str, params: dict = None, sid: str = None) -> dict:
     headers = _frappe_headers()
+    cookies = {}
+    if sid:
+        cookies["sid"] = sid
     async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.get(f"{settings.frappe_url}{path}", headers=headers, params=params)
+        resp = await client.get(f"{settings.frappe_url}{path}", headers=headers, params=params, cookies=cookies)
         resp.raise_for_status()
         return resp.json()
 

@@ -203,3 +203,36 @@ class ObjectTimeline(Base):
     metadata_json = Column(Text, nullable=True)  # JSON for extra data
     created_by = Column(UUID(as_uuid=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class ConfigBackup(Base):
+    __tablename__ = "config_backups"
+    __table_args__ = {"schema": "cmdb"}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    equipment_id = Column(UUID(as_uuid=True), ForeignKey("cmdb.equipment.id"), nullable=False, index=True)
+    object_id = Column(UUID(as_uuid=True), ForeignKey("cmdb.objects.id"), nullable=True)
+    backup_type = Column(String(50), nullable=False)  # full, incremental, config_only
+    file_path = Column(String(500), nullable=False)  # MinIO path
+    file_size_bytes = Column(Integer, nullable=True)
+    checksum_sha256 = Column(String(64), nullable=True)
+    firmware_version = Column(String(100), nullable=True)
+    config_diff = Column(Text, nullable=True)  # diff from previous backup
+    status = Column(String(20), default="success")  # success, failed, partial
+    error_message = Column(Text, nullable=True)
+    triggered_by = Column(String(50), default="manual")  # manual, scheduled, auto
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_by = Column(UUID(as_uuid=True), nullable=True)
+
+
+class ConfigBackupSchedule(Base):
+    __tablename__ = "config_backup_schedules"
+    __table_args__ = {"schema": "cmdb"}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    equipment_id = Column(UUID(as_uuid=True), ForeignKey("cmdb.equipment.id"), nullable=False)
+    frequency = Column(String(20), nullable=False)  # daily, weekly, monthly
+    next_run = Column(DateTime(timezone=True), nullable=False)
+    last_run = Column(DateTime(timezone=True), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

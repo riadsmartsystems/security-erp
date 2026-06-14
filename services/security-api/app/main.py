@@ -5,6 +5,8 @@ from prometheus_client import make_asgi_app
 
 from app.routes.auth import router as auth_router
 from app.routes.proxy import router as proxy_router
+from app.routes.banking import router as banking_router
+from app.routes.signatures import router as signatures_router
 
 
 @asynccontextmanager
@@ -30,6 +32,8 @@ metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
 app.include_router(auth_router)
+app.include_router(banking_router)
+app.include_router(signatures_router)
 app.include_router(proxy_router)
 
 
