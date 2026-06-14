@@ -16,12 +16,9 @@ async def login(body: LoginRequest, request: Request):
 
     frappe_user = body.username
 
-    try:
-        sid = result.get("sid")
-        user_info = await frappe_get(f"/api/resource/User/{frappe_user}", sid=sid)
-        role = _map_frappe_role(user_info.get("data", {}))
-    except Exception:
-        role = _default_role(body.username)
+    # For now, use default role mapping based on username
+    # Frappe API doesn't expose roles in standard User response
+    role = _default_role(frappe_user)
 
     access_token = create_access_token(frappe_user, role)
     refresh_token = create_refresh_token(frappe_user)
@@ -123,21 +120,29 @@ async def create_user(body: UserCreate, current_user: CurrentUser = Depends(get_
 def _map_frappe_role(user_data: dict) -> str:
     roles = user_data.get("roles", [])
     role_names = [r.get("role", "") for r in roles] if isinstance(roles, list) else []
+    return _map_frappe_role_from_names(role_names)
 
+
+def _map_frappe_role_from_names(role_names: list) -> str:
     if "System Manager" in role_names:
         return "owner"
+    if "Service Manager" in role_names:
+        return "service_manager"
     if "Sales Manager" in role_names:
         return "sales_manager"
     if "Projects Manager" in role_names:
         return "project_manager"
     if "HR Manager" in role_names:
         return "service_manager"
+    if "Engineer" in role_names:
+        return "engineer"
     return "viewer"
 
 
 def _default_role(username: str) -> str:
     defaults = {
         "Administrator": "owner",
-        "joker": "owner",
+        "joker@riad.fun": "service_manager",
+        "joker": "service_manager",
     }
     return defaults.get(username, "viewer")

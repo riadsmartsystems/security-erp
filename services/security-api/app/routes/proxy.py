@@ -45,9 +45,43 @@ PERMISSION_MAP = {
 
 
 def _has_access(current_user: CurrentUser, path: str) -> bool:
-    for prefix, perms in PERMISSION_MAP.items():
+    """Check access using Frappe role-based model"""
+    # Map Frappe roles to permissions
+    frappe_role_permissions = {
+        "/api/v1/tickets": ["Service Manager", "System Manager", "Projects Manager"],
+        "/api/v1/visits": ["Service Manager", "System Manager", "Projects Manager"],
+        "/api/v1/maintenance": ["Service Manager", "System Manager", "Projects Manager"],
+        "/api/v1/warranty": ["Service Manager", "System Manager", "Projects Manager"],
+        "/api/v1/objects": ["Service Manager", "System Manager", "Projects Manager", "Warehouse Manager"],
+        "/api/v1/equipment": ["Service Manager", "System Manager", "Projects Manager", "Warehouse Manager"],
+        "/api/v1/equipment-types": ["Service Manager", "System Manager", "Projects Manager", "Warehouse Manager"],
+        "/api/v1/vendors": ["Service Manager", "System Manager", "Projects Manager", "Warehouse Manager"],
+        "/api/v1/topology": ["Service Manager", "System Manager", "Projects Manager", "Warehouse Manager"],
+        "/api/v1/photos": ["Service Manager", "System Manager", "Projects Manager", "Warehouse Manager"],
+        "/api/v1/backups": ["Service Manager", "System Manager"],
+        "/api/v1/integrations": ["Service Manager", "System Manager"],
+        "/api/v1/dispatch": ["Service Manager", "System Manager"],
+        "/api/v1/ai": ["Service Manager", "System Manager"],
+    }
+    
+    # Map our internal roles to Frappe roles
+    frappe_roles = {
+        "owner": ["System Manager", "Service Manager", "Projects Manager", "Warehouse Manager"],
+        "director": ["System Manager", "Service Manager", "Projects Manager", "Warehouse Manager"],
+        "service_manager": ["Service Manager"],
+        "project_manager": ["Projects Manager", "Service Manager"],
+        "engineer": ["Engineer"],
+        "warehouse": ["Warehouse Manager"],
+        "sales_manager": ["Sales Manager"],
+        "accountant": ["Accounts Manager"],
+        "viewer": [],
+    }
+    
+    user_roles = frappe_roles.get(current_user.role, [])
+    
+    for prefix, required_roles in frappe_role_permissions.items():
         if path.startswith(prefix):
-            return any(has_permission(current_user.role, p) for p in perms)
+            return any(role in required_roles for role in user_roles)
     return True
 
 
@@ -118,9 +152,6 @@ async def proxy(
     except Exception as e:
         return Response(
             status_code=500,
-            content=json.dumps({"success": False, "error": str(e)}),
-            media_type="application/json",
-        )
             content=json.dumps({"success": False, "error": str(e)}),
             media_type="application/json",
         )
