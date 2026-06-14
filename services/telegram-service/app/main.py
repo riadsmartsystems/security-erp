@@ -20,7 +20,7 @@ async def login_as_bot():
     global BOT_TOKEN
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.post(f"{API_URL}/api/v1/auth/login", json={
-            "username": "joker", "password": "jokerLA23",
+            "username": "joker@riad.fun", "password": "jokerLA23",
         })
         if resp.status_code == 200:
             BOT_TOKEN = resp.json().get("access_token")
