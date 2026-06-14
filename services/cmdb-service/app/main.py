@@ -8,6 +8,7 @@ from app.models.equipment import Base
 from app.routes.objects import router as objects_router
 from app.routes.photos import router as photos_router
 from app.routes.backups import router as backups_router
+from app.routes.integrations import router as integrations_router
 
 
 @asynccontextmanager
@@ -38,6 +39,7 @@ app.mount("/metrics", metrics_app)
 app.include_router(objects_router)
 app.include_router(photos_router)
 app.include_router(backups_router)
+app.include_router(integrations_router)
 
 
 @app.get("/health")

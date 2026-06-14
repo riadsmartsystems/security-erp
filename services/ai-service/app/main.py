@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from app.core.database import engine
 from app.models.knowledge import Base
 from app.routes.search import router as search_router
+from app.routes.advanced import router as advanced_router
 
 
 @asynccontextmanager
@@ -34,6 +35,7 @@ metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
 app.include_router(search_router)
+app.include_router(advanced_router)
 
 
 @app.get("/health")
