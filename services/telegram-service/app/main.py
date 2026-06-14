@@ -58,6 +58,19 @@ async def api_post_n8n(path: str, data: dict = None) -> dict:
         return resp.json() if resp.status_code == 200 else {"error": resp.status_code}
 
 
+MANAGER_CHAT_ID = "291657218"
+
+
+async def send_notification(chat_id: int, text: str):
+    """Send notification via Telegram Bot API"""
+    bot_token = settings.telegram_bot_token
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        await client.post(
+            f"https://api.telegram.org/bot{bot_token}/sendMessage",
+            json={"chat_id": str(chat_id), "text": text}
+        )
+
+
 def _parse_csv(raw: str) -> list[str]:
     return [item.strip() for item in (raw or "").split(",") if item.strip()]
 
@@ -634,17 +647,20 @@ async def _newticket_step(update: Update, chat_id: int, text: str) -> bool:
         if result.get("success"):
             t = result["data"]
 
-            # Call n8n webhook for new ticket notification
+            # Send notification to manager
             try:
-                await api_post_n8n("/webhook/new-ticket", {
-                    "ticket_number": t["ticket_number"],
-                    "title": data["title"],
-                    "priority": data["priority"],
-                    "object_name": data.get("address", ""),
-                    "customer_name": data.get("contact", ""),
-                })
+                notify_text = (
+                    f"📋 Нова заявка!\n\n"
+                    f"Номер: {t['ticket_number']}\n"
+                    f"Проблема: {data['title']}\n"
+                    f"Адреса: {data['address']}\n"
+                    f"Контакт: {data['contact']}\n"
+                    f"Пріоритет: {data['priority']}\n"
+                    f"SLA до: {str(t.get('sla_response_due', '—'))[:16]}"
+                )
+                await send_notification(update.message.chat_id, notify_text)
             except Exception:
-                pass  # n8n notification is optional
+                pass
 
             keyboard = [
                 [InlineKeyboardButton("🚗 Створити виїзд", callback_data=f"newvisit_{t['id']}")],
