@@ -167,3 +167,39 @@ class EquipmentRelation(Base):
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     is_active = Column(Boolean, default=True)
+
+
+class PhotoDocumentation(Base):
+    __tablename__ = "photo_documentation"
+    __table_args__ = {"schema": "cmdb"}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    object_id = Column(UUID(as_uuid=True), ForeignKey("cmdb.objects.id"), nullable=True, index=True)
+    equipment_id = Column(UUID(as_uuid=True), ForeignKey("cmdb.equipment.id"), nullable=True, index=True)
+    photo_type = Column(String(50), nullable=False)  # survey, installation, maintenance, problem, solution
+    file_path = Column(String(500), nullable=False)
+    file_id = Column(UUID(as_uuid=True), nullable=False)
+    caption = Column(String(500), nullable=True)
+    description = Column(Text, nullable=True)
+    gps_lat = Column(Float, nullable=True)
+    gps_lon = Column(Float, nullable=True)
+    taken_at = Column(DateTime(timezone=True), nullable=True)
+    visit_id = Column(UUID(as_uuid=True), nullable=True)  # link to FSM visit
+    ticket_id = Column(UUID(as_uuid=True), nullable=True)  # link to FSM ticket
+    uploaded_by = Column(UUID(as_uuid=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class ObjectTimeline(Base):
+    __tablename__ = "object_timeline"
+    __table_args__ = {"schema": "cmdb"}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    object_id = Column(UUID(as_uuid=True), ForeignKey("cmdb.objects.id"), nullable=False, index=True)
+    event_type = Column(String(50), nullable=False)  # created, updated, equipment_installed, equipment_removed, maintenance, inspection
+    entity_type = Column(String(50), nullable=True)  # equipment, photo, ticket, visit
+    entity_id = Column(UUID(as_uuid=True), nullable=True)
+    description = Column(Text, nullable=True)
+    metadata_json = Column(Text, nullable=True)  # JSON for extra data
+    created_by = Column(UUID(as_uuid=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

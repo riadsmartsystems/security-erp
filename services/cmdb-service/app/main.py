@@ -6,6 +6,7 @@ from prometheus_client import make_asgi_app
 from app.core.database import engine
 from app.models.equipment import Base
 from app.routes.objects import router as objects_router
+from app.routes.photos import router as photos_router
 
 
 @asynccontextmanager
@@ -34,6 +35,7 @@ metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
 app.include_router(objects_router)
+app.include_router(photos_router)
 
 
 @app.get("/health")

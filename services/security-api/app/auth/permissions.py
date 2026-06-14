@@ -22,6 +22,7 @@ class Permission(str, enum.Enum):
     PROJECTS_READ = "projects_read"
     PROJECTS_OWN = "projects_own"
     FSM_FULL = "fsm_full"
+    FSM_READ = "fsm_read"
     FSM_OWN = "fsm_own"
     CMDB_FULL = "cmdb_full"
     CMDB_READ = "cmdb_read"
@@ -40,7 +41,7 @@ ROLE_PERMISSIONS: dict[Role, set[Permission]] = {
     Role.DIRECTOR: {
         Permission.CRM_READ, Permission.SALES_READ,
         Permission.PROJECTS_FULL, Permission.PROJECTS_READ,
-        Permission.FSM_READ if hasattr(Permission, 'FSM_READ') else Permission.FSM_FULL,
+        Permission.FSM_READ,
         Permission.CMDB_READ, Permission.INVENTORY_READ,
         Permission.FINANCE_FULL, Permission.AI_FULL,
     },
@@ -71,7 +72,7 @@ ROLE_PERMISSIONS: dict[Role, set[Permission]] = {
     },
     Role.ACCOUNTANT: {
         Permission.CRM_READ, Permission.SALES_READ,
-        Permission.PROJECTS_READ, Permission.FSM_READ if hasattr(Permission, 'FSM_READ') else Permission.FSM_FULL,
+        Permission.PROJECTS_READ, Permission.FSM_READ,
         Permission.INVENTORY_READ, Permission.FINANCE_FULL,
     },
     Role.VIEWER: {

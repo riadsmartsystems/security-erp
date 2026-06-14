@@ -18,6 +18,7 @@ FRAPPE_DOCTYPE_MAP = {
     "/api/v1/vendors": "Vendor",
     "/api/v1/topology": "Equipment Relation",
     "/api/v1/checklists": "Checklist",
+    "/api/v1/photos": "Photo Documentation",
 }
 
 PERMISSION_MAP = {
@@ -31,6 +32,7 @@ PERMISSION_MAP = {
     "/api/v1/vendors": [Permission.CMDB_FULL, Permission.CMDB_READ],
     "/api/v1/topology": [Permission.CMDB_FULL, Permission.CMDB_READ],
     "/api/v1/checklists": [Permission.FSM_FULL, Permission.FSM_OWN],
+    "/api/v1/photos": [Permission.CMDB_FULL, Permission.CMDB_READ, Permission.FSM_FULL, Permission.FSM_OWN],
     "/api/v1/topology": [Permission.CMDB_FULL, Permission.CMDB_READ],
 }
 
@@ -503,7 +505,7 @@ def _reverse_translate(body: dict, doctype: str) -> dict:
         if key in mapping:
             target = mapping[key]
             if callable(target):
-                result[target(value)] = value
+                result[key] = target(value)
             else:
                 result[target] = value
         else:
