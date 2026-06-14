@@ -12,9 +12,9 @@ import json
 
 
 def run_bench_query(site, query):
+    cmd = f"cd /home/frappe/frappe-bench && bench --site {site} mariadb -e '{query}'"
     result = subprocess.run(
-        ["docker", "exec", "erpnext-backend", "bash", "-c",
-         f"cd /home/frappe/frappe-bench && bench --site {site} mariadb -e \"{query}\""],
+        ["docker", "exec", "erpnext-backend", "bash", "-c", cmd],
         capture_output=True, text=True
     )
     if result.returncode != 0:

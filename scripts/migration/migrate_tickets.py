@@ -14,6 +14,8 @@ def run_postgres_query(query):
         ["docker", "exec", "postgres", "psql", "-U", "postgres", "-d", "security_erp", "-c", query],
         capture_output=True, text=True
     )
+    if result.returncode != 0:
+        print(f"  PG Error: {result.stderr[:200]}")
     return result.stdout
 
 
