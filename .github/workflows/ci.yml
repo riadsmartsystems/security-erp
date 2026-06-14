@@ -1,0 +1,57 @@
+name: Security ERP CI/CD
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install flake8 black isort
+
+      - name: Lint Python code
+        run: |
+          flake8 services/ --max-line-length=120 --ignore=E501,W503
+
+      - name: Check code formatting
+        run: |
+          black --check services/ || true
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: |
+          docker build -t security-api -f services/security-api/Dockerfile services/security-api/
+          docker build -t fsm-service -f services/fsm-service/Dockerfile services/fsm-service/
+          docker build -t cmdb-service -f services/cmdb-service/Dockerfile services/cmdb-service/
+          docker build -t ai-service -f services/ai-service/Dockerfile services/ai-service/
+          docker build -t telegram-service -f services/telegram-service/Dockerfile services/telegram-service/
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy notification
+        run: |
+          echo "Build successful! Deploy manually with:"
+          echo "docker compose pull && docker compose up -d"

@@ -481,11 +481,41 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if state.get("cmd") == "photo":
         visit_id = state.get("visit_id", "?")
         photo_type = state.get("photo_type", "after")
-        await update.message.reply_text(
-            f"✅ Фото збережено!\n\n"
-            f"Виїзд: {visit_id}\n"
-            f"Тип: {photo_type}"
-        )
+
+        try:
+            photo = update.message.photo[-1]
+            file = await context.bot.get_file(photo.file_id)
+            photo_bytes = await file.download_as_bytearray()
+
+            import io
+            files = {"file": ("photo.jpg", io.BytesIO(photo_bytes), "image/jpeg")}
+            data = {"photo_type": photo_type, "caption": f"Telegram photo ({photo_type})"}
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    f"{API_URL}/api/v1/visits/{visit_id}/photos",
+                    headers={"Authorization": f"Bearer {BOT_TOKEN}"},
+                    data=data,
+                    files=files,
+                )
+
+            if resp.status_code == 200:
+                result = resp.json()
+                await update.message.reply_text(
+                    f"✅ Фото збережено!\n\n"
+                    f"Виїзд: {visit_id}\n"
+                    f"Тип: {photo_type}\n"
+                    f"File: {result.get('data', {}).get('file_path', 'N/A')}"
+                )
+            else:
+                await update.message.reply_text(
+                    f"⚠️ Фото прийнято, але не збережено на сервері\n"
+                    f"Статус: {resp.status_code}"
+                )
+        except Exception as e:
+            logger.error(f"Photo upload error: {e}")
+            await update.message.reply_text(f"❌ Помилка збереження фото: {str(e)}")
+
         del STATES[chat_id]
     else:
         await update.message.reply_text("📸 Фото отримано. Щоб додати до виїзду — оберіть заявку через /mytickets")
