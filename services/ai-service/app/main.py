@@ -3,23 +3,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
 from contextlib import asynccontextmanager
 
-from app.core.database import engine
-from app.models.knowledge import Base
+from app.core.database import engine, init_db
 from app.routes.search import router as search_router
 from app.routes.advanced import router as advanced_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all, checkfirst=True)
+    await init_db()
     yield
     await engine.dispose()
 
 
 app = FastAPI(
     title="AI Service",
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -40,4 +38,4 @@ app.include_router(advanced_router)
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": "1.0.0"}
+    return {"status": "ok", "version": "2.0.0"}

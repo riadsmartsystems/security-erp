@@ -88,3 +88,21 @@ app.include_router(proxy_router)
 @app.get("/health")
 async def health():
     return {"status": "ok", "version": "2.1.0", "backend": "frappe"}
+
+
+@app.get("/")
+async def root():
+    return {
+        "name": "Security ERP API Gateway",
+        "version": "2.1.0",
+        "status": "ok",
+        "endpoints": {
+            "health": "/health",
+            "login": "/api/v1/auth/login",
+            "docs": "/docs",
+            "tickets": "/api/v1/tickets",
+            "objects": "/api/v1/objects",
+            "equipment": "/api/v1/equipment",
+            "visits": "/api/v1/visits",
+        }
+    }
