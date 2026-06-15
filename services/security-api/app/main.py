@@ -14,6 +14,7 @@ from app.routes.signatures import router as signatures_router
 from app.routes.portal import router as portal_router
 from app.routes.public_api import router as public_router
 from app.routes.mobile import router as mobile_router
+from app.routes.doctypes import router as doctypes_router
 
 
 @asynccontextmanager
@@ -80,6 +81,7 @@ app.include_router(signatures_router)
 app.include_router(portal_router)
 app.include_router(public_router)
 app.include_router(mobile_router)
+app.include_router(doctypes_router)
 app.include_router(proxy_router)
 
 
