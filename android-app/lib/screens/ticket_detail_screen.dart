@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'visit_flow_screen.dart';
 
 class TicketDetailScreen extends StatefulWidget {
   final Map<String, dynamic> ticket;
@@ -56,7 +57,11 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
           )),
           const SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: _startVisit,
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => VisitFlowScreen(ticket: widget.ticket),
+              ));
+            },
             icon: const Icon(Icons.add),
             label: const Text('Створити виїзд'),
           ),

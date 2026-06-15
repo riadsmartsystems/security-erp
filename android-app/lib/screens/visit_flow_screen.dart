@@ -1,0 +1,121 @@
+import 'package:flutter/material.dart';
+import '../services/api_service.dart';
+
+class VisitFlowScreen extends StatefulWidget {
+  final Map<String, dynamic> ticket;
+  const VisitFlowScreen({super.key, required this.ticket});
+
+  @override
+  State<VisitFlowScreen> createState() => _VisitFlowScreenState();
+}
+
+class _VisitFlowScreenState extends State<VisitFlowScreen> {
+  List<dynamic> _visits = [];
+  bool _loading = true;
+  bool _gpsAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVisits();
+  }
+
+  Future<void> _loadVisits() async {
+    try {
+      final result = await api.get('/api/v1/visits?limit=20');
+      setState(() {
+        _visits = result['data'] ?? [];
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() { _loading = false; });
+    }
+  }
+
+  Future<void> _startVisit(String visitId) async {
+    await api.post('/api/v1/visits/$visitId/start', {'lat': 0.0, 'lon': 0.0});
+    _loadVisits();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('GPS чекін виконано! Виїзд розпочато.')),
+      );
+    }
+  }
+
+  Future<void> _finishVisit(String visitId) async {
+    await api.post('/api/v1/visits/$visitId/finish', {'lat': 0.0, 'lon': 0.0});
+    _loadVisits();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('GPS чекаут виконано! Виїзд завершено.')),
+      );
+    }
+  }
+
+  Future<void> _createVisit() async {
+    await api.post('/api/v1/visits', {
+      'ticket_id': widget.ticket['id'],
+      'engineer_id': 'joker@riad.fun',
+    });
+    _loadVisits();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = widget.ticket;
+    return Scaffold(
+      appBar: AppBar(title: Text('Виїзд: ${t['ticket_number'] ?? ''}')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(t['title'] ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('Пріоритет: ${t['priority'] ?? ''} | Статус: ${t['status'] ?? ''}'),
+            ]),
+          )),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _createVisit,
+            icon: const Icon(Icons.add),
+            label: const Text('Створити виїзд'),
+          ),
+          const SizedBox(height: 16),
+          Text('Виїзди (${_visits.length})', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ..._visits.map((v) => Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Text('${v['visit_number'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(v['status'] ?? '', style: TextStyle(
+                    color: v['status'] == 'completed' ? Colors.green :
+                           v['status'] == 'working' ? Colors.orange : Colors.blue,
+                  )),
+                ]),
+                const SizedBox(height: 8),
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  if (v['status'] == 'planned' || v['status'] == 'accepted')
+                    ElevatedButton.icon(
+                      onPressed: () => _startVisit(v['id']),
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text('Старт'),
+                    ),
+                  if (v['status'] == 'on_route' || v['status'] == 'arrived' || v['status'] == 'working')
+                    ElevatedButton.icon(
+                      onPressed: () => _finishVisit(v['id']),
+                      icon: const Icon(Icons.stop),
+                      label: const Text('Завершити'),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    ),
+                ]),
+              ]),
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+}
