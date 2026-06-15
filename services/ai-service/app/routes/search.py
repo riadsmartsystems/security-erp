@@ -15,9 +15,17 @@ from app.services.embeddings import generate_embedding, generate_embeddings, chu
 router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
 
 
-def cosine_similarity(a: List[float], b: List[float]) -> float:
-    a_np = np.array(a)
-    b_np = np.array(b)
+def cosine_similarity(a, b) -> float:
+    if isinstance(a, str):
+        a = json.loads(a)
+    if isinstance(b, str):
+        b = json.loads(b)
+    if isinstance(a, list) and len(a) > 0 and isinstance(a[0], str):
+        a = [float(x) for x in a]
+    if isinstance(b, list) and len(b) > 0 and isinstance(b[0], str):
+        b = [float(x) for x in b]
+    a_np = np.array(a, dtype=np.float64)
+    b_np = np.array(b, dtype=np.float64)
     dot = np.dot(a_np, b_np)
     norm_a = np.linalg.norm(a_np)
     norm_b = np.linalg.norm(b_np)

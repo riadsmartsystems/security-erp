@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'tickets_screen.dart';
 import 'objects_screen.dart';
+import 'equipment_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -66,7 +67,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _buildCard('🏢 Об\'єкти', _objects, Colors.green, () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const ObjectsScreen()));
                   }),
-                  _buildCard('🔧 Обладнання', _equipment, Colors.orange, () {}),
+                  _buildCard('🔧 Обладнання', _equipment, Colors.orange, () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const EquipmentScreen()));
+                  }),
                   _buildCard('🚗 Виїзди', _visits, Colors.purple, () {}),
                 ],
               ),

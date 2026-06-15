@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'ticket_detail_screen.dart';
 
 class TicketsScreen extends StatefulWidget {
   const TicketsScreen({super.key});
@@ -62,7 +63,11 @@ class _TicketsScreenState extends State<TicketsScreen> {
                       title: Text(t['title'] ?? 'Без назви'),
                       subtitle: Text('${t['ticket_number'] ?? ''} • ${t['status'] ?? ''}'),
                       trailing: const Icon(Icons.arrow_forward_ios),
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(
+                          builder: (_) => TicketDetailScreen(ticket: t),
+                        ));
+                      },
                     ),
                   );
                 },
