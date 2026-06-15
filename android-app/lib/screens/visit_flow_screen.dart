@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import '../services/api_service.dart';
+import 'photo_upload_screen.dart';
+import 'materials_screen.dart';
 
 class VisitFlowScreen extends StatefulWidget {
   final Map<String, dynamic> ticket;
@@ -12,12 +15,29 @@ class VisitFlowScreen extends StatefulWidget {
 class _VisitFlowScreenState extends State<VisitFlowScreen> {
   List<dynamic> _visits = [];
   bool _loading = true;
-  bool _gpsAvailable = false;
 
   @override
   void initState() {
     super.initState();
     _loadVisits();
+  }
+
+  Future<Position?> _getPosition() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return null;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return null;
+      }
+      if (permission == LocationPermission.deniedForever) return null;
+
+      return await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    } catch (e) {
+      return null;
+    }
   }
 
   Future<void> _loadVisits() async {
@@ -33,21 +53,33 @@ class _VisitFlowScreenState extends State<VisitFlowScreen> {
   }
 
   Future<void> _startVisit(String visitId) async {
-    await api.post('/api/v1/visits/$visitId/start', {'lat': 0.0, 'lon': 0.0});
+    final pos = await _getPosition();
+    await api.post('/api/v1/visits/$visitId/start', {
+      'lat': pos?.latitude ?? 0.0,
+      'lon': pos?.longitude ?? 0.0,
+    });
     _loadVisits();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('GPS чекін виконано! Виїзд розпочато.')),
+        SnackBar(content: Text(pos != null
+            ? 'GPS чекін: ${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)}'
+            : 'GPS недоступний. Чекін без координат.')),
       );
     }
   }
 
   Future<void> _finishVisit(String visitId) async {
-    await api.post('/api/v1/visits/$visitId/finish', {'lat': 0.0, 'lon': 0.0});
+    final pos = await _getPosition();
+    await api.post('/api/v1/visits/$visitId/finish', {
+      'lat': pos?.latitude ?? 0.0,
+      'lon': pos?.longitude ?? 0.0,
+    });
     _loadVisits();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('GPS чекаут виконано! Виїзд завершено.')),
+        SnackBar(content: Text(pos != null
+            ? 'GPS чекаут: ${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)}'
+            : 'GPS недоступний. Чекаут без координат.')),
       );
     }
   }
@@ -109,6 +141,24 @@ class _VisitFlowScreenState extends State<VisitFlowScreen> {
                       icon: const Icon(Icons.stop),
                       label: const Text('Завершити'),
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    ),
+                  if (v['status'] != 'completed')
+                    IconButton(
+                      icon: const Icon(Icons.camera_alt),
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(
+                          builder: (_) => PhotoUploadScreen(visitId: v['id']),
+                        ));
+                      },
+                    ),
+                  if (v['status'] != 'completed')
+                    IconButton(
+                      icon: const Icon(Icons.inventory_2),
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(
+                          builder: (_) => MaterialsScreen(visitId: v['id']),
+                        ));
+                      },
                     ),
                 ]),
               ]),
