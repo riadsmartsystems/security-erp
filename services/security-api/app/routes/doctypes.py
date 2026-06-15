@@ -269,3 +269,141 @@ async def get_stats(current_user: CurrentUser = Depends(get_current_user)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+WHOLESALE_DISCOUNT = 0.80
+
+
+@router.get("/pricing/calculate")
+async def calculate_pricing(
+    item_code: str,
+    qty: int = Query(1, ge=1),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    try:
+        result = await frappe_get(f"/api/resource/Item/{item_code}")
+        item = result.get("data", {})
+        retail_price = float(item.get("retail_price") or 0)
+        if retail_price == 0:
+            return {"success": False, "error": "No retail_price set for this item"}
+
+        wholesale_price = retail_price * WHOLESALE_DISCOUNT
+        return {
+            "success": True,
+            "data": {
+                "item_code": item_code,
+                "item_name": item.get("item_name"),
+                "retail_price": retail_price,
+                "wholesale_price": round(wholesale_price, 2),
+                "discount_percent": round((1 - WHOLESALE_DISCOUNT) * 100),
+                "qty": qty,
+                "retail_total": retail_price * qty,
+                "wholesale_total": round(wholesale_price * qty, 2),
+                "margin": round((retail_price - wholesale_price) * qty, 2),
+            },
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/purchase-order")
+async def create_purchase_order(body: dict, current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        items = body.get("items", [])
+        supplier = body.get("supplier", "")
+
+        for item in items:
+            item_code = item.get("item_code")
+            qty = item.get("qty", 1)
+            if item_code:
+                try:
+                    result = await frappe_get(f"/api/resource/Item/{item_code}")
+                    retail = float(result.get("data", {}).get("retail_price") or 0)
+                    if retail > 0:
+                        item["rate"] = round(retail * WHOLESALE_DISCOUNT, 2)
+                        item["amount"] = round(item["rate"] * qty, 2)
+                except Exception:
+                    pass
+
+        data = {
+            "supplier": supplier,
+            "transaction_date": body.get("transaction_date", ""),
+            "schedule_date": body.get("schedule_date", ""),
+            "items": items,
+        }
+        result = await frappe_post("/api/resource/Purchase Order", data=data)
+        return {"success": True, "data": result.get("data", {})}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/sales-invoice")
+async def create_sales_invoice(body: dict, current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        items = body.get("items", [])
+
+        for item in items:
+            item_code = item.get("item_code")
+            qty = item.get("qty", 1)
+            if item_code:
+                try:
+                    result = await frappe_get(f"/api/resource/Item/{item_code}")
+                    retail = float(result.get("data", {}).get("retail_price") or 0)
+                    if retail > 0:
+                        item["rate"] = retail
+                        item["amount"] = round(retail * qty, 2)
+                except Exception:
+                    pass
+
+        data = {
+            "customer": body.get("customer", ""),
+            "items": items,
+        }
+        result = await frappe_post("/api/resource/Sales Invoice", data=data)
+
+        invoice = result.get("data", {})
+        total_retail = sum(it.get("amount", 0) for it in invoice.get("items", []))
+
+        return {
+            "success": True,
+            "data": invoice,
+            "pricing": {
+                "retail_total": total_retail,
+                "note": "Use /api/v2/pricing/margin to calculate margin",
+            },
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/pricing/margin")
+async def calculate_margin(
+    po_name: str = Query(...),
+    si_name: str = Query(...),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    try:
+        po_result = await frappe_get(f"/api/resource/Purchase Order/{po_name}")
+        po = po_result.get("data", {})
+        po_total = float(po.get("grand_total") or 0)
+
+        si_result = await frappe_get(f"/api/resource/Sales Invoice/{si_name}")
+        si = si_result.get("data", {})
+        si_total = float(si.get("grand_total") or 0)
+
+        margin = si_total - po_total
+        margin_percent = (margin / po_total * 100) if po_total > 0 else 0
+
+        return {
+            "success": True,
+            "data": {
+                "purchase_order": po_name,
+                "sales_invoice": si_name,
+                "wholesale_total": po_total,
+                "retail_total": si_total,
+                "margin": round(margin, 2),
+                "margin_percent": round(margin_percent, 1),
+            },
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

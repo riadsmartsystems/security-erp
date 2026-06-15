@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://10.0.2.2:8000';
+  static const String baseUrl = 'https://api.riad.fun';
   final _storage = const FlutterSecureStorage();
   String? _token;
 
@@ -11,7 +11,7 @@ class ApiService {
     final response = await http.post(
       Uri.parse('$baseUrl/api/v1/auth/login'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email, 'password': password}),
+      body: jsonEncode({'username': email, 'password': password}),
     );
 
     if (response.statusCode == 200) {
