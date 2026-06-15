@@ -1,69 +1,89 @@
 # Go-Live Checklist — Security ERP Platform
+_Оновлено: 2026-06-15_
 
 ## Infrastructure ✅
-- [x] Docker Compose налаштовано та протестовано
-- [x] Cloudflare Tunnel підключено (порти назовні закриті)
+- [x] Docker Compose налаштовано (19 контейнерів)
+- [x] Cloudflare Tunnel підключено (riad.fun)
 - [x] TLS 1.3 для всіх публічних ендпоінтів
-- [x] MariaDB healthy, PostgreSQL healthy, Redis healthy
-- [x] MinIO healthy, NATS healthy
+- [x] MariaDB healthy, Redis healthy, MinIO healthy, NATS healthy
+- [x] PostgreSQL (лише для n8n)
 - [x] Monitoring: Prometheus + Grafana + Loki + Promtail
+- [x] Traefik reverse proxy
 
 ## Security ✅
 - [x] JWT автентифікація (15 min access, 7d refresh)
-- [x] RBAC налаштовано (9 ролей, 18 permissions)
-- [x] Account lockout after 5 failed attempts
-- [x] API proxy — прямий доступ до сервісів заборонений
-- [x] Circuit Breaker для backend сервісів
+- [x] RBAC налаштовано (9 ролей)
+- [x] Frappe API key authentication
+- [x] Cloudflare Access OTP для зовнішнього доступу
+- [ ] Rate limiting на Security API (НЕ реалізовано)
+- [ ] CORS налаштування (зараз allow_origins=*)
+
+## Single Database Architecture ✅
+- [x] Всі дані в MariaDB через ERPNext DocTypes
+- [x] 25 DocTypes в модулі Security ERP
+- [x] PostgreSQL лише для n8n (integration schema)
+- [x] Security API → Frappe API proxy
+- [x] FSM/CMDB/AI мікросервіси ВИДАЛЕНІ
 
 ## ERPNext ✅
 - [x] security_erp додаток встановлено (v1.0.0)
-- [x] 10 кастомних DocTypes
-- [x] 41 кастомне поле
-- [x] Security CRM Workspace
+- [x] 25 DocTypes з правами доступу
 - [x] Ukrainian language configured
+- [x] CSS/JS assets partially loaded
+- [ ] ERPNext UI кастомізація (НЕ зроблено)
 
-## Microservices ✅
-- [x] Security API Gateway (:8000) — JWT, RBAC, Proxy
-- [x] FSM Service (:8001) — Tickets, Visits, SLA Engine
-- [x] CMDB Service (:8002) — Objects, Equipment, Topology
-- [x] Telegram Service — polling, /mytickets, /newticket, photo, materials
-- [x] n8n (:5678) — 9 workflows, webhooks active
+## API Gateway ✅
+- [x] Security API Gateway (:8000) — JWT, RBAC, Proxy → Frappe
+- [x] 28+ endpoints (auth, tickets, objects, equipment, visits, etc.)
+- [x] Frappe API proxy для всіх DocType операцій
 
-## Business Process ✅
-- [x] Lead → Customer flow (CRM)
-- [x] Estimate → Quotation → Sales Order (Sales)
-- [x] Ticket → Assign → Visit → Photo → Materials → Close (FSM)
-- [x] Object → Equipment registration (CMDB)
-- [x] Material Reservation for projects (Inventory)
-- [x] Installation Act with serial numbers (Projects)
-- [x] SLA monitoring with breach notifications
+## Telegram Bot ✅
+- [x] @riad_ss_bot працює
+- [x] /start, /mytickets, /newticket, /visit_start, /visit_finish
+- [x] /object, /sla, /kpi, /help, /photo, /materials
+- [x] Inline buttons для дій
+- [x] 5-кроковий /newticket діалог
 
-## Data Migration ✅
-- [x] Wave 1: migrate_customers.py
-- [x] Wave 2: migrate_objects.py
-- [x] Wave 3: migrate_equipment.py
-- [x] Wave 4: migrate_tickets.py
-- [x] Sample CSV templates provided
+## n8n Workflows ✅
+- [x] 10 workflows створено
+- [x] 6 webhooks: new-lead, new-ticket, sla-breach, emergency-ticket, low-stock, payment-received
+- [x] 4 schedulers: KP reminder, maintenance, warranty, KPI
+- [x] Telegram notification через HTTP Request nodes
+- [ ] n8n webhooks потребують ручної активації після restart
+
+## Data Migration ⏳
+- [ ] migrate_customers.py — CSV → ERPNext
+- [ ] migrate_objects.py — CSV → Security Object
+- [ ] migrate_equipment.py — CSV → Equipment
+- [ ] migrate_tickets.py — CSV → Service Ticket
 
 ## Backup ✅
-- [x] backup.sh — MariaDB + PostgreSQL + n8n + config
-- [x] Auto-cleanup old backups (>7 days)
-- [x] Backup verified (26MB)
+- [x] backup-mariadb.sh — daily 2AM, weekly Sun 3AM
+- [x] Auto-cleanup old backups (>30 days)
+- [x] Cron jobs налаштовані
 
-## Performance ✅
-- [x] k6 load tests baseline: P95=7ms (budget: <200ms)
-- [x] 100% checks passed, 0% errors
+## Performance ❌
+- [x] k6 load tests baseline: P95=2.94s (budget: <500ms) — FAILED
+- [x] Error rate: 27.86% (budget: <10%) — FAILED
+- [ ] Rate limiting (НЕ реалізовано)
+- [ ] Connection pooling для Frappe API
+- [ ] JWT token caching
 
 ## Service URLs
 | Service | URL | Credentials |
 |---------|-----|-------------|
 | ERPNext | https://erp.riad.fun | Administrator / jokerLA23 |
-| Security API | https://api.riad.fun | joker / jokerLA23 |
-| n8n | https://n8n.riad.fun | joker / jokerLA23 |
+| Security API | https://api.riad.fun | joker@riad.fun / jokerLA23 |
+| n8n | https://n8n.riad.fun | jokerla23@gmail.com / jokerLA23 |
 | Grafana | https://grafana.riad.fun | joker / jokerLA23 |
-| Telegram Bot | @RiadSecurityBot | — |
+| Telegram Bot | @riad_ss_bot | — |
+| MinIO | http://localhost:9001 | minioadmin / minio_secret |
 
-## Known Issues (non-blocking)
-- [ ] n8n wf-02 (Прострочена КП) not created yet
-- [ ] ERPNext login page may show English (language setting issue)
-- [ ] 70GB disk is tight — need periodic docker system prune
+## Known Issues
+- [ ] Rate limiting не реалізовано (P95 latency 2.94s)
+- [ ] n8n webhooks потребують ручної активації
+- [ ] ERPNext CSS/JS не завантажується через Cloudflare (assets issue)
+- [ ] Cloudflare Access OTP вимкнено для тестування
+- [ ] Load test P95 2.94s (target <500ms)
+- [ ] Load test error rate 27.86% (target <10%)
+- [ ] 70GB disk — потрібен periodic docker system prune

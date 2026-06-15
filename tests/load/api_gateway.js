@@ -1,16 +1,10 @@
 import http from "k6/http";
 import { check, sleep } from "k6";
-import { Rate, Trend } from "k6/metrics";
+import { Rate } from "k6/metrics";
 
 const errorRate = new Rate("errors");
 
 const BASE_URL = __ENV.BASE_URL || "http://localhost:8000";
-const TOKEN = __ENV.TOKEN || "";
-
-const headers = {
-  "Content-Type": "application/json",
-  ...(TOKEN && { Authorization: `Bearer ${TOKEN}` }),
-};
 
 export const options = {
   stages: [
@@ -26,8 +20,8 @@ export const options = {
 
 export function setup() {
   const loginRes = http.post(
-    `${BASE_URL}/api/v1/auth/login`,
-    JSON.stringify({ username: "joker", password: "jokerLA23" }),
+    BASE_URL + "/api/v1/auth/login",
+    JSON.stringify({ username: "joker@riad.fun", password: "jokerLA23" }),
     { headers: { "Content-Type": "application/json" } }
   );
 
@@ -39,47 +33,50 @@ export function setup() {
 }
 
 export default function (data) {
-  const authHeaders = {
-    ...headers,
-    ...(data.token && { Authorization: `Bearer ${data.token}` }),
-  };
+  var authHeaders = { "Content-Type": "application/json" };
+  if (data.token) {
+    authHeaders["Authorization"] = "Bearer " + data.token;
+  }
 
-  const endpoints = [
+  var endpoints = [
     { url: "/health", name: "Health", threshold: 200 },
-    { url: "/api/v1/auth/me", name: "Auth/Me", threshold: 300 },
-    { url: "/api/v1/tickets", name: "Tickets List", threshold: 500 },
-    { url: "/api/v1/objects", name: "Objects List", threshold: 500 },
-    { url: "/api/v1/equipment", name: "Equipment List", threshold: 500 },
+    { url: "/api/v1/auth/me", name: "Auth_Me", threshold: 300 },
+    { url: "/api/v1/tickets", name: "Tickets", threshold: 500 },
+    { url: "/api/v1/objects", name: "Objects", threshold: 500 },
+    { url: "/api/v1/equipment", name: "Equipment", threshold: 500 },
   ];
 
-  for (const ep of endpoints) {
-    const res = http.get(`${BASE_URL}${ep.url}`, { headers: authHeaders });
+  for (var i = 0; i < endpoints.length; i++) {
+    var ep = endpoints[i];
+    var res = http.get(BASE_URL + ep.url, { headers: authHeaders });
 
-    check(res, {
-      [`${ep.name} - status OK`]: (r) => r.status === 200 || r.status === 401,
-      [`${ep.name} - latency < ${ep.threshold}ms`]: (r) =>
-        r.timings.duration < ep.threshold,
+    var ok = check(res, {
+      [ep.name + " status OK"]: function (r) { return r.status === 200 || r.status === 401; },
+      [ep.name + " fast"]: function (r) { return r.timings.duration < ep.threshold; },
     });
 
     errorRate.add(res.status >= 500);
   }
 
-  sleep(2);
+  sleep(1);
 }
 
 export function handleSummary(data) {
   return {
     "/home/joker/RIAD CRM/tests/load/results.json": JSON.stringify(data, null, 2),
-    stdout: textSummary(data, { indent: " ", enableColors: true }),
+    stdout: textSummary(data),
   };
 }
 
-function textSummary(data, opts) {
-  return `
-=== Load Test Results ===
-  Requests: ${data.metrics.http_reqs?.values?.count || 0}
-  Duration: ${data.metrics.http_req_duration?.values?.avg?.toFixed(2) || 0}ms avg
-  P95: ${data.metrics.http_req_duration?.values?.["p(95)"]?.toFixed(2) || 0}ms
-  Errors: ${((data.metrics.errors?.values?.rate || 0) * 100).toFixed(2)}%
-`;
+function textSummary(data) {
+  var reqs = data.metrics.http_reqs ? data.metrics.http_reqs.values.count : 0;
+  var avg = data.metrics.http_req_duration ? data.metrics.http_req_duration.values.avg.toFixed(2) : 0;
+  var p95 = data.metrics.http_req_duration ? data.metrics.http_req_duration.values["p(95)"].toFixed(2) : 0;
+  var errRate = data.metrics.errors ? (data.metrics.errors.values.rate * 100).toFixed(2) : 0;
+
+  return "\n=== Load Test Results ===\n" +
+    "  Requests: " + reqs + "\n" +
+    "  Avg: " + avg + "ms\n" +
+    "  P95: " + p95 + "ms\n" +
+    "  Errors: " + errRate + "%\n";
 }

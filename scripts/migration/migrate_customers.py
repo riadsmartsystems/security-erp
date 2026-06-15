@@ -1,39 +1,21 @@
 #!/usr/bin/env python3
 """
-Wave 1: Migrate Customers & Contacts to ERPNext
-Usage: python migrate_customers.py --input customers.csv --site erp.localhost
+Wave 1: Migrate Customers & Contacts to ERPNext via REST API
+Usage: python migrate_customers.py --input customers.csv
 CSV columns: name, type, edrpou, phone, email, service_level, contact_name, contact_phone, contact_email
 """
 import argparse
 import csv
 import sys
-import subprocess
+from frappe_client import frappe_get, frappe_create, exists_by_filter
 
 
-def run_bench_query(site, query):
-    escaped = query.replace("'", "'\\''")
-    cmd = f"cd /home/frappe/frappe-bench && bench --site {site} mariadb -e '{escaped}'"
-    result = subprocess.run(
-        ["docker", "exec", "erpnext-backend", "bash", "-c", cmd],
-        capture_output=True, text=True
-    )
-    if result.returncode != 0:
-        print(f"Error: {result.stderr[:200]}")
-        return None
-    return result.stdout
-
-
-def sql_str(val):
-    return val.replace("'", "''")
-
-
-def migrate_customers(csv_path, site="erp.localhost"):
+def migrate_customers(csv_path):
     with open(csv_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
 
     print(f"Found {len(rows)} customers to migrate")
-
     success = 0
     errors = []
 
@@ -43,56 +25,63 @@ def migrate_customers(csv_path, site="erp.localhost"):
             errors.append("Row skipped: empty name")
             continue
 
+        existing = exists_by_filter("Customer", "customer_name", name)
+        if existing:
+            print(f"  Skip (exists): {name} -> {existing}")
+            continue
+
         customer_type = row.get("type", "Company").strip()
         edrpou = row.get("edrpou", "").strip()
         phone = row.get("phone", "").strip()
         email = row.get("email", "").strip()
         service_level = row.get("service_level", "Standard").strip()
-        contact_name = row.get("contact_name", "").strip()
-        contact_phone = row.get("contact_phone", "").strip()
-        contact_email = row.get("contact_email", "").strip()
 
-        safe_name = sql_str(name)
-        safe_type = sql_str(customer_type)
+        data = {
+            "customer_name": name,
+            "customer_type": customer_type,
+            "customer_group": "All Customer Groups",
+            "territory": "All Territories",
+        }
+        if edrpou:
+            data["edrpou_code"] = edrpou
+        if phone:
+            data["primary_phone"] = phone
+        if email:
+            data["primary_email"] = email
+        if service_level:
+            data["service_level"] = service_level
 
-        check = run_bench_query(site,
-            f"SELECT name FROM tabCustomer WHERE customer_name='{safe_name}' LIMIT 1")
-        if check and safe_name in check:
-            print(f"  Skip (exists): {name}")
-            continue
-
-        customer_id = f"CUST-{success+1:04d}"
-        query = f"""INSERT IGNORE INTO tabCustomer
-            (name, customer_name, customer_type, creation, modified, modified_by, owner, docstatus)
-            VALUES ('{customer_id}', '{safe_name}', '{safe_type}', NOW(), NOW(), 'Administrator', 'Administrator', 0)"""
-
-        result = run_bench_query(site, query)
-        if result is not None:
-            if edrpou:
-                run_bench_query(site,
-                    f"UPDATE tabCustomer SET edrpou_code='{sql_str(edrpou)}' WHERE name='{customer_id}'")
-            if phone:
-                run_bench_query(site,
-                    f"UPDATE tabCustomer SET primary_phone='{sql_str(phone)}' WHERE name='{customer_id}'")
-            if email:
-                run_bench_query(site,
-                    f"UPDATE tabCustomer SET primary_email='{sql_str(email)}' WHERE name='{customer_id}'")
-            if service_level:
-                run_bench_query(site,
-                    f"UPDATE tabCustomer SET service_level='{sql_str(service_level)}' WHERE name='{customer_id}'")
+        result = frappe_create("Customer", data)
+        if result:
+            customer_id = result.get("name", "unknown")
             print(f"  OK: {name} ({customer_id})")
             success += 1
+
+            contact_name = row.get("contact_name", "").strip()
+            if contact_name:
+                contact_data = {
+                    "first_name": contact_name,
+                    "links": [{"link_doctype": "Customer", "link_name": customer_id}],
+                }
+                contact_phone = row.get("contact_phone", "").strip()
+                contact_email = row.get("contact_email", "").strip()
+                if contact_phone:
+                    contact_data["phone_nos"] = [{"phone": contact_phone}]
+                if contact_email:
+                    contact_data["email_ids"] = [{"email_id": contact_email}]
+                frappe_create("Contact", contact_data)
         else:
             errors.append(f"Failed: {name}")
 
     print(f"\nResult: {success} migrated, {len(errors)} errors")
     for e in errors:
         print(f"  ERROR: {e}")
+    return len(errors) == 0
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Migrate customers to ERPNext")
     parser.add_argument("--input", required=True, help="CSV file path")
-    parser.add_argument("--site", default="erp.localhost", help="ERPNext site name")
     args = parser.parse_args()
-    migrate_customers(args.input, args.site)
+    success = migrate_customers(args.input)
+    sys.exit(0 if success else 1)

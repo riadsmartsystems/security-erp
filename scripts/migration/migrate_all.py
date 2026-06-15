@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """
 Master Migration Script — Run all waves in sequence
-Usage: python run_all.sh
-Or: python migrate_all.py --waves 1,2,3,4
+Usage: python migrate_all.py
+       python migrate_all.py --waves 1,2,3,4
+       python migrate_all.py --input /path/to/csvs/
+
+CSV files should be named: wave1.csv, wave2.csv, wave3.csv, wave4.csv
+Or use defaults: sample_wave1_customers.csv, etc.
 """
 import argparse
 import subprocess
@@ -31,7 +35,13 @@ def run_wave(wave_num, csv_path=None):
         return False
 
     if not csv_path:
-        csv_path = os.path.join(SCRIPT_DIR, f"sample_wave{wave_num}.csv")
+        defaults = {
+            1: "sample_wave1_customers.csv",
+            2: "sample_wave2_objects.csv",
+            3: "sample_wave3_equipment.csv",
+            4: "sample_wave4_tickets.csv",
+        }
+        csv_path = os.path.join(SCRIPT_DIR, defaults[wave_num])
 
     if not os.path.exists(csv_path):
         print(f"CSV not found: {csv_path}")
@@ -40,11 +50,12 @@ def run_wave(wave_num, csv_path=None):
 
     print(f"\n{'='*50}")
     print(f"Wave {wave_num}: Running {scripts[wave_num]}")
+    print(f"CSV: {csv_path}")
     print(f"{'='*50}")
 
     result = subprocess.run(
         [sys.executable, script, "--input", csv_path],
-        cwd=SCRIPT_DIR
+        cwd=SCRIPT_DIR,
     )
     return result.returncode == 0
 
@@ -57,7 +68,7 @@ if __name__ == "__main__":
 
     waves = [int(w.strip()) for w in args.waves.split(",")]
 
-    print("Security ERP Data Migration")
+    print("Security ERP Data Migration (via Frappe REST API)")
     print("="*50)
 
     results = {}
@@ -70,6 +81,11 @@ if __name__ == "__main__":
     print("\n" + "="*50)
     print("Migration Summary")
     print("="*50)
+    all_ok = True
     for wave, success in results.items():
         status = "OK" if success else "FAILED"
         print(f"  Wave {wave}: {status}")
+        if not success:
+            all_ok = False
+
+    sys.exit(0 if all_ok else 1)

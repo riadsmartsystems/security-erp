@@ -2,6 +2,7 @@ import json
 import httpx
 from fastapi import APIRouter, Depends, Request, Response
 from app.core.config import settings
+from app.core.database import _get_client
 from app.auth.dependencies import get_current_user, CurrentUser
 from app.auth.permissions import Permission, has_permission
 
@@ -99,13 +100,13 @@ async def proxy(
     }
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.request(
-                method=request.method,
-                url=target_url,
-                content=body,
-                headers=headers,
-            )
+        client = _get_client()
+        resp = await client.request(
+            method=request.method,
+            url=target_url,
+            content=body,
+            headers=headers,
+        )
 
         return Response(
             status_code=resp.status_code,

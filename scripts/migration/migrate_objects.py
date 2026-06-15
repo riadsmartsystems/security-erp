@@ -1,76 +1,78 @@
 #!/usr/bin/env python3
 """
-Wave 2: Migrate Security Objects to ERPNext (MariaDB)
-Usage: python migrate_objects.py --input objects.csv --site erp.localhost
+Wave 2: Migrate Security Objects to ERPNext via REST API
+Usage: python migrate_objects.py --input objects.csv
 CSV columns: object_code, customer_name, name, address, gps_lat, gps_lon, object_type, service_level
 """
 import argparse
 import csv
-import subprocess
+import sys
+from frappe_client import frappe_get, frappe_create, exists_by_filter
 
 
-def run_bench_query(site, query):
-    escaped = query.replace("'", "'\\''")
-    cmd = f"cd /home/frappe/frappe-bench && bench --site {site} mariadb -e '{escaped}'"
-    result = subprocess.run(
-        ["docker", "exec", "erpnext-backend", "bash", "-c", cmd],
-        capture_output=True, text=True
-    )
-    if result.returncode != 0:
-        print(f"  Error: {result.stderr[:200]}")
-        return None
-    return result.stdout
-
-
-def sql_str(val):
-    return val.replace("'", "''")
-
-
-def migrate_objects(csv_path, site="erp.localhost"):
+def migrate_objects(csv_path):
     with open(csv_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
 
     print(f"Found {len(rows)} objects to migrate")
     success = 0
+    errors = []
 
     for row in rows:
         code = row.get("object_code", "").strip()
-        name = row.get("name", "").strip()
-        if not code or not name:
+        obj_name = row.get("name", "").strip()
+        if not code or not obj_name:
+            errors.append(f"Row skipped: missing code or name")
             continue
 
-        address = sql_str(row.get("address", "").strip())
-        gps_lat = row.get("gps_lat", "0").strip() or "0"
-        gps_lon = row.get("gps_lon", "0").strip() or "0"
-        obj_type = sql_str(row.get("object_type", "Office").strip())
-        service_level = row.get("service_level", "Standard").strip()
-        customer_name = sql_str(row.get("customer_name", "").strip())
-
-        check = run_bench_query(site,
-            f"SELECT name FROM `tabSecurity Object` WHERE object_code='{code}' LIMIT 1")
-        if check and code in check:
-            print(f"  Skip (exists): {code}")
+        existing = exists_by_filter("Security Object", "object_code", code)
+        if existing:
+            print(f"  Skip (exists): {code} -> {existing}")
             continue
 
-        query = f"""INSERT INTO `tabSecurity Object`
-            (name, object_code, object_name, address, gps_lat, gps_lon, object_type, service_level, status, creation, modified, modified_by, owner, docstatus)
-            VALUES ('{code}', '{code}', '{sql_str(name)}', '{address}', {gps_lat}, {gps_lon}, '{obj_type}', '{service_level}', 'Active', NOW(), NOW(), 'Administrator', 'Administrator', 0)
-            ON DUPLICATE KEY UPDATE modified=NOW()"""
+        customer_name = row.get("customer_name", "").strip()
+        customer_id = None
+        if customer_name:
+            customers = frappe_get("Customer",
+                filters=[["customer_name", "=", customer_name]],
+                fields=["name"], limit=1)
+            if customers:
+                customer_id = customers[0].get("name")
 
-        result = run_bench_query(site, query)
-        if result is not None:
-            print(f"  OK: {code} - {name}")
+        data = {
+            "object_code": code,
+            "object_name": obj_name,
+            "object_type": row.get("object_type", "Office").strip().title(),
+            "service_level": row.get("service_level", "Standard").strip(),
+            "status": "Active",
+            "address": row.get("address", "").strip(),
+        }
+        if customer_id:
+            data["customer"] = customer_id
+        gps_lat = row.get("gps_lat", "").strip()
+        gps_lon = row.get("gps_lon", "").strip()
+        if gps_lat:
+            data["gps_lat"] = float(gps_lat)
+        if gps_lon:
+            data["gps_lon"] = float(gps_lon)
+
+        result = frappe_create("Security Object", data)
+        if result:
+            print(f"  OK: {code} - {obj_name}")
             success += 1
         else:
-            print(f"  FAIL: {code}")
+            errors.append(f"Failed: {code}")
 
-    print(f"\nResult: {success} objects migrated")
+    print(f"\nResult: {success} migrated, {len(errors)} errors")
+    for e in errors:
+        print(f"  ERROR: {e}")
+    return len(errors) == 0
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Migrate objects to ERPNext")
     parser.add_argument("--input", required=True, help="CSV file path")
-    parser.add_argument("--site", default="erp.localhost", help="ERPNext site name")
     args = parser.parse_args()
-    migrate_objects(args.input, args.site)
+    success = migrate_objects(args.input)
+    sys.exit(0 if success else 1)

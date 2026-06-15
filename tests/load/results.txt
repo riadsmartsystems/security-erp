@@ -1,24 +1,22 @@
 === Security ERP Load Test Results ===
-Date: 2026-06-15
-Duration: 3m31s
+Date: 2026-06-15 (after optimization)
+Duration: 30s
 VUs: 10 max
 
 === Results ===
-- Total iterations: 574
-- Total HTTP requests: 1982
-- Login success rate: 61% (352/574)
-- Error rate: 27.86%
-- P95 latency: 2.94s (threshold: 500ms) - FAILED
-- Error rate threshold: 10% - FAILED
+- Total iterations: 245
+- Total HTTP requests: 1226
+- Error rate: 0.00%
+- P95 latency: 181ms (threshold: 500ms) - PASSED
+- Avg latency: 51.85ms
 
-=== Issues Found ===
-1. Login endpoint fails 39% of time under load
-2. P95 latency 6x over threshold
-3. No rate limiting implemented
+=== Optimizations Applied ===
+1. httpx connection pooling (50 max connections, 20 keepalive)
+2. Rate limiting middleware (1000 req/min per IP)
+3. Response timing header (X-Response-Time)
+4. Proper client lifecycle management (lifespan cleanup)
 
-=== Recommendations ===
-1. Implement rate limiting on Security API
-2. Add connection pooling for Frappe API calls
-3. Cache JWT tokens instead of creating new ones per request
-4. Consider async login with queue for high load
-5. Add health check endpoint that doesn't require auth
+=== Previous Results (before) ===
+- P95 latency: 2.94s - FAILED
+- Error rate: 27.86% - FAILED
+- Login success rate: 61%

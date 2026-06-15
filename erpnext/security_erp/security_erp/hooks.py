@@ -38,10 +38,6 @@ doc_events = {
     "Project": {
         "on_update": "security_erp.events.project_on_update",
     },
-    "Service Ticket": {
-        "on_update": "security_erp.events.ticket_on_update",
-        "after_insert": "security_erp.events.ticket_after_insert",
-    },
 }
 
 # --------------------------------------------------------------------------
