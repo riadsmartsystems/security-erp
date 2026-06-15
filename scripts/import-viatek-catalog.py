@@ -46,8 +46,8 @@ def _request(method, path, body=None):
         "Host": FRAPPE_SITE,
         "Cookie": f"sid={sid}",
     }
-    encoded_path = urllib.parse.quote(path, safe="/:?=")
-    conn.request(method, encoded_path, body=body, headers=headers)
+    safe_path = path.replace(" ", "%20")
+    conn.request(method, safe_path, body=body, headers=headers)
     resp = conn.getresponse()
     data = resp.read().decode()
     conn.close()
@@ -74,7 +74,7 @@ def frappe_create(doctype, data):
     status, resp_data = _request("POST", path, body=body)
     if status in (200, 201):
         return json.loads(resp_data).get("data", {})
-    print(f"  Error CREATE {doctype}: {status} {resp_data[:200]}")
+    print(f"  ERROR CREATE {doctype}: {status} {resp_data[:200]}")
     return None
 
 
@@ -83,7 +83,10 @@ def frappe_get_or_create(doctype, filters, data):
     if existing:
         return existing[0].get("name")
     result = frappe_create(doctype, data)
-    return result.get("name") if result else None
+    if result:
+        return result.get("name")
+    print(f"  WARN: Failed to create {doctype}: {data.get('item_group_name', data.get('item_code', '?'))}")
+    return None
 
 
 def parse_xml(xml_path):
@@ -150,7 +153,6 @@ def import_categories(categories, tree):
             filters=[["item_group_name", "=", cat["title"]]],
             data={
                 "item_group_name": cat["title"],
-                "item_group_code": f"VIA-{cat_id}",
                 "parent_item_group": parent_name or "All Item Groups",
             }
         )
@@ -194,18 +196,10 @@ def import_products(products, category_map):
             "item_code": item_name,
             "item_name": prod["name"][:140] if prod["name"] else item_name,
             "item_group": category_name or "All Item Groups",
-            "item_group_name": category_name or "All Item Groups",
             "description": prod["description"],
             "stock_uom": "Nos",
             "is_stock_item": 1 if prod["stock"] == "yes" else 0,
             "is_fixed_asset": 0,
-            "web_long_description": prod["description"],
-            "custom_viatek_id": prod["id"],
-            "custom_viatek_code": prod["code"],
-            "custom_brand": prod["brand"],
-            "custom_price_usd": prod["price_usd"],
-            "custom_url": prod["url"],
-            "custom_image_url": prod["image"],
         }
 
         result = frappe_create("Item", data)
