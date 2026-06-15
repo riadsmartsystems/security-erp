@@ -1,48 +1,35 @@
-import os
-import json
 import hashlib
-import numpy as np
+import math
+import re
 from typing import List
 
 EMBEDDING_DIM = 384
-_model = None
-
-
-def _get_model():
-    global _model
-    if _model is None:
-        try:
-            from sentence_transformers import SentenceTransformer
-            _model = SentenceTransformer("all-MiniLM-L6-v2")
-        except ImportError:
-            _model = "hash"
-    return _model
 
 
 def generate_embedding(text: str) -> List[float]:
-    model = _get_model()
-    if model == "hash":
-        return _hash_embedding(text)
-    embedding = model.encode(text, normalize_embeddings=True)
-    return embedding.tolist()
+    words = re.findall(r'\w+', text.lower())
+    word_freq = {}
+    for w in words:
+        word_freq[w] = word_freq.get(w, 0) + 1
+
+    vec = [0.0] * EMBEDDING_DIM
+    for word, freq in word_freq.items():
+        h = int(hashlib.md5(word.encode()).hexdigest(), 16)
+        idx = h % EMBEDDING_DIM
+        vec[idx] += math.log(1 + freq)
+
+    for i in range(EMBEDDING_DIM):
+        h = int(hashlib.sha256(f"{i}".encode()).hexdigest(), 16)
+        vec[i] *= (1 + (h % 1000) / 1000.0)
+
+    norm = math.sqrt(sum(x * x for x in vec))
+    if norm > 0:
+        vec = [x / norm for x in vec]
+    return vec
 
 
 def generate_embeddings(texts: List[str]) -> List[List[float]]:
-    model = _get_model()
-    if model == "hash":
-        return [_hash_embedding(t) for t in texts]
-    embeddings = model.encode(texts, normalize_embeddings=True, batch_size=32)
-    return embeddings.tolist()
-
-
-def _hash_embedding(text: str) -> List[float]:
-    hash_bytes = hashlib.sha256(text.encode()).digest()
-    vec = []
-    for i in range(EMBEDDING_DIM):
-        byte_val = hash_bytes[i % len(hash_bytes)]
-        vec.append((byte_val / 128.0) - 1.0)
-    norm = sum(x * x for x in vec) ** 0.5
-    return [x / norm for x in vec] if norm > 0 else vec
+    return [generate_embedding(t) for t in texts]
 
 
 def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]:

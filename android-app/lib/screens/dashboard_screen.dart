@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'tickets_screen.dart';
+import 'objects_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -23,16 +25,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _loadData() async {
     try {
-      final tickets = await api.get('/api/v1/tickets');
-      final objects = await api.get('/api/v1/objects');
-      final equipment = await api.get('/api/v1/equipment');
-      final visits = await api.get('/api/v1/visits');
+      final results = await Future.wait([
+        api.get('/api/v1/tickets'),
+        api.get('/api/v1/objects'),
+        api.get('/api/v1/equipment'),
+        api.get('/api/v1/visits'),
+      ]);
 
       setState(() {
-        _tickets = (tickets['data'] as List?)?.length ?? 0;
-        _objects = (objects['data'] as List?)?.length ?? 0;
-        _equipment = (equipment['data'] as List?)?.length ?? 0;
-        _visits = (visits['data'] as List?)?.length ?? 0;
+        _tickets = (results[0]['data'] as List?)?.length ?? 0;
+        _objects = (results[1]['data'] as List?)?.length ?? 0;
+        _equipment = (results[2]['data'] as List?)?.length ?? 0;
+        _visits = (results[3]['data'] as List?)?.length ?? 0;
         _loading = false;
       });
     } catch (e) {
@@ -56,8 +60,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  _buildCard('🎫 Заявки', _tickets, Colors.blue, () {}),
-                  _buildCard('🏢 Об\'єкти', _objects, Colors.green, () {}),
+                  _buildCard('🎫 Заявки', _tickets, Colors.blue, () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const TicketsScreen()));
+                  }),
+                  _buildCard('🏢 Об\'єкти', _objects, Colors.green, () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ObjectsScreen()));
+                  }),
                   _buildCard('🔧 Обладнання', _equipment, Colors.orange, () {}),
                   _buildCard('🚗 Виїзди', _visits, Colors.purple, () {}),
                 ],
@@ -70,7 +78,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: CircleAvatar(backgroundColor: color, child: Text('$count', style: const TextStyle(color: Colors.white))),
+        leading: CircleAvatar(
+          backgroundColor: color,
+          child: Text('$count', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         trailing: const Icon(Icons.arrow_forward_ios),
         onTap: onTap,
