@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security ERP - Замовлення</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .header { background: #1a1a2e; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .header h1 { font-size: 24px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card h2 { font-size: 18px; margin-bottom: 15px; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .form-group { margin-bottom: 15px; position: relative; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #555; }
+        .form-group input, .form-group select, .form-group textarea { 
+            width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;
+        }
+        .form-group input:focus { border-color: #4a90d9; outline: none; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; }
+        th { background: #f8f9fa; font-weight: 600; color: #555; }
+        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600; }
+        .btn-primary { background: #4a90d9; color: white; }
+        .btn-primary:hover { background: #357abd; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; color: white; padding: 6px 10px; font-size: 12px; }
+        .summary { background: #f8f9fa; padding: 15px; border-radius: 4px; margin-top: 15px; }
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .summary-label { font-weight: 600; color: #555; }
+        .summary-value { font-weight: 700; }
+        .summary-value.retail { color: #4a90d9; }
+        .summary-value.wholesale { color: #666; }
+        .summary-value.margin { color: #28a745; font-size: 18px; }
+        .actions { display: flex; gap: 10px; margin-top: 20px; }
+        .result { margin-top: 20px; padding: 15px; border-radius: 4px; }
+        .result.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .result.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .hidden { display: none; }
+        .loading { opacity: 0.5; pointer-events: none; }
+        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .badge-primary { background: #4a90d9; color: white; }
+        .badge-success { background: #28a745; color: white; }
+        
+        /* Autocomplete */
+        .autocomplete-list {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: white; border: 1px solid #ddd; border-top: none;
+            border-radius: 0 0 4px 4px; max-height: 200px; overflow-y: auto;
+            z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .autocomplete-item {
+            padding: 10px; cursor: pointer; border-bottom: 1px solid #eee;
+        }
+        .autocomplete-item:hover { background: #f0f7ff; }
+        .autocomplete-item .item-name { font-weight: 600; color: #333; }
+        .autocomplete-item .item-details { font-size: 12px; color: #666; margin-top: 2px; }
+        .autocomplete-item .item-price { font-weight: 600; color: #28a745; }
+        
+        .items-table { max-height: 400px; overflow-y: auto; }
+        .items-table table { position: sticky; top: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔒 Security ERP - Замовлення</h1>
+            <p>Створення закупівлі та рахунку клієнту в одному вікні</p>
+        </div>
+
+        <div class="grid">
+            <div>
+                <div class="card">
+                    <h2>⚙️ Налаштування</h2>
+                    <div class="settings-grid">
+                        <div class="form-group">
+                            <label>Компанія</label>
+                            <input type="text" id="company" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Знижка закупки (%)</label>
+                            <input type="number" id="discount" min="0" max="100" onchange="recalculateAll()">
+                        </div>
+                        <div class="form-group">
+                            <label>Постачальник</label>
+                            <input type="text" id="supplier" value="Viatek">
+                        </div>
+                        <div class="form-group">
+                            <label>Клієнт</label>
+                            <input type="text" id="customer" value='ТОВ "Безпека Плюс"'>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 20px;">
+                    <h2>📦 Додати товар</h2>
+                    <div class="form-group">
+                        <label>Пошук товару</label>
+                        <input type="text" id="item-search" placeholder="Введіть назву або код..." autocomplete="off">
+                        <div id="search-results" class="autocomplete-list hidden"></div>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: end;">
+                        <div class="form-group" style="flex: 1;">
+                            <label>Обраний товар</label>
+                            <input type="text" id="selected-item" readonly placeholder="Оберіть зі списку">
+                        </div>
+                        <div class="form-group" style="width: 100px;">
+                            <label>Кількість</label>
+                            <input type="number" id="item-qty" value="1" min="1">
+                        </div>
+                        <div class="form-group" style="width: 140px;">
+                            <label>Роздрібна ціна</label>
+                            <input type="number" id="item-price" step="0.01">
+                        </div>
+                        <button class="btn btn-primary" onclick="addItemToList()">+ Додати</button>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 20px;">
+                    <h2>📋 Товари в замовленні</h2>
+                    <div class="items-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Код</th>
+                                    <th>Назва</th>
+                                    <th>К-сть</th>
+                                    <th>Роздрібна</th>
+                                    <th>Закупівельна</th>
+                                    <th>Сума</th>
+                                    <th>Маржа</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="items-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="empty-state" style="text-align: center; padding: 30px; color: #999;">
+                        Додайте товари через пошук вище
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="card" style="position: sticky; top: 20px;">
+                    <h2>📊 Підсумок</h2>
+                    <div class="summary">
+                        <div class="summary-row">
+                            <span class="summary-label">Кількість позицій:</span>
+                            <span class="summary-value" id="total-items">0</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Роздрібна сума (клієнт):</span>
+                            <span class="summary-value retail" id="total-retail">0 UAH</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Закупівельна сума (Viatek):</span>
+                            <span class="summary-value wholesale" id="total-wholesale">0 UAH</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Знижка:</span>
+                            <span class="summary-value" id="total-discount">0 UAH</span>
+                        </div>
+                        <div class="summary-row" style="border-top: 2px solid #28a745; padding-top: 10px; margin-top: 10px;">
+                            <span class="summary-label">МАРЖА:</span>
+                            <span class="summary-value margin" id="total-margin">0 UAH (0%)</span>
+                        </div>
+                    </div>
+
+                    <div class="actions">
+                        <button class="btn btn-primary" onclick="createPO()" id="btn-po">
+                            📋 Створити замовлення (PO)
+                        </button>
+                        <button class="btn btn-success" onclick="createInvoice()" id="btn-invoice">
+                            🧾 Рахунок клієнту
+                        </button>
+                    </div>
+
+                    <div id="result" class="result hidden"></div>
+
+                    <div style="margin-top: 20px;">
+                        <h3>📄 Останні документи</h3>
+                        <table style="margin-top: 10px;">
+                            <thead>
+                                <tr><th>Тип</th><th>Номер</th><th>Сума</th><th></th></tr>
+                            </thead>
+                            <tbody id="documents-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/v2';
+        let token = '';
+        let settings = {};
+        let selectedItem = null;
+        let orderItems = [];
+        let lastPO = null;
+        let searchTimeout = null;
+
+        async function login() {
+            const res = await fetch('http://localhost:8000/api/v1/auth/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: 'joker@riad.fun', password: 'jokerLA23'})
+            });
+            const data = await res.json();
+            token = data.access_token;
+            await loadSettings();
+        }
+
+        async function loadSettings() {
+            const res = await fetch(`${API_BASE}/settings`, {
+                headers: {'Authorization': `Bearer ${token}`}
+            });
+            const data = await res.json();
+            settings = data.data;
+            
+            document.getElementById('company').value = settings.company_name || '';
+            document.getElementById('discount').value = settings.default_discount || 20;
+        }
+
+        // Item search
+        document.getElementById('item-search').addEventListener('input', function(e) {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+            
+            if (query.length < 2) {
+                document.getElementById('search-results').classList.add('hidden');
+                return;
+            }
+
+            searchTimeout = setTimeout(() => searchItems(query), 300);
+        });
+
+        async function searchItems(query) {
+            try {
+                const res = await fetch(`${API_BASE}/items/search?q=${encodeURIComponent(query)}&limit=10`, {
+                    headers: {'Authorization': `Bearer ${token}`}
+                });
+                const data = await res.json();
+                
+                const resultsDiv = document.getElementById('search-results');
+                if (data.data && data.data.length > 0) {
+                    resultsDiv.innerHTML = data.data.map(item => `
+                        <div class="autocomplete-item" onclick="selectItem('${item.name}', '${item.item_name}', ${item.retail_price || 0})">
+                            <div class="item-name">${item.name}</div>
+                            <div class="item-details">${item.item_group || ''} | ${item.item_name || ''}</div>
+                            <div class="item-price">${item.retail_price || '?'} UAH</div>
+                        </div>
+                    `).join('');
+                    resultsDiv.classList.remove('hidden');
+                } else {
+                    resultsDiv.innerHTML = '<div class="autocomplete-item">Нічого не знайдено</div>';
+                    resultsDiv.classList.remove('hidden');
+                }
+            } catch (e) {
+                console.error('Search error:', e);
+            }
+        }
+
+        function selectItem(code, name, price) {
+            selectedItem = { code, name, price };
+            document.getElementById('selected-item').value = `${code} - ${name}`;
+            document.getElementById('item-price').value = price || '';
+            document.getElementById('item-search').value = '';
+            document.getElementById('search-results').classList.add('hidden');
+            document.getElementById('item-qty').focus();
+        }
+
+        function addItemToList() {
+            if (!selectedItem) {
+                alert('Оберіть товар!');
+                return;
+            }
+
+            const qty = parseInt(document.getElementById('item-qty').value) || 1;
+            const price = parseFloat(document.getElementById('item-price').value) || 0;
+
+            if (price <= 0) {
+                alert('Вкажіть ціну!');
+                return;
+            }
+
+            const discount = parseFloat(document.getElementById('discount').value) / 100;
+            const wholesale = price * (1 - discount);
+            const margin = (price - wholesale) * qty;
+
+            orderItems.push({
+                code: selectedItem.code,
+                name: selectedItem.name,
+                qty: qty,
+                retail: price,
+                wholesale: wholesale,
+                amount: wholesale * qty,
+                margin: margin
+            });
+
+            renderItems();
+            calculateTotals();
+
+            // Reset
+            selectedItem = null;
+            document.getElementById('selected-item').value = '';
+            document.getElementById('item-search').value = '';
+            document.getElementById('item-qty').value = 1;
+            document.getElementById('item-price').value = '';
+        }
+
+        function removeItem(index) {
+            orderItems.splice(index, 1);
+            renderItems();
+            calculateTotals();
+        }
+
+        function renderItems() {
+            const tbody = document.getElementById('items-tbody');
+            const emptyState = document.getElementById('empty-state');
+
+            if (orderItems.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            tbody.innerHTML = orderItems.map((item, i) => `
+                <tr>
+                    <td>${item.code}</td>
+                    <td>${item.name.substring(0, 30)}</td>
+                    <td>${item.qty}</td>
+                    <td>${item.retail.toFixed(2)}</td>
+                    <td>${item.wholesale.toFixed(2)}</td>
+                    <td>${item.amount.toFixed(2)}</td>
+                    <td style="color: #28a745; font-weight: 600;">${item.margin.toFixed(2)}</td>
+                    <td><button class="btn btn-danger" onclick="removeItem(${i})">✕</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function recalculateAll() {
+            const discount = parseFloat(document.getElementById('discount').value) / 100;
+            orderItems.forEach(item => {
+                item.wholesale = item.retail * (1 - discount);
+                item.amount = item.wholesale * item.qty;
+                item.margin = (item.retail - item.wholesale) * item.qty;
+            });
+            renderItems();
+            calculateTotals();
+        }
+
+        function calculateTotals() {
+            let totalRetail = 0;
+            let totalWholesale = 0;
+
+            orderItems.forEach(item => {
+                totalRetail += item.retail * item.qty;
+                totalWholesale += item.amount;
+            });
+
+            const totalMargin = totalRetail - totalWholesale;
+            const marginPercent = totalRetail > 0 ? (totalMargin / totalRetail * 100) : 0;
+
+            document.getElementById('total-items').textContent = orderItems.length;
+            document.getElementById('total-retail').textContent = `${totalRetail.toFixed(2)} UAH`;
+            document.getElementById('total-wholesale').textContent = `${totalWholesale.toFixed(2)} UAH`;
+            document.getElementById('total-discount').textContent = `${(totalRetail - totalWholesale).toFixed(2)} UAH`;
+            document.getElementById('total-margin').textContent = `${totalMargin.toFixed(2)} UAH (${marginPercent.toFixed(1)}%)`;
+        }
+
+        async function createPO() {
+            if (orderItems.length === 0) {
+                showResult('Додайте товари!', 'error');
+                return;
+            }
+
+            document.getElementById('btn-po').classList.add('loading');
+
+            try {
+                const res = await fetch(`${API_BASE}/purchase-order`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        supplier: document.getElementById('supplier').value,
+                        transaction_date: new Date().toISOString().split('T')[0],
+                        items: orderItems.map(item => ({
+                            item_code: item.code,
+                            qty: item.qty,
+                            rate: item.retail
+                        }))
+                    })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    const po = data.data;
+                    lastPO = po.name;
+                    showResult(`
+                        ✅ Замовлення: <strong>${po.name}</strong><br>
+                        Закупка: ${po.grand_total} UAH | Роздріб: ${po.total_retail} UAH | Маржа: ${po.total_margin} UAH (${po.margin_percent}%)
+                    `, 'success');
+                    addDocument('PO', po.name, po.grand_total);
+                } else {
+                    showResult(`❌ ${data.detail || 'Error'}`, 'error');
+                }
+            } catch (e) {
+                showResult(`❌ ${e.message}`, 'error');
+            } finally {
+                document.getElementById('btn-po').classList.remove('loading');
+            }
+        }
+
+        async function createInvoice() {
+            if (!lastPO) {
+                showResult('Спочатку створіть замовлення!', 'error');
+                return;
+            }
+
+            document.getElementById('btn-invoice').classList.add('loading');
+
+            try {
+                const res = await fetch(`${API_BASE}/purchase-order/${lastPO}/create-invoice`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        customer: document.getElementById('customer').value
+                    })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    const d = data.data;
+                    showResult(`
+                        ✅ Рахунок: <strong>${d.sales_invoice}</strong><br>
+                        Сума: ${d.retail_total} UAH | Маржа: ${d.margin} UAH<br>
+                        <a href="${d.link}" target="_blank">Відкрити в ERPNext →</a>
+                    `, 'success');
+                    addDocument('SI', d.sales_invoice, d.retail_total);
+                } else {
+                    showResult(`❌ ${data.detail || 'Error'}`, 'error');
+                }
+            } catch (e) {
+                showResult(`❌ ${e.message}`, 'error');
+            } finally {
+                document.getElementById('btn-invoice').classList.remove('loading');
+            }
+        }
+
+        function showResult(message, type) {
+            const el = document.getElementById('result');
+            el.className = `result ${type}`;
+            el.innerHTML = message;
+            el.classList.remove('hidden');
+        }
+
+        function addDocument(type, name, amount) {
+            const tbody = document.getElementById('documents-list');
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><span class="badge ${type === 'PO' ? 'badge-primary' : 'badge-success'}">${type}</span></td>
+                <td>${name}</td>
+                <td>${parseFloat(amount).toFixed(2)} UAH</td>
+                <td><a href="https://erp.riad.fun/app/${type === 'PO' ? 'purchase-order' : 'sales-invoice'}/${name}" target="_blank">→</a></td>
+            `;
+            tbody.prepend(row);
+        }
+
+        // Close search on click outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.form-group')) {
+                document.getElementById('search-results').classList.add('hidden');
+            }
+        });
+
+        // Initialize
+        login();
+    </script>
+</body>
+</html>

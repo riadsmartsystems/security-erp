@@ -2,6 +2,8 @@ import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from prometheus_client import make_asgi_app
 
 from app.core.config import settings
@@ -88,6 +90,11 @@ app.include_router(proxy_router)
 @app.get("/health")
 async def health():
     return {"status": "ok", "version": "2.1.0", "backend": "frappe"}
+
+
+@app.get("/order")
+async def order_page():
+    return FileResponse("/app/app/static/order.html")
 
 
 @app.get("/")

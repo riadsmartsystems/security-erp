@@ -301,7 +301,11 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.api.rule=Host(`api.${DOMAIN}`)"
-      - "traefik.http.services.api.loadbalancer.server.port=8000"
+      - "traefik.http.routers.api.service=api-svc"
+      - "traefik.http.services.api-svc.loadbalancer.server.port=8000"
+      - "traefik.http.routers.api2.rule=Host(`erp.${DOMAIN}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.api2.priority=200"
+      - "traefik.http.routers.api2.service=api-svc"
 
   # =========================================================================
   # FSM SERVICE (Field Service Management)

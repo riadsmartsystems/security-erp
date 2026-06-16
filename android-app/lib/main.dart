@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
-import 'screens/dashboard_screen.dart';
 
 void main() {
-  runApp(const SecurityERPApp());
+  runApp(const RiadApp());
 }
 
-class SecurityERPApp extends StatelessWidget {
-  const SecurityERPApp({super.key});
+class RiadApp extends StatelessWidget {
+  const RiadApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Security ERP',
+      title: 'RIAD Smart System',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1565C0),
+          seedColor: const Color(0xFF1E40AF),
           brightness: Brightness.light,
+        ),
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF1E40AF),
+          foregroundColor: Colors.white,
+          elevation: 0,
         ),
         useMaterial3: true,
       ),

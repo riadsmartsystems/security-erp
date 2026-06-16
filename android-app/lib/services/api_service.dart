@@ -3,15 +3,19 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://api.riad.fun';
+  static String baseUrl = 'https://erp.riad.fun';
   final _storage = const FlutterSecureStorage();
   String? _token;
 
-  Future<bool> login(String email, String password) async {
+  static void updateBaseUrl(String url) {
+    baseUrl = url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+  }
+
+  Future<bool> login(String username, String password) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/v1/auth/login'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'username': email, 'password': password}),
+      body: jsonEncode({'username': username, 'password': password}),
     );
 
     if (response.statusCode == 200) {
@@ -26,7 +30,7 @@ class ApiService {
   Map<String, String> _headers() {
     return {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer $_token',
+      if (_token != null) 'Authorization': 'Bearer $_token',
     };
   }
 
