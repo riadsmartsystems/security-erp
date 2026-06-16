@@ -94,7 +94,12 @@ async def health():
 
 @app.get("/order")
 async def order_page():
-    return FileResponse("/app/app/static/order.html")
+    return FileResponse("/app/app/static/order.html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+
+
+@app.get("/test")
+async def test_page():
+    return FileResponse("/app/app/static/test.html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
 @app.get("/")

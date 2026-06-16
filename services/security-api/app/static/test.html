@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test</title>
+</head>
+<body>
+    <h1>Test API</h1>
+    <div id="result"></div>
+    <script>
+        const API = '/api/v2';
+        const AUTH = '/api/v1/auth/login';
+        
+        async function test() {
+            const el = document.getElementById('result');
+            el.innerHTML = '<p>Logging in...</p>';
+            
+            try {
+                // Login
+                const loginRes = await fetch(AUTH, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username: 'joker@riad.fun', password: 'jokerLA23'})
+                });
+                const loginData = await loginRes.json();
+                const token = loginData.access_token;
+                el.innerHTML += '<p>Login: OK</p>';
+                
+                // Categories
+                const catRes = await fetch(`${API}/items/categories`, {
+                    headers: {'Authorization': `Bearer ${token}`}
+                });
+                const catData = await catRes.json();
+                el.innerHTML += `<p>Categories: ${catData.data.length}</p>`;
+                
+                // Brands
+                const brandRes = await fetch(`${API}/items/brands`, {
+                    headers: {'Authorization': `Bearer ${token}`}
+                });
+                const brandData = await brandRes.json();
+                el.innerHTML += `<p>Brands: ${brandData.data.length}</p>`;
+                
+                // Items
+                const itemRes = await fetch(`${API}/items/search?limit=3`, {
+                    headers: {'Authorization': `Bearer ${token}`}
+                });
+                const itemData = await itemRes.json();
+                el.innerHTML += `<p>Items: ${itemData.data.length}</p>`;
+                
+                el.innerHTML += '<p style="color:green">All OK!</p>';
+            } catch (e) {
+                el.innerHTML += `<p style="color:red">Error: ${e.message}</p>`;
+            }
+        }
+        test();
+    </script>
+</body>
+</html>

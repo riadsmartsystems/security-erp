@@ -45,6 +45,7 @@
         .badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
         .badge-primary { background: #4a90d9; color: white; }
         .badge-success { background: #28a745; color: white; }
+        .badge-warning { background: #ffc107; color: #333; }
         
         /* Autocomplete */
         .autocomplete-list {
@@ -98,17 +99,37 @@
 
                 <div class="card" style="margin-top: 20px;">
                     <h2>📦 Додати товар</h2>
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                        <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
                             <label>Категорія</label>
                             <select id="filter-category" onchange="filterItems()">
                                 <option value="">Всі категорії</option>
                             </select>
                         </div>
-                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
                             <label>Бренд</label>
                             <select id="filter-brand" onchange="filterItems()">
                                 <option value="">Всі бренди</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="width: 120px; margin-bottom: 0;">
+                            <label>Тип камери</label>
+                            <select id="filter-camera-type" onchange="filterItems()">
+                                <option value="">Всі</option>
+                                <option value="ip">IP</option>
+                                <option value="analog">Аналог</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="width: 100px; margin-bottom: 0;">
+                            <label>МП</label>
+                            <select id="filter-mp" onchange="filterItems()">
+                                <option value="">Всі</option>
+                                <option value="2">2 МП</option>
+                                <option value="3">3 МП</option>
+                                <option value="4">4 МП</option>
+                                <option value="5">5 МП</option>
+                                <option value="8">8 МП</option>
+                                <option value="12">12 МП</option>
                             </select>
                         </div>
                     </div>
@@ -187,10 +208,15 @@
                     </div>
 
                     <div class="actions">
-                        <button class="btn btn-primary" onclick="createPO()" id="btn-po">
-                            📋 Створити замовлення (PO)
+                        <button class="btn btn-primary" onclick="createQuotation()" id="btn-quotation">
+                            📄 Пропозиція клієнту
                         </button>
-                        <button class="btn btn-success" onclick="createInvoice()" id="btn-invoice">
+                    </div>
+                    <div class="actions" style="margin-top: 10px;">
+                        <button class="btn btn-primary" onclick="createPO()" id="btn-po" disabled>
+                            📋 Замовлення Viatek
+                        </button>
+                        <button class="btn btn-success" onclick="createInvoice()" id="btn-invoice" disabled>
                             🧾 Рахунок клієнту
                         </button>
                     </div>
@@ -198,7 +224,10 @@
                     <div id="result" class="result hidden"></div>
 
                     <div style="margin-top: 20px;">
-                        <h3>📄 Останні документи</h3>
+                        <h3>📄 Документи</h3>
+                        <div id="workflow-status" style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                            <div>① Пропозиція → ② Замовлення → ③ Рахунок</div>
+                        </div>
                         <table style="margin-top: 10px;">
                             <thead>
                                 <tr><th>Тип</th><th>Номер</th><th>Сума</th><th></th></tr>
@@ -212,25 +241,48 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:8000/api/v2';
+        const API_BASE = '/api/v2';
+        const AUTH_URL = '/api/v1/auth/login';
         let token = '';
         let settings = {};
         let selectedItem = null;
         let orderItems = [];
-        let lastPO = null;
         let searchTimeout = null;
 
         async function login() {
-            const res = await fetch('http://localhost:8000/api/v1/auth/login', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({username: 'joker@riad.fun', password: 'jokerLA23'})
-            });
-            const data = await res.json();
-            token = data.access_token;
-            await loadSettings();
-            await loadCategories();
-            await loadBrands();
+            try {
+                const res = await fetch(AUTH_URL, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username: 'joker@riad.fun', password: 'jokerLA23'})
+                });
+                const data = await res.json();
+                token = data.access_token;
+                console.log('Login OK');
+            } catch (e) {
+                console.error('Login error:', e);
+                showResult('Помилка логіну: ' + e.message, 'error');
+                return;
+            }
+            try {
+                await loadSettings();
+                console.log('Settings OK');
+            } catch (e) {
+                console.error('Settings error:', e);
+            }
+            try {
+                await loadCategories();
+                console.log('Categories OK');
+            } catch (e) {
+                console.error('Categories error:', e);
+            }
+            try {
+                await loadBrands();
+                console.log('Brands OK');
+            } catch (e) {
+                console.error('Brands error:', e);
+            }
+            updateWorkflowUI();
         }
 
         async function loadSettings() {
@@ -283,18 +335,22 @@
         function filterItems() {
             const category = document.getElementById('filter-category').value;
             const brand = document.getElementById('filter-brand').value;
-            if (category || brand) {
-                searchItemsWithFilters(category, brand);
+            const cameraType = document.getElementById('filter-camera-type').value;
+            const mp = document.getElementById('filter-mp').value;
+            if (category || brand || cameraType || mp) {
+                searchItemsWithFilters(category, brand, cameraType, mp);
             } else {
                 document.getElementById('search-results').classList.add('hidden');
             }
         }
 
-        async function searchItemsWithFilters(category, brand) {
+        async function searchItemsWithFilters(category, brand, cameraType, mp) {
             try {
                 let url = `${API_BASE}/items/search?limit=20`;
                 if (category) url += `&category=${encodeURIComponent(category)}`;
                 if (brand) url += `&brand=${encodeURIComponent(brand)}`;
+                if (cameraType) url += `&camera_type=${cameraType}`;
+                if (mp) url += `&megapixels=${mp}`;
                 
                 const res = await fetch(url, {
                     headers: {'Authorization': `Bearer ${token}`}
@@ -320,27 +376,33 @@
             }
         }
 
-        // Item search
+        // Item search - show list on focus
+        document.getElementById('item-search').addEventListener('focus', function(e) {
+            const query = e.target.value.trim();
+            if (query.length < 2) {
+                searchItems('');
+            }
+        });
+
         document.getElementById('item-search').addEventListener('input', function(e) {
             clearTimeout(searchTimeout);
             const query = e.target.value.trim();
-            
-            if (query.length < 2) {
-                document.getElementById('search-results').classList.add('hidden');
-                return;
-            }
-
-            searchTimeout = setTimeout(() => searchItems(query), 300);
+            searchTimeout = setTimeout(() => searchItems(query), 200);
         });
 
         async function searchItems(query) {
             try {
                 const category = document.getElementById('filter-category').value;
                 const brand = document.getElementById('filter-brand').value;
+                const cameraType = document.getElementById('filter-camera-type').value;
+                const mp = document.getElementById('filter-mp').value;
                 
-                let url = `${API_BASE}/items/search?q=${encodeURIComponent(query)}&limit=10`;
+                let url = `${API_BASE}/items/search?limit=20`;
+                if (query) url += `&q=${encodeURIComponent(query)}`;
                 if (category) url += `&category=${encodeURIComponent(category)}`;
                 if (brand) url += `&brand=${encodeURIComponent(brand)}`;
+                if (cameraType) url += `&camera_type=${cameraType}`;
+                if (mp) url += `&megapixels=${mp}`;
                 
                 const res = await fetch(url, {
                     headers: {'Authorization': `Bearer ${token}`}
@@ -475,24 +537,50 @@
             document.getElementById('total-margin').textContent = `${totalMargin.toFixed(2)} UAH (${marginPercent.toFixed(1)}%)`;
         }
 
-        async function createPO() {
+        // Workflow state
+        let lastQuotation = null;
+        let lastPO = null;
+        let workflowStep = 1; // 1=quotation, 2=po, 3=invoice
+
+        function updateWorkflowUI() {
+            const btnQuotation = document.getElementById('btn-quotation');
+            const btnPO = document.getElementById('btn-po');
+            const btnInvoice = document.getElementById('btn-invoice');
+            const statusDiv = document.getElementById('workflow-status');
+
+            btnQuotation.disabled = workflowStep !== 1;
+            btnPO.disabled = workflowStep !== 2;
+            btnInvoice.disabled = workflowStep !== 3;
+
+            const steps = [
+                { num: 1, name: 'Пропозиція', done: !!lastQuotation },
+                { num: 2, name: 'Замовлення', done: !!lastPO },
+                { num: 3, name: 'Рахунок', done: false },
+            ];
+
+            statusDiv.innerHTML = steps.map(s => {
+                const icon = s.done ? '✅' : (s.num === workflowStep ? '🔵' : '⚪');
+                return `<span>${icon} ${s.num}. ${s.name}</span>`;
+            }).join(' → ');
+        }
+
+        async function createQuotation() {
             if (orderItems.length === 0) {
                 showResult('Додайте товари!', 'error');
                 return;
             }
 
-            document.getElementById('btn-po').classList.add('loading');
+            document.getElementById('btn-quotation').classList.add('loading');
 
             try {
-                const res = await fetch(`${API_BASE}/purchase-order`, {
+                const res = await fetch(`${API_BASE}/quotation`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        supplier: document.getElementById('supplier').value,
-                        transaction_date: new Date().toISOString().split('T')[0],
+                        customer: document.getElementById('customer').value,
                         items: orderItems.map(item => ({
                             item_code: item.code,
                             qty: item.qty,
@@ -503,11 +591,56 @@
                 const data = await res.json();
                 
                 if (data.success) {
+                    const qtn = data.data;
+                    lastQuotation = qtn.name;
+                    workflowStep = 2;
+                    updateWorkflowUI();
+                    showResult(`
+                        ✅ Пропозиція: <strong>${qtn.name}</strong><br>
+                        Сума: ${qtn.total_retail || qtn.grand_total} UAH<br>
+                        <em>Відправте клієнту. Після схвалення натисніть Замовлення Viatek</em>
+                    `, 'success');
+                    addDocument('QTN', qtn.name, qtn.grand_total);
+                } else {
+                    showResult(`❌ ${data.detail || 'Error'}`, 'error');
+                }
+            } catch (e) {
+                showResult(`❌ ${e.message}`, 'error');
+            } finally {
+                document.getElementById('btn-quotation').classList.remove('loading');
+            }
+        }
+
+        async function createPO() {
+            if (!lastQuotation) {
+                showResult('Спочатку створіть пропозицію!', 'error');
+                return;
+            }
+
+            document.getElementById('btn-po').classList.add('loading');
+
+            try {
+                const res = await fetch(`${API_BASE}/quotation/${lastQuotation}/create-po`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        supplier: document.getElementById('supplier').value,
+                        transaction_date: new Date().toISOString().split('T')[0]
+                    })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
                     const po = data.data;
                     lastPO = po.name;
+                    workflowStep = 3;
+                    updateWorkflowUI();
                     showResult(`
                         ✅ Замовлення: <strong>${po.name}</strong><br>
-                        Закупка: ${po.grand_total} UAH | Роздріб: ${po.total_retail} UAH | Маржа: ${po.total_margin} UAH (${po.margin_percent}%)
+                        Закупка: ${po.grand_total} UAH | Маржа: ${po.total_margin} UAH (${po.margin_percent}%)
                     `, 'success');
                     addDocument('PO', po.name, po.grand_total);
                 } else {
@@ -569,11 +702,12 @@
         function addDocument(type, name, amount) {
             const tbody = document.getElementById('documents-list');
             const row = document.createElement('tr');
+            const docType = type === 'PO' ? 'purchase-order' : type === 'SI' ? 'sales-invoice' : 'quotation';
             row.innerHTML = `
-                <td><span class="badge ${type === 'PO' ? 'badge-primary' : 'badge-success'}">${type}</span></td>
+                <td><span class="badge ${type === 'PO' ? 'badge-primary' : type === 'SI' ? 'badge-success' : 'badge-warning'}">${type}</span></td>
                 <td>${name}</td>
                 <td>${parseFloat(amount).toFixed(2)} UAH</td>
-                <td><a href="https://erp.riad.fun/app/${type === 'PO' ? 'purchase-order' : 'sales-invoice'}/${name}" target="_blank">→</a></td>
+                <td><a href="https://erp.riad.fun/app/${docType}/${name}" target="_blank">→</a></td>
             `;
             tbody.prepend(row);
         }
@@ -586,7 +720,10 @@
         });
 
         // Initialize
-        login();
+        window.addEventListener('load', function() {
+            console.log('Page loaded, starting login...');
+            login();
+        });
     </script>
 </body>
 </html>
