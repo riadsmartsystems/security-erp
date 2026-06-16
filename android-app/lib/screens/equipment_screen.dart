@@ -20,7 +20,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
 
   Future<void> _loadEquipment() async {
     try {
-      final result = await api.get('/api/v1/equipment');
+      final result = await api.get('/api/v2/equipment');
       setState(() {
         _items = result['data'] ?? [];
         _loading = false;
@@ -41,10 +41,51 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     }
   }
 
+  void _showCreateDialog() {
+    final nameCtrl = TextEditingController();
+    final typeCtrl = TextEditingController();
+    final serialCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Нове обладнання'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Назва')),
+            const SizedBox(height: 8),
+            TextField(controller: typeCtrl, decoration: const InputDecoration(labelText: 'Тип')),
+            const SizedBox(height: 8),
+            TextField(controller: serialCtrl, decoration: const InputDecoration(labelText: 'Серійний номер')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Скасувати')),
+          ElevatedButton(
+            onPressed: () async {
+              await api.post('/api/v2/equipment', {
+                'equipment_name': nameCtrl.text,
+                'equipment_type': typeCtrl.text,
+                'serial_number': serialCtrl.text,
+              });
+              Navigator.pop(ctx);
+              _loadEquipment();
+            },
+            child: const Text('Створити'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Обладнання')),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showCreateDialog,
+        child: const Icon(Icons.add),
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -57,8 +98,8 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                     margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     child: ListTile(
                       leading: Text(_statusIcon(e['status'] ?? ''), style: const TextStyle(fontSize: 24)),
-                      title: Text(e['model'] ?? 'Без моделі'),
-                      subtitle: Text('${e['equipment_code'] ?? ''} • ${e['serial_number'] ?? ''}'),
+                      title: Text(e['equipment_name'] ?? 'Без назви'),
+                      subtitle: Text('${e['equipment_type'] ?? ''} • ${e['serial_number'] ?? ''}'),
                     ),
                   );
                 },

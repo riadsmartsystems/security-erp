@@ -42,7 +42,7 @@ class _VisitFlowScreenState extends State<VisitFlowScreen> {
 
   Future<void> _loadVisits() async {
     try {
-      final result = await api.get('/api/v1/visits?limit=20');
+      final result = await api.get('/api/v2/visits?limit=20');
       setState(() {
         _visits = result['data'] ?? [];
         _loading = false;
@@ -54,7 +54,7 @@ class _VisitFlowScreenState extends State<VisitFlowScreen> {
 
   Future<void> _startVisit(String visitId) async {
     final pos = await _getPosition();
-    await api.post('/api/v1/visits/$visitId/start', {
+    await api.post('/api/v2/visits/$visitId/start', {
       'lat': pos?.latitude ?? 0.0,
       'lon': pos?.longitude ?? 0.0,
     });
@@ -70,7 +70,7 @@ class _VisitFlowScreenState extends State<VisitFlowScreen> {
 
   Future<void> _finishVisit(String visitId) async {
     final pos = await _getPosition();
-    await api.post('/api/v1/visits/$visitId/finish', {
+    await api.post('/api/v2/visits/$visitId/finish', {
       'lat': pos?.latitude ?? 0.0,
       'lon': pos?.longitude ?? 0.0,
     });
@@ -85,7 +85,7 @@ class _VisitFlowScreenState extends State<VisitFlowScreen> {
   }
 
   Future<void> _createVisit() async {
-    await api.post('/api/v1/visits', {
+    await api.post('/api/v2/visits', {
       'ticket_id': widget.ticket['id'],
       'engineer_id': 'joker@riad.fun',
     });

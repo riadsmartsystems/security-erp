@@ -98,6 +98,20 @@
 
                 <div class="card" style="margin-top: 20px;">
                     <h2>📦 Додати товар</h2>
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <label>Категорія</label>
+                            <select id="filter-category" onchange="filterItems()">
+                                <option value="">Всі категорії</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <label>Бренд</label>
+                            <select id="filter-brand" onchange="filterItems()">
+                                <option value="">Всі бренди</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="form-group">
                         <label>Пошук товару</label>
                         <input type="text" id="item-search" placeholder="Введіть назву або код..." autocomplete="off">
@@ -215,6 +229,8 @@
             const data = await res.json();
             token = data.access_token;
             await loadSettings();
+            await loadCategories();
+            await loadBrands();
         }
 
         async function loadSettings() {
@@ -226,6 +242,82 @@
             
             document.getElementById('company').value = settings.company_name || '';
             document.getElementById('discount').value = settings.default_discount || 20;
+        }
+
+        async function loadCategories() {
+            try {
+                const res = await fetch(`${API_BASE}/items/categories`, {
+                    headers: {'Authorization': `Bearer ${token}`}
+                });
+                const data = await res.json();
+                const select = document.getElementById('filter-category');
+                data.data.forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat;
+                    opt.textContent = cat;
+                    select.appendChild(opt);
+                });
+            } catch (e) {
+                console.error('Load categories error:', e);
+            }
+        }
+
+        async function loadBrands() {
+            try {
+                const res = await fetch(`${API_BASE}/items/brands`, {
+                    headers: {'Authorization': `Bearer ${token}`}
+                });
+                const data = await res.json();
+                const select = document.getElementById('filter-brand');
+                data.data.forEach(brand => {
+                    const opt = document.createElement('option');
+                    opt.value = brand;
+                    opt.textContent = brand;
+                    select.appendChild(opt);
+                });
+            } catch (e) {
+                console.error('Load brands error:', e);
+            }
+        }
+
+        function filterItems() {
+            const category = document.getElementById('filter-category').value;
+            const brand = document.getElementById('filter-brand').value;
+            if (category || brand) {
+                searchItemsWithFilters(category, brand);
+            } else {
+                document.getElementById('search-results').classList.add('hidden');
+            }
+        }
+
+        async function searchItemsWithFilters(category, brand) {
+            try {
+                let url = `${API_BASE}/items/search?limit=20`;
+                if (category) url += `&category=${encodeURIComponent(category)}`;
+                if (brand) url += `&brand=${encodeURIComponent(brand)}`;
+                
+                const res = await fetch(url, {
+                    headers: {'Authorization': `Bearer ${token}`}
+                });
+                const data = await res.json();
+                
+                const resultsDiv = document.getElementById('search-results');
+                if (data.data && data.data.length > 0) {
+                    resultsDiv.innerHTML = data.data.map(item => `
+                        <div class="autocomplete-item" onclick="selectItem('${item.name}', '${item.item_name}', ${item.retail_price || 0})">
+                            <div class="item-name">${item.name}</div>
+                            <div class="item-details">${item.item_group || ''}</div>
+                            <div class="item-price">${item.retail_price || '?'} UAH</div>
+                        </div>
+                    `).join('');
+                    resultsDiv.classList.remove('hidden');
+                } else {
+                    resultsDiv.innerHTML = '<div class="autocomplete-item">Нічого не знайдено</div>';
+                    resultsDiv.classList.remove('hidden');
+                }
+            } catch (e) {
+                console.error('Search error:', e);
+            }
         }
 
         // Item search
@@ -243,7 +335,14 @@
 
         async function searchItems(query) {
             try {
-                const res = await fetch(`${API_BASE}/items/search?q=${encodeURIComponent(query)}&limit=10`, {
+                const category = document.getElementById('filter-category').value;
+                const brand = document.getElementById('filter-brand').value;
+                
+                let url = `${API_BASE}/items/search?q=${encodeURIComponent(query)}&limit=10`;
+                if (category) url += `&category=${encodeURIComponent(category)}`;
+                if (brand) url += `&brand=${encodeURIComponent(brand)}`;
+                
+                const res = await fetch(url, {
                     headers: {'Authorization': `Bearer ${token}`}
                 });
                 const data = await res.json();

@@ -21,6 +21,17 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     _serverController.text = ApiService.baseUrl;
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final creds = await api.loadCredentials();
+    if (creds['username']!.isNotEmpty) {
+      _usernameController.text = creds['username']!;
+    }
+    if (creds['password']!.isNotEmpty) {
+      _passwordController.text = creds['password']!;
+    }
   }
 
   Future<void> _login() async {
@@ -39,6 +50,10 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
       if (success && mounted) {
+        await api.saveCredentials(
+          _usernameController.text.trim(),
+          _passwordController.text,
+        );
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomeScreen()),

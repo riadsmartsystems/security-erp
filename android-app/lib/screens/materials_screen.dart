@@ -26,7 +26,7 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
   Future<void> _addMaterial() async {
     if (_nameController.text.isEmpty) return;
     try {
-      await api.post('/api/v1/visits/${widget.visitId}/materials', {
+      await api.post('/api/v2/visits/${widget.visitId}/materials', {
         'material_name': _nameController.text,
         'quantity': int.tryParse(_qtyController.text) ?? 1,
         'unit_price': double.tryParse(_priceController.text) ?? 0,
@@ -51,7 +51,7 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
 
   Future<void> _loadMaterials() async {
     try {
-      final result = await api.get('/api/v1/visits/${widget.visitId}/materials');
+      final result = await api.get('/api/v2/visits/${widget.visitId}/materials');
       setState(() {
         _materials = (result['data'] as List<dynamic>?)
             ?.map((e) => Map<String, dynamic>.from(e))

@@ -15,7 +15,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _tickets = 0;
   int _objects = 0;
   int _equipment = 0;
-  int _visits = 0;
+  int _openTickets = 0;
   bool _loading = true;
 
   @override
@@ -26,18 +26,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _loadData() async {
     try {
-      final results = await Future.wait([
-        api.get('/api/v1/tickets'),
-        api.get('/api/v1/objects'),
-        api.get('/api/v1/equipment'),
-        api.get('/api/v1/visits'),
-      ]);
-
+      final result = await api.get('/api/v2/stats');
+      final data = result['data'] ?? {};
       setState(() {
-        _tickets = (results[0]['data'] as List?)?.length ?? 0;
-        _objects = (results[1]['data'] as List?)?.length ?? 0;
-        _equipment = (results[2]['data'] as List?)?.length ?? 0;
-        _visits = (results[3]['data'] as List?)?.length ?? 0;
+        _tickets = data['customers'] ?? 0;
+        _objects = data['objects'] ?? 0;
+        _equipment = data['equipment'] ?? 0;
+        _openTickets = data['open_tickets'] ?? 0;
         _loading = false;
       });
     } catch (e) {
@@ -61,7 +56,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  _buildCard('🎫 Заявки', _tickets, Colors.blue, () {
+                  _buildCard('🎫 Заявки', _openTickets, Colors.blue, () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const TicketsScreen()));
                   }),
                   _buildCard('🏢 Об\'єкти', _objects, Colors.green, () {
@@ -70,7 +65,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _buildCard('🔧 Обладнання', _equipment, Colors.orange, () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const EquipmentScreen()));
                   }),
-                  _buildCard('🚗 Виїзди', _visits, Colors.purple, () {}),
                 ],
               ),
             ),

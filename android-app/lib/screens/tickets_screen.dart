@@ -21,7 +21,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
 
   Future<void> _loadTickets() async {
     try {
-      final result = await api.get('/api/v1/tickets');
+      final result = await api.get('/api/v2/tickets');
       setState(() {
         _tickets = result['data'] ?? [];
         _loading = false;
@@ -41,10 +41,51 @@ class _TicketsScreenState extends State<TicketsScreen> {
     }
   }
 
+  void _showCreateDialog() {
+    final titleCtrl = TextEditingController();
+    final typeCtrl = TextEditingController();
+    final priorityCtrl = TextEditingController(text: 'medium');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Нова заявка'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Назва')),
+            const SizedBox(height: 8),
+            TextField(controller: typeCtrl, decoration: const InputDecoration(labelText: 'Тип')),
+            const SizedBox(height: 8),
+            TextField(controller: priorityCtrl, decoration: const InputDecoration(labelText: 'Пріоритет')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Скасувати')),
+          ElevatedButton(
+            onPressed: () async {
+              await api.post('/api/v2/tickets', {
+                'title': titleCtrl.text,
+                'ticket_type': typeCtrl.text,
+                'priority': priorityCtrl.text,
+              });
+              Navigator.pop(ctx);
+              _loadTickets();
+            },
+            child: const Text('Створити'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Заявки')),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showCreateDialog,
+        child: const Icon(Icons.add),
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

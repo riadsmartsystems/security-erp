@@ -20,12 +20,12 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   }
 
   Future<void> _loadVisits() async {
-    final result = await api.get('/api/v1/visits?limit=20');
+    final result = await api.get('/api/v2/visits?limit=20');
     setState(() { _visits = result['data'] ?? []; });
   }
 
   Future<void> _startVisit() async {
-    final result = await api.post('/api/v1/visits', {
+    final result = await api.post('/api/v2/visits', {
       'ticket_id': widget.ticket['id'],
       'engineer_id': 'joker@riad.fun',
     });

@@ -87,19 +87,70 @@ async def update_settings(body: dict, current_user: CurrentUser = Depends(get_cu
 
 @router.get("/items/search")
 async def search_items(
-    q: str = Query(..., min_length=1),
-    limit: int = Query(20, le=50),
+    q: str = Query(None),
+    category: str = Query(None),
+    brand: str = Query(None),
+    limit: int = Query(20, le=100),
     current_user: CurrentUser = Depends(get_current_user),
 ):
     try:
-        filters = json.dumps([["item_name", "like", f"%{q}%"]])
-        result = await frappe_get("/api/resource/Item", params={
+        filters = []
+        if q:
+            filters.append(["item_name", "like", f"%{q}%"])
+        if category:
+            filters.append(["item_group", "=", category])
+        if brand:
+            filters.append(["item_name", "like", f"%{brand}%"])
+        
+        if not filters:
+            filters = [["retail_price", ">", 0]]
+        
+        filter_str = json.dumps(filters) if filters else None
+        params = {
             "fields": '["name","item_code","item_name","retail_price","item_group"]',
-            "filters": filters,
             "limit_page_length": limit,
-        })
+        }
+        if filter_str:
+            params["filters"] = filter_str
+        
+        result = await frappe_get("/api/resource/Item", params=params)
         items = result.get("data", [])
         return {"success": True, "data": items}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/items/categories")
+async def list_categories(current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        result = await frappe_get("/api/resource/Item Group", params={
+            "fields": '["name","parent_item_group"]',
+            "limit_page_length": 200,
+        })
+        groups = result.get("data", [])
+        top_level = [g["name"] for g in groups if g.get("parent_item_group") == "All Item Groups"]
+        return {"success": True, "data": top_level}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/items/brands")
+async def list_brands(current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        result = await frappe_get("/api/resource/Item", params={
+            "fields": '["item_name"]',
+            "limit_page_length": 0,
+        })
+        items = result.get("data", [])
+        brands = set()
+        for item in items:
+            name = item.get("item_name", "")
+            for brand in ["Hikvision", "Dahua", "Imou", "Ajax", "MikroTik", "TP-Link", "Ubiquiti", 
+                         "Avtech", "GeoVision", "Vivotek", "Uniview", "KBVision", "Forteza",
+                         "Tecumseh", "Maxxter", "Ewind", "Dnipro", "Hyundai", "Samsung"]:
+                if brand.lower() in name.lower():
+                    brands.add(brand)
+        return {"success": True, "data": sorted(brands)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

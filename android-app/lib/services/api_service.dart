@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   static String baseUrl = 'https://erp.riad.fun';
@@ -87,6 +88,20 @@ class ApiService {
   Future<void> logout() async {
     _token = null;
     await _storage.delete(key: 'token');
+  }
+
+  Future<void> saveCredentials(String username, String password) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('saved_username', username);
+    await prefs.setString('saved_password', password);
+  }
+
+  Future<Map<String, String>> loadCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'username': prefs.getString('saved_username') ?? '',
+      'password': prefs.getString('saved_password') ?? '',
+    };
   }
 }
 
