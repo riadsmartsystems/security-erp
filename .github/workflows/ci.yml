@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
+      - name: Install lint dependencies
         run: |
           pip install flake8 black isort
 
@@ -27,7 +27,25 @@ jobs:
 
       - name: Check code formatting
         run: |
-          black --check services/ || true
+          black --check services/
+
+      - name: Verify Python syntax
+        run: |
+          python -m py_compile services/security-api/app/main.py
+          python -m py_compile services/security-api/app/routes/doctypes.py
+          python -m py_compile services/security-api/app/routes/visits.py
+          python -m py_compile services/security-api/app/core/database.py
+          python -m py_compile services/security-api/app/core/config.py
+          python -m py_compile services/security-api/app/services/ai_service.py
+          python -m py_compile services/telegram-service/app/main.py
+
+      - name: Install test dependencies
+        run: |
+          pip install fastapi pydantic pydantic-settings httpx python-jose bcrypt python-multipart
+
+      - name: Run unit tests
+        run: |
+          python tests/security-api/test_models.py
 
   build:
     runs-on: ubuntu-latest
@@ -39,9 +57,6 @@ jobs:
       - name: Build Docker images
         run: |
           docker build -t security-api -f services/security-api/Dockerfile services/security-api/
-          docker build -t fsm-service -f services/fsm-service/Dockerfile services/fsm-service/
-          docker build -t cmdb-service -f services/cmdb-service/Dockerfile services/cmdb-service/
-          docker build -t ai-service -f services/ai-service/Dockerfile services/ai-service/
           docker build -t telegram-service -f services/telegram-service/Dockerfile services/telegram-service/
 
   deploy:

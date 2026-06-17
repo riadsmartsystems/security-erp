@@ -5,7 +5,7 @@ from app.schemas.auth import LoginRequest, TokenResponse, RefreshRequest, UserCr
 from app.auth.jwt import create_access_token, create_refresh_token, decode_token
 from app.auth.dependencies import get_current_user, CurrentUser
 
-router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+router = APIRouter(prefix="/api/v2/auth", tags=["auth"])
 
 
 @router.post("/login", response_model=TokenResponse)

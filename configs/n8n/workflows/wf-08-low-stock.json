@@ -18,7 +18,7 @@
     {
       "id": "node-telegram-08",
       "parameters": {
-        "chatId": "291657218",
+        "chatId": "{{ $env.NOTIFICATION_TELEGRAM_CHAT_IDS }}",
         "text": "=📦 Мінімальний залишок!\n\nТовар: {{ $json.body.item_name }}\nКод: {{ $json.body.item_code }}\nЗалишок: {{ $json.body.current_qty }}\nМінімум: {{ $json.body.min_qty }}\nСклад: {{ $json.body.warehouse }}",
         "additionalFields": {}
       },

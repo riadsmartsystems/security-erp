@@ -33,7 +33,7 @@ fi
 # 1. Restore MariaDB
 if [ -f "$BACKUP_DIR/mariadb_full.sql" ]; then
     echo "[1/4] Restoring MariaDB..."
-    docker exec -i mariadb mysql -u root -pmariadb_root_secret < "$BACKUP_DIR/mariadb_full.sql" 2>/dev/null
+    docker exec -i mariadb mysql -u root -p"${MARIADB_ROOT_PASSWORD}" < "$BACKUP_DIR/mariadb_full.sql" 2>/dev/null
     echo "  OK"
 else
     echo "[1/4] MariaDB backup not found, skipping"

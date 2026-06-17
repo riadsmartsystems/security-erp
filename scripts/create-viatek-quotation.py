@@ -4,12 +4,15 @@ Create Supplier Quotations from Viatek XML for all items with prices.
 Usage: python create-viatek-quotation.py
 """
 import json
+import os
 import http.client
 import xml.etree.ElementTree as ET
 import urllib.parse
 
 FRAPPE_HOST = "localhost:80"
 FRAPPE_SITE = "erp.localhost"
+FRAPPE_USER = "Administrator"
+FRAPPE_PWD = os.environ.get("FRAPPE_PASSWORD", "")
 _sid = None
 
 
@@ -18,7 +21,7 @@ def _get_sid():
     if _sid:
         return _sid
     conn = http.client.HTTPConnection(FRAPPE_HOST, timeout=30)
-    body = json.dumps({"usr": "Administrator", "pwd": "jokerLA23"})
+    body = json.dumps({"usr": FRAPPE_USER, "pwd": FRAPPE_PWD})
     conn.request("POST", "/api/method/login", body=body,
                  headers={"Content-Type": "application/json", "Host": FRAPPE_SITE})
     resp = conn.getresponse()

@@ -2,7 +2,7 @@
   "dashboard": {
     "id": null,
     "title": "Security ERP Platform",
-    "tags": ["security-erp", "microservices"],
+    "tags": ["security-erp"],
     "timezone": "browser",
     "panels": [
       {
@@ -11,7 +11,7 @@
         "type": "stat",
         "targets": [
           {
-            "expr": "up{job=~\"security-api|fsm-service|cmdb-service|ai-service\"}",
+            "expr": "up{job=~\"security-api|telegram-service\"}",
             "legendFormat": "{{ job }}"
           }
         ],
@@ -23,7 +23,7 @@
         "type": "graph",
         "targets": [
           {
-            "expr": "rate(http_requests_total{job=~\"security-api|fsm-service|cmdb-service|ai-service\"}[5m])",
+            "expr": "rate(http_requests_total{job=~\"security-api\"}[5m])",
             "legendFormat": "{{ job }}"
           }
         ],
@@ -35,7 +35,7 @@
         "type": "graph",
         "targets": [
           {
-            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=~\"security-api|fsm-service|cmdb-service|ai-service\"}[5m]))",
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=~\"security-api\"}[5m]))",
             "legendFormat": "{{ job }}"
           }
         ],
@@ -47,7 +47,7 @@
         "type": "graph",
         "targets": [
           {
-            "expr": "rate(container_cpu_usage_seconds_total{name=~\"security-api|fsm-service|cmdb-service|ai-service|telegram-service\"}[5m])",
+            "expr": "rate(container_cpu_usage_seconds_total{name=~\"security-api|telegram-service|erpnext-backend|n8n\"}[5m])",
             "legendFormat": "{{ name }}"
           }
         ],
@@ -59,7 +59,7 @@
         "type": "graph",
         "targets": [
           {
-            "expr": "container_memory_usage_bytes{name=~\"security-api|fsm-service|cmdb-service|ai-service|telegram-service\"}",
+            "expr": "container_memory_usage_bytes{name=~\"security-api|telegram-service|erpnext-backend|n8n\"}",
             "legendFormat": "{{ name }}"
           }
         ],
@@ -67,12 +67,12 @@
       },
       {
         "id": 6,
-        "title": "Database Connections",
+        "title": "ERPNext Response Time",
         "type": "graph",
         "targets": [
           {
-            "expr": "pg_stat_activity_count{datname=\"security_erp\"}",
-            "legendFormat": "PostgreSQL"
+            "expr": "rate(http_request_duration_seconds_bucket{job=\"erpnext-backend\"}[5m])",
+            "legendFormat": "ERPNext Backend"
           }
         ],
         "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}

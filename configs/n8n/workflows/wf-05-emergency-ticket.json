@@ -18,7 +18,7 @@
     {
       "id": "node-telegram-05",
       "parameters": {
-        "chatId": "291657218",
+        "chatId": "{{ $env.NOTIFICATION_TELEGRAM_CHAT_IDS }}",
         "text": "=🚨 ЕКСТРЕНА ЗАЯВКА!\n\nНомер: {{ $json.body.ticket_number }}\nПроблема: {{ $json.body.title }}\nОб'єкт: {{ $json.body.object_name }}\nАдреса: {{ $json.body.address }}\nКонтакт: {{ $json.body.contact }}\n\n⚠️ Потрібен негайний виїзд!",
         "additionalFields": {}
       },

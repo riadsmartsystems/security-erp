@@ -38,6 +38,10 @@ doc_events = {
     "Project": {
         "on_update": "security_erp.events.project_on_update",
     },
+    "Service Ticket": {
+        "on_update": "security_erp.events.ticket_on_update",
+        "after_insert": "security_erp.events.ticket_after_insert",
+    },
 }
 
 # --------------------------------------------------------------------------
@@ -47,10 +51,10 @@ doc_events = {
 scheduler_events = {
     "daily": [
         "security_erp.tasks.daily.check_warranty_expiry",
-        # "security_erp.tasks.daily.check_sla_compliance",
+        "security_erp.tasks.daily.check_sla_compliance",
     ],
     "hourly": [
-        # "security_erp.tasks.hourly.check_sla_breaches",
+        "security_erp.tasks.hourly.check_sla_breaches",
     ],
 }
 
@@ -71,6 +75,8 @@ fixtures = [
     {"dt": "Property Setter", "filters": [["module", "=", "Security ERP"]]},
     {"dt": "Workspace", "filters": [["module", "=", "Security ERP"]]},
     {"dt": "Role Profile"},
+    {"dt": "Security Scenario"},
+    {"dt": "Security Scenario Item"},
 ]
 
 # --------------------------------------------------------------------------
@@ -79,7 +85,7 @@ fixtures = [
 
 jinja = {
     "methods": [
-        # "security_erp.jinja_methods.get_sla_status",
+        "security_erp.jinja_methods.get_sla_status",
     ],
 }
 

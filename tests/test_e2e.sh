@@ -41,14 +41,11 @@ check_auth() {
 
 echo "1. Health Checks"
 check "Security API" "http://localhost:8000/health" "200"
-check "FSM Service" "http://localhost:8001/health" "200"
-check "CMDB Service" "http://localhost:8002/health" "200"
-check "AI Service" "http://localhost:8003/health" "200"
 check "n8n" "http://localhost:5678/healthz" "200"
 
 echo ""
 echo "2. Authentication"
-TOKEN=$(curl -s -X POST "$BASE_URL/api/v1/auth/login" -H "Content-Type: application/json" --max-time 10 -d '{"username":"Administrator","password":"jokerLA23"}' 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))" 2>/dev/null)
+TOKEN=$(curl -s -X POST "$BASE_URL/api/v1/auth/login" -H "Content-Type: application/json" --max-time 10 -d "{\"username\":\"${TEST_USER:-Administrator}\",\"password\":\"${TEST_PASS:-}}\" 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))" 2>/dev/null)
 
 if [ -n "$TOKEN" ]; then
     echo "  ✅ Login successful"
@@ -77,26 +74,16 @@ check_auth "Vendors" "$BASE_URL/api/v1/vendors" "200"
 check_auth "Equipment Types" "$BASE_URL/api/v1/equipment-types" "200"
 
 echo ""
-echo "6. Direct Service Endpoints"
-check "Checklist Templates" "http://localhost:8001/api/v1/checklists/templates" "200"
-check "Photo Timeline" "http://localhost:8002/api/v1/photos/objects/test" "200"
-check "Backup Stats" "http://localhost:8002/api/v1/backups/stats" "200"
-check "Integration Stats" "http://localhost:8002/api/v1/integrations/stats" "200"
-check "Dispatch Stats" "http://localhost:8001/api/v1/dispatch/stats" "200"
-check "AI Stats" "http://localhost:8003/api/v1/ai/stats" "200"
-check "AI Dashboard" "http://localhost:8003/api/v1/ai/dashboard" "200"
-
-echo ""
-echo "7. Portal & Mobile"
+echo "6. Portal & Mobile"
 check_auth "Portal Dashboard" "$BASE_URL/api/v1/portal/dashboard?customer_id=test" "200"
 check_auth "Mobile Dashboard" "$BASE_URL/api/v1/mobile/dashboard?engineer_id=test" "200"
 
 echo ""
-echo "8. Public API"
+echo "7. Public API"
 check "Public Status" "$BASE_URL/api/v1/public/status" "200"
 
 echo ""
-echo "9. RBAC (no auth)"
+echo "8. RBAC (no auth)"
 check "No Auth → 403" "$BASE_URL/api/v1/tickets" "403"
 
 echo ""

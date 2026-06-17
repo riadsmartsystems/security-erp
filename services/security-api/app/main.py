@@ -17,6 +17,7 @@ from app.routes.portal import router as portal_router
 from app.routes.public_api import router as public_router
 from app.routes.mobile import router as mobile_router
 from app.routes.doctypes import router as doctypes_router
+from app.routes.visits import router as visits_router
 
 
 @asynccontextmanager
@@ -92,6 +93,7 @@ app.include_router(portal_router)
 app.include_router(public_router)
 app.include_router(mobile_router)
 app.include_router(doctypes_router)
+app.include_router(visits_router)
 app.include_router(proxy_router)
 
 
@@ -118,11 +120,11 @@ async def root():
         "status": "ok",
         "endpoints": {
             "health": "/health",
-            "login": "/api/v1/auth/login",
+            "login": "/api/v2/auth/login",
             "docs": "/docs",
-            "tickets": "/api/v1/tickets",
-            "objects": "/api/v1/objects",
-            "equipment": "/api/v1/equipment",
-            "visits": "/api/v1/visits",
+            "tickets": "/api/v2/tickets",
+            "objects": "/api/v2/objects",
+            "equipment": "/api/v2/equipment",
+            "visits": "/api/v2/visits",
         }
     }

@@ -6,8 +6,8 @@
 set -e
 
 N8N_URL="http://localhost:5678"
-N8N_USER="joker"
-N8N_PASS="jokerLA23"
+N8N_USER="${N8N_BASIC_AUTH_USER:-admin}"
+N8N_PASS="${N8N_BASIC_AUTH_PASSWORD:-}"
 
 echo "Waiting for n8n to be ready..."
 for i in $(seq 1 30); do

@@ -1,8 +1,9 @@
 # =============================================================================
 # Security ERP Platform - Docker Compose
 # =============================================================================
-# Single-database architecture: ERPNext (MariaDB) is the only database.
-# All services communicate via Frappe REST API.
+# Architecture: ERPNext (MariaDB) is the single source of truth.
+# Security API proxies Frappe REST API. All business logic lives in ERPNext.
+# PostgreSQL is used ONLY by n8n for workflow persistence.
 # =============================================================================
 
 networks:
@@ -24,6 +25,7 @@ volumes:
   loki_data:
   n8n_data:
   nats_data:
+  postgres_data:
 
 services:
   # =========================================================================
@@ -173,7 +175,7 @@ services:
     image: frappe/erpnext:v15.111.0
     container_name: erpnext-backend
     restart: unless-stopped
-    command: "bench serve --port 8000"
+    command: ["sh", "-c", "sed -i 's/erpnextsecurity_erp_app/erpnext/g' /home/frappe/frappe-bench/sites/apps.txt; grep -qxF 'security_erp_app' /home/frappe/frappe-bench/sites/apps.txt || printf 'security_erp_app\\n' >> /home/frappe/frappe-bench/sites/apps.txt; /home/frappe/frappe-bench/env/bin/pip install -e /home/frappe/frappe-bench/apps/security_erp_app && bench serve --port 8000"]
     environment:
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
@@ -185,6 +187,7 @@ services:
     volumes:
       - erpnext_sites:/home/frappe/frappe-bench/sites
       - erpnext_logs:/home/frappe/frappe-bench/logs
+      - ./security_erp_app:/home/frappe/frappe-bench/apps/security_erp_app
     networks:
       - erpnet
       - dbnet
@@ -204,7 +207,7 @@ services:
     image: frappe/erpnext:v15.111.0
     container_name: erpnext-worker-default
     restart: unless-stopped
-    command: "bench worker --queue default"
+    command: ["sh", "-c", "sed -i 's/erpnextsecurity_erp_app/erpnext/g' /home/frappe/frappe-bench/sites/apps.txt; grep -qxF 'security_erp_app' /home/frappe/frappe-bench/sites/apps.txt || printf 'security_erp_app\\n' >> /home/frappe/frappe-bench/sites/apps.txt; /home/frappe/frappe-bench/env/bin/pip install -e /home/frappe/frappe-bench/apps/security_erp_app && bench worker --queue default"]
     environment:
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
@@ -213,6 +216,7 @@ services:
     volumes:
       - erpnext_sites:/home/frappe/frappe-bench/sites
       - erpnext_logs:/home/frappe/frappe-bench/logs
+      - ./security_erp_app:/home/frappe/frappe-bench/apps/security_erp_app
     networks:
       - erpnet
       - dbnet
@@ -224,7 +228,7 @@ services:
     image: frappe/erpnext:v15.111.0
     container_name: erpnext-worker-short
     restart: unless-stopped
-    command: "bench worker --queue short"
+    command: ["sh", "-c", "sed -i 's/erpnextsecurity_erp_app/erpnext/g' /home/frappe/frappe-bench/sites/apps.txt; grep -qxF 'security_erp_app' /home/frappe/frappe-bench/sites/apps.txt || printf 'security_erp_app\\n' >> /home/frappe/frappe-bench/sites/apps.txt; /home/frappe/frappe-bench/env/bin/pip install -e /home/frappe/frappe-bench/apps/security_erp_app && bench worker --queue short"]
     environment:
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
@@ -233,6 +237,7 @@ services:
     volumes:
       - erpnext_sites:/home/frappe/frappe-bench/sites
       - erpnext_logs:/home/frappe/frappe-bench/logs
+      - ./security_erp_app:/home/frappe/frappe-bench/apps/security_erp_app
     networks:
       - erpnet
       - dbnet
@@ -244,7 +249,7 @@ services:
     image: frappe/erpnext:v15.111.0
     container_name: erpnext-scheduler
     restart: unless-stopped
-    command: "bench schedule"
+    command: ["sh", "-c", "sed -i 's/erpnextsecurity_erp_app/erpnext/g' /home/frappe/frappe-bench/sites/apps.txt; grep -qxF 'security_erp_app' /home/frappe/frappe-bench/sites/apps.txt || printf 'security_erp_app\\n' >> /home/frappe/frappe-bench/sites/apps.txt; /home/frappe/frappe-bench/env/bin/pip install -e /home/frappe/frappe-bench/apps/security_erp_app && bench schedule"]
     environment:
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
@@ -253,6 +258,7 @@ services:
     volumes:
       - erpnext_sites:/home/frappe/frappe-bench/sites
       - erpnext_logs:/home/frappe/frappe-bench/logs
+      - ./security_erp_app:/home/frappe/frappe-bench/apps/security_erp_app
     networks:
       - erpnet
       - dbnet
@@ -285,17 +291,22 @@ services:
       FRAPPE_URL: http://erpnext-backend:8000
       FRAPPE_API_KEY: ${FRAPPE_API_KEY}
       FRAPPE_API_SECRET: ${FRAPPE_API_SECRET}
+      FRAPPE_USERNAME: ${FRAPPE_USERNAME:-Administrator}
+      FRAPPE_PASSWORD: ${FRAPPE_PASSWORD}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       SECRET_KEY: ${SECURITY_API_SECRET_KEY}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL}
+      AI_SERVICE_KEY: ${AI_SERVICE_KEY}
+      LLM_URL: ${LLM_URL}
+      LLM_MODEL: ${LLM_MODEL}
     ports:
       - "8000:8000"
     networks:
       - erpnet
     depends_on:
       erpnext-backend:
-        condition: service_healthy
+        condition: service_started
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.api.rule=Host(`api.${DOMAIN}`)"
@@ -306,60 +317,25 @@ services:
       - "traefik.http.routers.api2.service=api-svc"
 
   # =========================================================================
-  # FSM SERVICE (Field Service Management)
+  # POSTGRESQL (n8n workflow persistence only)
   # =========================================================================
-  fsm-service:
-    build:
-      context: ./services/fsm-service
-      dockerfile: Dockerfile
-    container_name: fsm-service
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://fsm_user:${FSM_DB_PASSWORD}@postgres:5432/security_erp
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
-      NATS_URL: nats://${NATS_USER}:${NATS_PASSWORD}@nats:4222
-      ERP_API_URL: http://erpnext-backend:8000
-      SCHEMA_NAME: fsm
-    ports:
-      - "8001:8001"
+      POSTGRES_DB: ${POSTGRES_DB:-n8n}
+      POSTGRES_USER: ${INTEGRATION_DB_USER:-n8n_user}
+      POSTGRES_PASSWORD: ${INTEGRATION_DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - erpnet
-
-  # =========================================================================
-  # CMDB SERVICE (Configuration Management Database)
-  # =========================================================================
-  cmdb-service:
-    build:
-      context: ./services/cmdb-service
-      dockerfile: Dockerfile
-    container_name: cmdb-service
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql+asyncpg://cmdb_user:${CMDB_DB_PASSWORD}@postgres:5432/security_erp
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
-      NATS_URL: nats://${NATS_USER}:${NATS_PASSWORD}@nats:4222
-      ERP_API_URL: http://erpnext-backend:8000
-      SCHEMA_NAME: cmdb
-    ports:
-      - "8002:8002"
-    networks:
-      - erpnet
-
-  # =========================================================================
-  # AI SERVICE (Knowledge Base & AI Features)
-  # =========================================================================
-  ai-service:
-    build:
-      context: ./services/ai-service
-      dockerfile: Dockerfile
-    container_name: ai-service
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql+asyncpg://ai_user:${AI_DB_PASSWORD}@postgres:5432/security_erp
-    ports:
-      - "8003:8003"
-    networks:
-      - erpnet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${INTEGRATION_DB_USER:-n8n_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # =========================================================================
   # TELEGRAM SERVICE
@@ -378,6 +354,8 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       NOTIFICATION_TELEGRAM_CHAT_IDS: ${NOTIFICATION_TELEGRAM_CHAT_IDS}
       NOTIFICATION_VIBER_USER_IDS: ${NOTIFICATION_VIBER_USER_IDS}
+      FRAPPE_USERNAME: ${FRAPPE_USERNAME}
+      FRAPPE_PASSWORD: ${FRAPPE_PASSWORD}
     networks:
       - erpnet
     depends_on:
@@ -415,9 +393,11 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
       - ./configs/n8n/workflows:/home/node/.n8n/import/workflows:ro
-      - ./configs/n8n/telegram-credentials.json:/home/node/.n8n/import/telegram-credentials.json:ro
     networks:
       - erpnet
+    depends_on:
+      postgres:
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.n8n.rule=Host(`n8n.${DOMAIN}`)"

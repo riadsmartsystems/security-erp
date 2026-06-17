@@ -6,6 +6,7 @@ Usage: python import-viatek-catalog.py --input "Viatek product_info_a_uk.xml"
 import argparse
 import csv
 import json
+import os
 import sys
 import xml.etree.ElementTree as ET
 import urllib.request
@@ -15,6 +16,8 @@ import time
 
 FRAPPE_HOST = "localhost:80"
 FRAPPE_SITE = "erp.localhost"
+FRAPPE_USER = "Administrator"
+FRAPPE_PWD = os.environ.get("FRAPPE_PASSWORD", "")
 _sid = None
 
 
@@ -24,7 +27,7 @@ def _get_sid():
         return _sid
     import http.client
     conn = http.client.HTTPConnection(FRAPPE_HOST, timeout=30)
-    body = json.dumps({"usr": "Administrator", "pwd": "jokerLA23"})
+    body = json.dumps({"usr": FRAPPE_USER, "pwd": FRAPPE_PWD})
     conn.request("POST", "/api/method/login", body=body,
                  headers={"Content-Type": "application/json", "Host": FRAPPE_SITE})
     resp = conn.getresponse()

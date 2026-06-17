@@ -5,8 +5,8 @@ class Settings(BaseSettings):
     app_name: str = "Security ERP API Gateway"
     debug: bool = False
 
-    redis_url: str = "redis://:redis_secret@redis:6379/0"
-    nats_url: str = "nats://nats:nats_secret@nats:4222"
+    redis_url: str = ""
+    nats_url: str = ""
 
     secret_key: str = "change-this-to-random-64-chars-in-production"
     jwt_algorithm: str = "HS256"
@@ -14,12 +14,14 @@ class Settings(BaseSettings):
     jwt_refresh_ttl: int = 604800
 
     frappe_url: str = "http://erpnext-backend:8000"
-    fsm_service_url: str = "http://fsm-service:8001"
-    cmdb_service_url: str = "http://cmdb-service:8002"
-    ai_service_url: str = "http://ai-service:8003"
+    ai_service_url: str = ""
+
+    anthropic_api_key: str = ""
 
     frappe_api_key: str = ""
     frappe_api_secret: str = ""
+    frappe_username: str = "Administrator"
+    frappe_password: str = ""
 
     rate_limit_default: int = 1000
     rate_limit_window: int = 60

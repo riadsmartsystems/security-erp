@@ -18,7 +18,7 @@
     {
       "id": "node-telegram-09",
       "parameters": {
-        "chatId": "291657218",
+        "chatId": "{{ $env.NOTIFICATION_TELEGRAM_CHAT_IDS }}",
         "text": "=💰 Оплата отримана!\n\nКлієнт: {{ $json.body.customer_name }}\nСума: {{ $json.body.amount }} {{ $json.body.currency }}\nРахунок: {{ $json.body.invoice_number }}\nДата: {{ $json.body.payment_date }}",
         "additionalFields": {}
       },

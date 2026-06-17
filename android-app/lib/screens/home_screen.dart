@@ -43,57 +43,8 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(icon: const Icon(Icons.refresh), onPressed: () {
             setState(() {});
           }),
+          IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
         ],
-      ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Color(0xFF1565C0)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Icon(Icons.security, size: 48, color: Colors.white),
-                  SizedBox(height: 8),
-                  Text('Security ERP', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                  Text('Field Engineer App', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                ],
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.dashboard),
-              title: const Text('Головна'),
-              selected: _currentIndex == 0,
-              onTap: () { setState(() => _currentIndex = 0); Navigator.pop(context); },
-            ),
-            ListTile(
-              leading: const Icon(Icons.confirmation_number),
-              title: const Text('Заявки'),
-              selected: _currentIndex == 1,
-              onTap: () { setState(() => _currentIndex = 1); Navigator.pop(context); },
-            ),
-            ListTile(
-              leading: const Icon(Icons.business),
-              title: const Text('Об\'єкти'),
-              selected: _currentIndex == 2,
-              onTap: () { setState(() => _currentIndex = 2); Navigator.pop(context); },
-            ),
-            ListTile(
-              leading: const Icon(Icons.build),
-              title: const Text('Обладнання'),
-              selected: _currentIndex == 3,
-              onTap: () { setState(() => _currentIndex = 3); Navigator.pop(context); },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Вихід', style: TextStyle(color: Colors.red)),
-              onTap: _logout,
-            ),
-          ],
-        ),
       ),
       body: _screens[_currentIndex],
       bottomNavigationBar: NavigationBar(

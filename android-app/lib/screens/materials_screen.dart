@@ -16,6 +16,12 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
   List<Map<String, dynamic>> _materials = [];
 
   @override
+  void initState() {
+    super.initState();
+    _loadMaterials();
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _qtyController.dispose();

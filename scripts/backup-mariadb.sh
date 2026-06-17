@@ -9,8 +9,10 @@ BACKUP_FILE="${BACKUP_DIR}/mariadb_${BACKUP_TYPE}_${TIMESTAMP}.sql.gz"
 RETENTION_DAYS=30
 
 # Create backup
+MARIADB_ROOT_PASSWORD="${MARIADB_ROOT_PASSWORD:-}"
+
 echo "[$(date)] Starting ${BACKUP_TYPE} backup..."
-docker exec mariadb mysqldump -uroot -pmariadb_root_secret --single-transaction --routines --triggers _73c82ec6d255ebe3 | gzip > "$BACKUP_FILE"
+docker exec mariadb mysqldump -uroot -p"${MARIADB_ROOT_PASSWORD}" --single-transaction --routines --triggers _73c82ec6d255ebe3 | gzip > "$BACKUP_FILE"
 
 if [ $? -eq 0 ]; then
     SIZE=$(du -h "$BACKUP_FILE" | cut -f1)

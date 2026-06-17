@@ -7,6 +7,8 @@ const loginDuration = new Trend('login_duration');
 const ticketsDuration = new Trend('tickets_duration');
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8000';
+const TEST_USER = __ENV.TEST_USER || 'testuser';
+const TEST_PASS = __ENV.TEST_PASS || 'testpass';
 
 export const options = {
   stages: [
@@ -26,7 +28,7 @@ export default function () {
   // Login
   const loginStart = Date.now();
   const loginRes = http.post(`${BASE_URL}/api/v1/auth/login`, 
-    JSON.stringify({ username: 'joker@riad.fun', password: 'jokerLA23' }),
+    JSON.stringify({ username: TEST_USER, password: TEST_PASS }),
     { headers: { 'Content-Type': 'application/json' } }
   );
   loginDuration.add(Date.now() - loginStart);

@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
 
     import nats
-    nc = await nats.connect("nats://nats:nats_secret@nats:4222")
+    nc = await nats.connect(settings.nats_url)
 
     async def sla_check_job():
         from app.core.database import async_session

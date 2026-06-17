@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   static String baseUrl = 'https://erp.riad.fun';
@@ -30,8 +29,7 @@ class ApiService {
     final uri = Uri.parse(baseUrl);
     _resolvedHost = await _resolveHost(uri.host);
     _httpClient = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 15)
-      ..badCertificateCallback = (_, __, ___) => true;
+      ..connectionTimeout = const Duration(seconds: 15);
     return _httpClient!;
   }
 
@@ -91,16 +89,14 @@ class ApiService {
   }
 
   Future<void> saveCredentials(String username, String password) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('saved_username', username);
-    await prefs.setString('saved_password', password);
+    await _storage.write(key: 'saved_username', value: username);
+    await _storage.write(key: 'saved_password', value: password);
   }
 
   Future<Map<String, String>> loadCredentials() async {
-    final prefs = await SharedPreferences.getInstance();
     return {
-      'username': prefs.getString('saved_username') ?? '',
-      'password': prefs.getString('saved_password') ?? '',
+      'username': await _storage.read(key: 'saved_username') ?? '',
+      'password': await _storage.read(key: 'saved_password') ?? '',
     };
   }
 }

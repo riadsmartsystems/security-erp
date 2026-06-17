@@ -1,1 +1,30 @@
 /* Security ERP Custom Styles */
+
+/* SLA Status Colors */
+.sla-ok { color: #28a745; }
+.sla-warning { color: #ffc107; }
+.sla-breached { color: #dc3545; font-weight: bold; }
+
+/* Priority Colors */
+.priority-critical { color: #dc3545; }
+.priority-high { color: #ea580c; }
+.priority-medium { color: #2563eb; }
+.priority-low { color: #16a34a; }
+
+/* Ticket Status Badges */
+.ticket-status-open { background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 12px; }
+.ticket-status-in-progress { background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 12px; }
+.ticket-status-resolved { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 12px; }
+.ticket-status-closed { background: #f5f5f5; color: #757575; padding: 2px 8px; border-radius: 12px; }
+
+/* Visit Timeline */
+.visit-timeline { border-left: 3px solid #1565c0; padding-left: 16px; margin-left: 8px; }
+.visit-timeline-item { position: relative; padding: 8px 0; }
+.visit-timeline-item::before { content: ''; position: absolute; left: -22px; top: 12px; width: 10px; height: 10px; border-radius: 50%; background: #1565c0; }
+
+/* Dashboard Cards */
+.security-erp-stat-card { border-left: 4px solid; padding: 12px 16px; }
+.security-erp-stat-card.stat-blue { border-color: #1565c0; }
+.security-erp-stat-card.stat-green { border-color: #2e7d32; }
+.security-erp-stat-card.stat-orange { border-color: #e65100; }
+.security-erp-stat-card.stat-red { border-color: #c62828; }

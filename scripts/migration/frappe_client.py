@@ -12,7 +12,7 @@ import urllib.parse
 
 FRAPPE_HOST = os.environ.get("FRAPPE_HOST", "localhost:80")
 FRAPPE_USER = os.environ.get("FRAPPE_USER", "Administrator")
-FRAPPE_PASSWORD = os.environ.get("FRAPPE_PASSWORD", "jokerLA23")
+FRAPPE_PASSWORD = os.environ.get("FRAPPE_PASSWORD", "")
 
 _sid = None
 

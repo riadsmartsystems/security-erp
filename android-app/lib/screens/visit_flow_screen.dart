@@ -55,6 +55,19 @@ class _VisitFlowScreenState extends State<VisitFlowScreen> {
 
 
   Future<void> _startVisit(String visitId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Почати виїзд?'),
+        content: const Text('Буде зафіксовано GPS-координати початку виїзду.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Скасувати')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Старт')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
     final pos = await _getPosition();
     await api.post('/api/v2/visits/$visitId/start', {
       'lat': pos?.latitude ?? 0.0,
@@ -71,6 +84,23 @@ class _VisitFlowScreenState extends State<VisitFlowScreen> {
   }
 
   Future<void> _finishVisit(String visitId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Завершити виїзд?'),
+        content: const Text('Буде зафіксовано GPS-координати завершення та час роботи.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Скасувати')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Завершити'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
     final pos = await _getPosition();
     await api.post('/api/v2/visits/$visitId/finish', {
       'lat': pos?.latitude ?? 0.0,
@@ -88,6 +118,14 @@ class _VisitFlowScreenState extends State<VisitFlowScreen> {
 
   Future<void> _createVisit() async {
     final engineerId = widget.ticket['assigned_engineer_id'];
+    if (engineerId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Заявка не призначена інженеру. Спочатку призначте інженера.')),
+        );
+      }
+      return;
+    }
     await api.post('/api/v1/visits', {
       'ticket_id': widget.ticket['id'],
       'engineer_id': engineerId,

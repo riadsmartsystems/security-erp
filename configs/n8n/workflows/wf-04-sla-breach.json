@@ -18,7 +18,7 @@
     {
       "id": "node-telegram-04",
       "parameters": {
-        "chatId": "291657218",
+        "chatId": "{{ $env.NOTIFICATION_TELEGRAM_CHAT_IDS }}",
         "text": "=⚠️ Порушення SLA!\n\nЗаявка: {{ $json.body.ticket_number }}\nТип: {{ $json.body.breach_type }}\nПріоритет: {{ $json.body.priority }}\nДедлайн: {{ $json.body.deadline }}",
         "additionalFields": {}
       },

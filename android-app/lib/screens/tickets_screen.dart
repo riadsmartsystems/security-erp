@@ -41,6 +41,16 @@ class _TicketsScreenState extends State<TicketsScreen> {
     }
   }
 
+  IconData _priorityIcon(String priority) {
+    switch (priority.toLowerCase()) {
+      case 'critical': return Icons.warning;
+      case 'high': return Icons.arrow_upward;
+      case 'medium': return Icons.remove;
+      case 'low': return Icons.arrow_downward;
+      default: return Icons.help_outline;
+    }
+  }
+
   void _showCreateDialog() {
     final titleCtrl = TextEditingController();
     final typeCtrl = TextEditingController();
@@ -97,10 +107,14 @@ class _TicketsScreenState extends State<TicketsScreen> {
                   return Card(
                     margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: _priorityColor(t['priority'] ?? ''),
-                        child: Text('${index + 1}', style: const TextStyle(color: Colors.white)),
+                    leading: CircleAvatar(
+                      backgroundColor: _priorityColor(t['priority'] ?? ''),
+                      child: Icon(
+                        _priorityIcon(t['priority'] ?? ''),
+                        color: Colors.white,
+                        size: 20,
                       ),
+                    ),
                       title: Text(t['title'] ?? 'Без назви'),
                       subtitle: Text('${t['ticket_number'] ?? ''} • ${t['status'] ?? ''}'),
                       trailing: const Icon(Icons.arrow_forward_ios),

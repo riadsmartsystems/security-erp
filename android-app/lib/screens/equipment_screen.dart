@@ -30,21 +30,33 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     }
   }
 
-  String _statusIcon(String status) {
+  IconData _statusIcon(String status) {
     switch (status.toLowerCase()) {
-      case 'active': return '✅';
-      case 'installed': return '🔧';
-      case 'in_stock': return '📦';
-      case 'repair': return '⚠️';
-      case 'retired': return '🔴';
-      default: return '⚪';
+      case 'active': return Icons.check_circle;
+      case 'installed': return Icons.build;
+      case 'in_stock': return Icons.inventory_2;
+      case 'repair': return Icons.warning;
+      case 'retired': return Icons.cancel;
+      default: return Icons.help_outline;
+    }
+  }
+
+  Color _statusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'active': return Colors.green;
+      case 'installed': return Colors.blue;
+      case 'in_stock': return Colors.orange;
+      case 'repair': return Colors.red;
+      case 'retired': return Colors.grey;
+      default: return Colors.grey;
     }
   }
 
   void _showCreateDialog() {
-    final nameCtrl = TextEditingController();
+    final codeCtrl = TextEditingController();
     final typeCtrl = TextEditingController();
     final serialCtrl = TextEditingController();
+    final objectCtrl = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -52,7 +64,9 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Назва')),
+            TextField(controller: codeCtrl, decoration: const InputDecoration(labelText: 'Код обладнання')),
+            const SizedBox(height: 8),
+            TextField(controller: objectCtrl, decoration: const InputDecoration(labelText: 'Об\'єкт')),
             const SizedBox(height: 8),
             TextField(controller: typeCtrl, decoration: const InputDecoration(labelText: 'Тип')),
             const SizedBox(height: 8),
@@ -64,7 +78,8 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
           ElevatedButton(
             onPressed: () async {
               await api.post('/api/v2/equipment', {
-                'equipment_name': nameCtrl.text,
+                'equipment_code': codeCtrl.text,
+                'security_object': objectCtrl.text,
                 'equipment_type': typeCtrl.text,
                 'serial_number': serialCtrl.text,
               });
@@ -97,8 +112,8 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                   return Card(
                     margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     child: ListTile(
-                      leading: Text(_statusIcon(e['status'] ?? ''), style: const TextStyle(fontSize: 24)),
-                      title: Text(e['equipment_name'] ?? 'Без назви'),
+                      leading: Icon(_statusIcon(e['status'] ?? ''), color: _statusColor(e['status'] ?? ''), size: 28),
+                      title: Text(e['equipment_code'] ?? 'Без коду'),
                       subtitle: Text('${e['equipment_type'] ?? ''} • ${e['serial_number'] ?? ''}'),
                     ),
                   );

@@ -1,72 +1,54 @@
-import json
-import httpx
+import anthropic, json
 from app.core.config import settings
-from app.core.database import frappe_get, frappe_post
+from app.core.database import frappe_get
 
 class AIService:
     def __init__(self):
-        self.llm_url = settings.ai_service_url # Assuming this is in config
-        self.llm_api_key = settings.ai_service_key
+        self.api_key = settings.anthropic_api_key
 
-    async def generate_estimate(self, technical_assignment: str):
-        # 1. Search for relevant items in the price list based on TA
-        # This is a simplified search. In a real RAG, we'd use embeddings.
-        relevant_items = await self._find_relevant_items(technical_assignment)
-        
-        # 2. Build the prompt for LLM
-        prompt = f"""
-        You are a professional security systems engineer. 
-        Based on the following Technical Assignment (TA) and the available product catalog, 
-        create a preliminary cost estimate.
-        
-        TA: {technical_assignment}
-        
-        Available Catalog (Item Code | Name | Retail Price):
-        {relevant_items}
-        
-        Rules:
-        1. Only use items from the provided catalog.
-        2. If a necessary item is missing, add it to the 'missing_items' list.
-        3. Provide the result in JSON format:
-        {{
-          "items": [
-            {{"item_code": "CODE", "quantity": 1, "price": 100, "reason": "why this item"}},
-            ...
-          ],
-          "missing_items": ["what is missing"],
-          "total_estimated_cost": 0,
-          "engineer_comments": "Professional advice"
-        }}
-        """
-        
-        # 3. Call LLM
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                self.llm_url,
-                json={"prompt": prompt, "api_key": self.llm_api_key},
-                timeout=30.0
-            )
-            if resp.status_code == 200:
-                return resp.json()
-            raise Exception(f"AI Service Error: {resp.text}")
+    async def generate_estimate(self, ta: str) -> dict:
+        catalog = await self._catalog(ta)
+        client = anthropic.Anthropic(api_key=self.api_key)
+        system_prompt = (
+            "Ти - досвідчений проектувальник систем безпеки в Україні.\n"
+            "На основі ТЗ і каталогу товарів створи кошторис.\n"
+            "Відповідай ТІЛЬКИ валідним JSON без markdown.\n"
+            'Формат: {"items":[{"item_code":"...","item_name":"...","qty":1,"rate":0,"reason":"коротко"}],'
+            '"missing_items":["чого немає"],"engineer_notes":"коментар"}'
+        )
+        msg = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=2000,
+            system=system_prompt,
+            messages=[{"role": "user", "content": f"ТЗ: {ta}\n\nКаталог (код|назва|ціна грн):\n{catalog}"}]
+        )
+        return json.loads(msg.content[0].text)
 
-    async def _find_relevant_items(self, ta: str) -> str:
-        # Basic keyword-based search in Item DocType
-        # In production, this would use the AI Service's vector search (pgvector)
-        items_list = []
-        
-        # We fetch items from ERPNext. To keep it simple, we'll fetch top 500 items 
-        # or use a search endpoint.
-        result = await frappe_get("/api/resource/Item?fields=[\"item_code\",\"item_name\",\"retail_price\"]&limit_page_length=500")
-        data = result.get("data", [])
-        
-        # Simple keyword matching
-        keywords = ta.lower().split()
-        for item in data:
-            name = item.get("item_name", "").lower()
-            if any(kw in name for kw in keywords if len(kw) > 3):
-                items_list.append(f"{item['item_code']} | {item['item_name']} | {item.get('retail_price', 'N/A')}")
-        
-        return "\n".join(items_list) if items_list else "No matching items found in catalog."
+    async def _catalog(self, ta: str) -> str:
+        kw_map = {
+            "камер": "%камер%", "cctv": "%камер%", "відеонагляд": "%камер%",
+            "dvr": "%реєстратор%", "nvr": "%реєстратор%", "poe": "%PoE%",
+            "ajax": "%Ajax%", "сигналіз": "%сигналіз%", "кабель": "%кабел%"
+        }
+        ta_l = ta.lower()
+        filt = next((v for k, v in kw_map.items() if k in ta_l), "%камер%")
+        r = await frappe_get("/api/resource/Item", params={
+            "fields": '["item_code","item_name","retail_price"]',
+            "filters": f'[["item_name","like","{filt}"],["retail_price","!=","0"]]',
+            "limit_page_length": 80
+        })
+        items = r.get("data", [])
+        if len(items) < 10:
+            r2 = await frappe_get("/api/resource/Item", params={
+                "fields": '["item_code","item_name","retail_price"]',
+                "filters": '[["retail_price","!=","0"]]',
+                "limit_page_length": 60
+            })
+            seen = {i["item_code"] for i in items}
+            items += [x for x in r2.get("data", []) if x["item_code"] not in seen]
+        return "\n".join(
+            f"{i['item_code']}|{i['item_name']}|{i.get('retail_price','?')} грн"
+            for i in items[:80]
+        )
 
 ai_service = AIService()

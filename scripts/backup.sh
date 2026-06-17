@@ -15,7 +15,7 @@ echo "=== Security ERP Backup — $DATE ==="
 
 # 1. MariaDB (single database for everything)
 echo "[1/3] Backing up MariaDB..."
-docker exec mariadb mysqldump -u root -pmariadb_root_secret --all-databases --single-transaction > "$BACKUP_DIR/$DATE/mariadb_full.sql" 2>/dev/null
+docker exec mariadb mysqldump -u root -p"${MARIADB_ROOT_PASSWORD}" --all-databases --single-transaction > "$BACKUP_DIR/$DATE/mariadb_full.sql" 2>/dev/null
 echo "  OK: mariadb_full.sql ($(du -h "$BACKUP_DIR/$DATE/mariadb_full.sql" | cut -f1))"
 
 # 2. n8n workflows

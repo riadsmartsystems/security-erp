@@ -20,14 +20,25 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   }
 
   Future<void> _loadVisits() async {
-    final result = await api.get('/api/v2/visits?limit=20');
+    final ticketId = widget.ticket['name'] ?? widget.ticket['id'];
+    final result = await api.get('/api/v1/visits?ticket_id=$ticketId&limit=20');
     setState(() { _visits = result['data'] ?? []; });
   }
 
   Future<void> _startVisit() async {
-    final result = await api.post('/api/v2/visits', {
-      'ticket_id': widget.ticket['id'],
-      'engineer_id': 'joker@riad.fun',
+    final ticketId = widget.ticket['name'] ?? widget.ticket['id'];
+    final engineerId = widget.ticket['assigned_engineer'];
+    if (engineerId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Заявка не призначена інженеру. Спочатку призначте інженера.')),
+        );
+      }
+      return;
+    }
+    final result = await api.post('/api/v1/visits', {
+      'ticket_id': ticketId,
+      'engineer_id': engineerId,
     });
     if (result['success'] == true) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -52,7 +63,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
               const SizedBox(height: 8),
               _infoRow('Пріоритет', '${t['priority'] ?? ''}'),
               _infoRow('Статус', '${t['status'] ?? ''}'),
-              _infoRow('Створено', '${t['created_at'] ?? ''}'),
+              _infoRow('Створено', '${t['creation'] ?? ''}'),
             ]),
           )),
           const SizedBox(height: 16),

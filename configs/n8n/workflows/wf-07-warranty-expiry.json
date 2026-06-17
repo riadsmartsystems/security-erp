@@ -29,7 +29,7 @@
     {
       "id": "node-telegram-07",
       "parameters": {
-        "chatId": "291657218",
+        "chatId": "{{ $env.NOTIFICATION_TELEGRAM_CHAT_IDS }}",
         "text": "=🔔 Закінчення гарантії\n\nПеревірте обладнання з гарантією, що закінчується найближчим часом.",
         "additionalFields": {}
       },

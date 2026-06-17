@@ -4,9 +4,10 @@ Seed the AI Knowledge Base with sample security equipment documentation.
 Usage: python seed_knowledge.py
 """
 import json
+import os
 import urllib.request
 
-AI_SERVICE_URL = "http://localhost:8003"
+AI_SERVICE_URL = os.environ.get("AI_SERVICE_URL", "http://localhost:8003")
 
 DOCUMENTS = [
     {

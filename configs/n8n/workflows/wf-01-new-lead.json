@@ -18,7 +18,7 @@
     {
       "id": "node-telegram-01",
       "parameters": {
-        "chatId": "291657218",
+        "chatId": "{{ $env.NOTIFICATION_TELEGRAM_CHAT_IDS }}",
         "text": "=🆕 Новий Lead!\n\nІм'я: {{ $json.body.customer_name }}\nТелефон: {{ $json.body.phone }}\nEmail: {{ $json.body.email }}\nДжерело: {{ $json.body.source }}\nМенеджер: {{ $json.body.manager }}",
         "additionalFields": {}
       },

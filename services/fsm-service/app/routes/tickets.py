@@ -19,6 +19,7 @@ from app.schemas.ticket import (
     MaintenancePlanCreate,
 )
 from app.services.sla_engine import calculate_sla_deadlines, pause_sla, resume_sla
+from app.core.config import settings
 
 router = APIRouter(prefix="/api/v1", tags=["tickets"])
 
@@ -119,15 +120,16 @@ async def create_ticket(
     print(f"[NOTIFY] Sending Telegram notification for {ticket.ticket_number}", flush=True)
     try:
         import httpx
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.post(
-                "https://api.telegram.org/bot8718935753:AAFX_Jbc_wkQ6MSHX1p5SkU0NEFkPSWB7HY/sendMessage",
-                json={
-                    "chat_id": "291657218",
-                    "text": f"📋 Нова заявка!\n\nНомер: {ticket.ticket_number}\nПроблема: {ticket.title}\nПріоритет: {ticket.priority.value if hasattr(ticket.priority, 'value') else ticket.priority}",
-                }
-            )
-            print(f"[NOTIFY] Telegram response: {resp.status_code}", flush=True)
+        if settings.telegram_bot_token:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.post(
+                    f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage",
+                    json={
+                        "chat_id": settings.telegram_chat_id,
+                        "text": f"📋 Нова заявка!\n\nНомер: {ticket.ticket_number}\nПроблема: {ticket.title}\nПріоритет: {ticket.priority.value if hasattr(ticket.priority, 'value') else ticket.priority}",
+                    }
+                )
+                print(f"[NOTIFY] Telegram response: {resp.status_code}", flush=True)
     except Exception as e:
         print(f"[NOTIFY] Error: {e}", flush=True)
 

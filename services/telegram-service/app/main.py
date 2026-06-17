@@ -20,7 +20,7 @@ async def login_as_bot():
     global BOT_TOKEN
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.post(f"{API_URL}/api/v2/auth/login", json={
-            "username": settings.bot_api_username, "password": settings.bot_api_password,
+            "username": settings.frappe_username, "password": settings.frappe_password,
         })
         if resp.status_code == 200:
             BOT_TOKEN = resp.json().get("access_token")
@@ -58,7 +58,9 @@ async def api_post_n8n(path: str, data: dict = None) -> dict:
         return resp.json() if resp.status_code == 200 else {"error": resp.status_code}
 
 
-MANAGER_CHAT_ID = "291657218"
+def _get_manager_chat_ids() -> list[str]:
+    raw = settings.notification_telegram_chat_ids or ""
+    return [item.strip() for item in raw.split(",") if item.strip()]
 
 
 async def send_notification(chat_id: int, text: str):

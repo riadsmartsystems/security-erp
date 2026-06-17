@@ -58,19 +58,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  _buildCard('🎫 Відкриті заявки', _openTickets, Colors.blue, () {
+                  _buildCard('Відкриті заявки', 'Очікують обробки', _openTickets, Colors.blue, () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const TicketsScreen()));
                   }),
-                  _buildCard('🔧 В роботі', _inProgressTickets, Colors.amber, () {
+                  _buildCard('В роботі', 'Поточні завдання', _inProgressTickets, Colors.amber, () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const TicketsScreen()));
                   }),
-                  _buildCard('⚠️ Прострочені', _overdueTickets, Colors.red, () {
+                  _buildCard('Прострочені', 'Перевищено SLA', _overdueTickets, Colors.red, () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const TicketsScreen()));
                   }),
-                  _buildCard('🏢 Об\'єкти', _objects, Colors.green, () {
+                  _buildCard('Об\'єкти', 'Активні об\'єкти', _objects, Colors.green, () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const ObjectsScreen()));
                   }),
-                  _buildCard('🛠 Обладнання', _equipment, Colors.orange, () {
+                  _buildCard('Обладнання', 'На обліку', _equipment, Colors.orange, () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const EquipmentScreen()));
                   }),
                 ],
@@ -79,7 +79,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildCard(String title, int count, Color color, VoidCallback onTap) {
+  Widget _buildCard(String title, String subtitle, int count, Color color, VoidCallback onTap) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
@@ -88,6 +88,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Text('$count', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle),
         trailing: const Icon(Icons.arrow_forward_ios),
         onTap: onTap,
       ),

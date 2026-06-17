@@ -14,11 +14,12 @@ async def _get_sid() -> str:
     async with _sid_lock:
         if _sid:
             return _sid
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(
                 f"{settings.frappe_url}/api/method/login",
-                json={"usr": "Administrator", "pwd": "jokerLA23"},
+                data={"usr": settings.frappe_username, "pwd": settings.frappe_password},
                 headers={"Host": FRAPPE_HOST},
+                follow_redirects=False,
             )
             if resp.status_code == 200:
                 _sid = resp.cookies.get("sid")
@@ -98,17 +99,22 @@ async def frappe_delete(path: str) -> dict:
 
 
 async def frappe_login(username: str, password: str) -> dict | None:
-    client = _get_client_no_auth()
-    resp = await client.post(
-        "/api/method/login",
-        json={"usr": username, "pwd": password},
-        headers=_headers_with_host(),
-    )
-    if resp.status_code == 200:
-        return {
-            "sid": resp.cookies.get("sid"),
-            "full_name": resp.json().get("full_name"),
-        }
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.post(
+            f"{settings.frappe_url}/api/method/login",
+            data={"usr": username, "pwd": password},
+            headers={"Host": FRAPPE_HOST},
+            follow_redirects=False,
+        )
+        if resp.status_code == 200:
+            try:
+                body = resp.json()
+            except Exception:
+                body = {}
+            return {
+                "sid": resp.cookies.get("sid"),
+                "full_name": body.get("full_name", username),
+            }
     return None
 
 

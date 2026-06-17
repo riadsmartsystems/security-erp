@@ -6,12 +6,12 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     viber_bot_token: str = ""
     security_api_url: str = "http://security-api:8000"
-    nats_url: str = "nats://nats:nats_secret@nats:4222"
-    redis_url: str = "redis://:redis_secret@redis:6379/0"
+    nats_url: str = ""
+    redis_url: str = ""
     notification_telegram_chat_ids: str = ""
     notification_viber_user_ids: str = ""
-    bot_api_username: str = ""
-    bot_api_password: str = ""
+    frappe_username: str = ""
+    frappe_password: str = ""
 
     class Config:
         env_file = ".env"
