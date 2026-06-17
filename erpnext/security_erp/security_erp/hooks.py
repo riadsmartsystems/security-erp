@@ -47,10 +47,10 @@ doc_events = {
 scheduler_events = {
     "daily": [
         "security_erp.tasks.daily.check_warranty_expiry",
-        "security_erp.tasks.daily.check_sla_compliance",
+        # "security_erp.tasks.daily.check_sla_compliance",
     ],
     "hourly": [
-        "security_erp.tasks.hourly.check_sla_breaches",
+        # "security_erp.tasks.hourly.check_sla_breaches",
     ],
 }
 
@@ -79,7 +79,7 @@ fixtures = [
 
 jinja = {
     "methods": [
-        "security_erp.jinja_methods.get_sla_status",
+        # "security_erp.jinja_methods.get_sla_status",
     ],
 }
 

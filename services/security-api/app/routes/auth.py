@@ -142,7 +142,6 @@ def _map_frappe_role_from_names(role_names: list) -> str:
 def _default_role(username: str) -> str:
     defaults = {
         "Administrator": "owner",
-        "joker@riad.fun": "service_manager",
         "joker": "service_manager",
     }
     return defaults.get(username, "viewer")

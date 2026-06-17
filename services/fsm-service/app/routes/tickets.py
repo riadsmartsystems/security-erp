@@ -6,6 +6,7 @@ from uuid import UUID
 import json
 import math
 
+from app.auth import get_current_user
 from app.core.database import get_db
 from app.models.ticket import (
     Ticket, TicketStatus, TicketPriority, TicketType,
@@ -20,10 +21,6 @@ from app.schemas.ticket import (
 from app.services.sla_engine import calculate_sla_deadlines, pause_sla, resume_sla
 
 router = APIRouter(prefix="/api/v1", tags=["tickets"])
-
-
-def _get_user_id(headers: dict) -> str | None:
-    return headers.get("x-user-id")
 
 
 def haversine_km(lat1, lon1, lat2, lon2):
@@ -44,8 +41,10 @@ async def list_tickets(
     limit: int = Query(50, le=200),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     query = select(Ticket).where(Ticket.is_active == True)
+
 
     if status:
         query = query.where(Ticket.status == status)
@@ -76,6 +75,7 @@ async def list_tickets(
 async def create_ticket(
     body: TicketCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     now = datetime.now(timezone.utc)
     count = (await db.execute(select(func.count()).select_from(Ticket))).scalar() or 0
@@ -135,7 +135,7 @@ async def create_ticket(
 
 
 @router.get("/tickets/{ticket_id}")
-async def get_ticket(ticket_id: UUID, db: AsyncSession = Depends(get_db)):
+async def get_ticket(ticket_id: UUID, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
     result = await db.execute(select(Ticket).where(Ticket.id == ticket_id, Ticket.is_active == True))
     ticket = result.scalar_one_or_none()
     if not ticket:
@@ -148,6 +148,7 @@ async def assign_ticket(
     ticket_id: UUID,
     body: TicketAssign,
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     result = await db.execute(select(Ticket).where(Ticket.id == ticket_id, Ticket.is_active == True))
     ticket = result.scalar_one_or_none()
@@ -167,6 +168,7 @@ async def update_ticket_status(
     ticket_id: UUID,
     body: TicketStatusUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     result = await db.execute(select(Ticket).where(Ticket.id == ticket_id, Ticket.is_active == True))
     ticket = result.scalar_one_or_none()
@@ -197,6 +199,7 @@ async def update_ticket_status(
 async def close_ticket(
     ticket_id: UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     result = await db.execute(select(Ticket).where(Ticket.id == ticket_id, Ticket.is_active == True))
     ticket = result.scalar_one_or_none()
@@ -221,6 +224,7 @@ async def list_visits(
     limit: int = Query(50, le=200),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     query = select(Visit).where(Visit.is_active == True)
     if ticket_id:
@@ -241,6 +245,7 @@ async def list_visits(
 async def create_visit(
     body: VisitCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     count = (await db.execute(select(func.count()).select_from(Visit))).scalar() or 0
     visit_number = f"VIS-{count + 1:06d}"
@@ -264,6 +269,7 @@ async def start_visit(
     visit_id: UUID,
     body: VisitCheckin,
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     result = await db.execute(select(Visit).where(Visit.id == visit_id, Visit.is_active == True))
     visit = result.scalar_one_or_none()
@@ -285,6 +291,7 @@ async def finish_visit(
     visit_id: UUID,
     body: VisitCheckin,
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     result = await db.execute(select(Visit).where(Visit.id == visit_id, Visit.is_active == True))
     visit = result.scalar_one_or_none()
@@ -314,6 +321,7 @@ async def add_material(
     visit_id: UUID,
     body: VisitMaterialCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     result = await db.execute(select(Visit).where(Visit.id == visit_id, Visit.is_active == True))
     visit = result.scalar_one_or_none()
@@ -339,6 +347,7 @@ async def add_material(
 @router.get("/maintenance")
 async def list_maintenance_plans(
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     result = await db.execute(select(MaintenancePlan).where(MaintenancePlan.is_active == True))
     plans = result.scalars().all()
@@ -349,6 +358,7 @@ async def list_maintenance_plans(
 async def create_maintenance_plan(
     body: MaintenancePlanCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     plan = MaintenancePlan(
         object_id=body.object_id,
@@ -368,6 +378,7 @@ async def create_maintenance_plan(
 @router.get("/warranty")
 async def list_warranty_cases(
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     result = await db.execute(select(WarrantyCase).order_by(WarrantyCase.created_at.desc()))
     cases = result.scalars().all()
@@ -385,6 +396,7 @@ async def upload_photo(
     gps_lon: float = Query(None),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     result = await db.execute(select(Visit).where(Visit.id == visit_id, Visit.is_active == True))
     visit = result.scalar_one_or_none()
@@ -414,6 +426,7 @@ async def upload_photo(
 async def list_photos(
     visit_id: UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     result = await db.execute(
         select(VisitPhoto).where(VisitPhoto.visit_id == visit_id).order_by(VisitPhoto.created_at)

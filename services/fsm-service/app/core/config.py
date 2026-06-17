@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://:redis_secret@redis:6379/0"
     nats_url: str = "nats://nats:nats_secret@nats:4222"
     erp_api_url: str = "http://erpnext-backend:8000"
+    security_api_url: str = "http://security-api:8000"
     schema_name: str = "fsm"
 
     class Config:

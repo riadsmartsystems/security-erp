@@ -27,7 +27,15 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://erp.riad.fun",
+        "https://api.riad.fun",
+        "https://grafana.riad.fun",
+        "https://mimo.riad.fun",
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "http://10.0.2.2:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

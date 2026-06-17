@@ -33,6 +33,11 @@ Thumbs.db
 secrets/
 *.pem
 *.key
+configs/cloudflared/creds.json
+configs/cloudflared/*.json
+configs/n8n/telegram-credentials.json
+configs/n8n/*.json
+scripts/backup-*.sh
 
 security_erp_app/
 android-app/

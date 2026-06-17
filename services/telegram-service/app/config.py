@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     redis_url: str = "redis://:redis_secret@redis:6379/0"
     notification_telegram_chat_ids: str = ""
     notification_viber_user_ids: str = ""
+    bot_api_username: str = ""
+    bot_api_password: str = ""
 
     class Config:
         env_file = ".env"

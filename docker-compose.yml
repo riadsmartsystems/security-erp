@@ -87,7 +87,7 @@ services:
     image: redis:7-alpine
     container_name: redis
     restart: unless-stopped
-    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 512mb --maxmemory-policy allkeys-lru
+    command: redis-server --requirepass "${REDIS_PASSWORD}" --maxmemory 512mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     networks:
@@ -149,7 +149,7 @@ services:
   # ERPNEXT (single database, all business logic here)
   # =========================================================================
   erpnext-frontend:
-    image: frappe/erpnext:${ERPNEXT_VERSION}
+    image: frappe/erpnext:v15.111.0
     container_name: erpnext-frontend
     restart: unless-stopped
     command: "nginx-entrypoint.sh"
@@ -159,7 +159,6 @@ services:
       FRAPPE_SITE_NAME_HEADER: erp.localhost
     volumes:
       - erpnext_sites:/home/frappe/frappe-bench/sites
-      - erpnext_assets:/home/frappe/frappe-bench/sites/assets
     networks:
       - erpnet
     depends_on:
@@ -171,7 +170,7 @@ services:
       - "traefik.http.services.erpnext.loadbalancer.server.port=8080"
 
   erpnext-backend:
-    image: frappe/erpnext:${ERPNEXT_VERSION}
+    image: frappe/erpnext:v15.111.0
     container_name: erpnext-backend
     restart: unless-stopped
     command: "bench serve --port 8000"
@@ -185,7 +184,6 @@ services:
       FRAPPE_SITE_NAME_HEADER: erp.localhost
     volumes:
       - erpnext_sites:/home/frappe/frappe-bench/sites
-      - erpnext_assets:/home/frappe/frappe-bench/sites/assets
       - erpnext_logs:/home/frappe/frappe-bench/logs
     networks:
       - erpnet
@@ -203,7 +201,7 @@ services:
       start_period: 120s
 
   erpnext-worker-default:
-    image: frappe/erpnext:${ERPNEXT_VERSION}
+    image: frappe/erpnext:v15.111.0
     container_name: erpnext-worker-default
     restart: unless-stopped
     command: "bench worker --queue default"
@@ -223,7 +221,7 @@ services:
         condition: service_healthy
 
   erpnext-worker-short:
-    image: frappe/erpnext:${ERPNEXT_VERSION}
+    image: frappe/erpnext:v15.111.0
     container_name: erpnext-worker-short
     restart: unless-stopped
     command: "bench worker --queue short"
@@ -243,7 +241,7 @@ services:
         condition: service_healthy
 
   erpnext-scheduler:
-    image: frappe/erpnext:${ERPNEXT_VERSION}
+    image: frappe/erpnext:v15.111.0
     container_name: erpnext-scheduler
     restart: unless-stopped
     command: "bench schedule"
@@ -263,7 +261,7 @@ services:
         condition: service_healthy
 
   erpnext-socketio:
-    image: frappe/erpnext:${ERPNEXT_VERSION}
+    image: frappe/erpnext:v15.111.0
     container_name: erpnext-socketio
     restart: unless-stopped
     command: "node /home/frappe/frappe-bench/apps/frappe/socketio.js"
@@ -317,7 +315,7 @@ services:
     container_name: fsm-service
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://fsm_user:fsm_secret@postgres:5432/security_erp
+      DATABASE_URL: postgresql+asyncpg://fsm_user:${FSM_DB_PASSWORD}@postgres:5432/security_erp
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       NATS_URL: nats://${NATS_USER}:${NATS_PASSWORD}@nats:4222
       ERP_API_URL: http://erpnext-backend:8000
@@ -337,7 +335,7 @@ services:
     container_name: cmdb-service
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://cmdb_user:cmdb_secret@postgres:5432/security_erp
+      DATABASE_URL: postgresql+asyncpg://cmdb_user:${CMDB_DB_PASSWORD}@postgres:5432/security_erp
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       NATS_URL: nats://${NATS_USER}:${NATS_PASSWORD}@nats:4222
       ERP_API_URL: http://erpnext-backend:8000
@@ -357,7 +355,7 @@ services:
     container_name: ai-service
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://ai_user:ai_secret@postgres:5432/security_erp
+      DATABASE_URL: postgresql+asyncpg://ai_user:${AI_DB_PASSWORD}@postgres:5432/security_erp
     ports:
       - "8003:8003"
     networks:

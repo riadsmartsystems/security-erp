@@ -1,24 +1,28 @@
 import httpx
+import json
+import asyncio
 from app.core.config import settings
-
+ 
 _sid: str | None = None
-
+_sid_lock = asyncio.Lock()
+ 
 FRAPPE_HOST = "erp.localhost"
-
-
+ 
+ 
 async def _get_sid() -> str:
     global _sid
-    if _sid:
-        return _sid
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        resp = await client.post(
-            f"{settings.frappe_url}/api/method/login",
-            json={"usr": "Administrator", "pwd": "jokerLA23"},
-            headers={"Host": FRAPPE_HOST},
-        )
-        if resp.status_code == 200:
-            _sid = resp.cookies.get("sid")
-    return _sid or ""
+    async with _sid_lock:
+        if _sid:
+            return _sid
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                f"{settings.frappe_url}/api/method/login",
+                json={"usr": "Administrator", "pwd": "jokerLA23"},
+                headers={"Host": FRAPPE_HOST},
+            )
+            if resp.status_code == 200:
+                _sid = resp.cookies.get("sid")
+        return _sid or ""
 
 
 _client: httpx.AsyncClient | None = None
@@ -69,7 +73,8 @@ async def frappe_post(path: str, data: dict = None) -> dict:
     sid = await _get_sid()
     cookies = {"sid": sid} if sid else None
     client = _get_client()
-    resp = await client.post(path, json=data, cookies=cookies, headers=_headers_with_host())
+    body = json.dumps(data).encode() if data else None
+    resp = await client.post(path, content=body, cookies=cookies, headers={**_headers_with_host(), "Content-Type": "application/json"})
     resp.raise_for_status()
     return resp.json()
 

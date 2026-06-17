@@ -1,0 +1,4 @@
+FROM frappe/erpnext:v15.111.0
+USER root
+RUN pip install gunicorn gevent
+USER frappe

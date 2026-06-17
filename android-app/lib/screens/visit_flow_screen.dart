@@ -42,7 +42,8 @@ class _VisitFlowScreenState extends State<VisitFlowScreen> {
 
   Future<void> _loadVisits() async {
     try {
-      final result = await api.get('/api/v2/visits?limit=20');
+      final ticketId = widget.ticket['id'];
+      final result = await api.get('/api/v1/visits?ticket_id=$ticketId&limit=20');
       setState(() {
         _visits = result['data'] ?? [];
         _loading = false;
@@ -51,6 +52,7 @@ class _VisitFlowScreenState extends State<VisitFlowScreen> {
       setState(() { _loading = false; });
     }
   }
+
 
   Future<void> _startVisit(String visitId) async {
     final pos = await _getPosition();
@@ -85,9 +87,10 @@ class _VisitFlowScreenState extends State<VisitFlowScreen> {
   }
 
   Future<void> _createVisit() async {
-    await api.post('/api/v2/visits', {
+    final engineerId = widget.ticket['assigned_engineer_id'];
+    await api.post('/api/v1/visits', {
       'ticket_id': widget.ticket['id'],
-      'engineer_id': 'joker@riad.fun',
+      'engineer_id': engineerId,
     });
     _loadVisits();
   }

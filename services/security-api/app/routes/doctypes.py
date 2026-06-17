@@ -1,10 +1,11 @@
 import json
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from app.core.database import frappe_get, frappe_post, frappe_put
 from app.auth.dependencies import get_current_user, CurrentUser
 from app.auth.permissions import Permission
+from app.services.ai_service import ai_service
 
 router = APIRouter(prefix="/api/v2", tags=["doctypes"])
 
@@ -373,6 +374,265 @@ async def get_stats(current_user: CurrentUser = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class LeadCreate(BaseModel):
+    lead_name: str
+    mobile_no: Optional[str] = None
+    object_address: Optional[str] = None
+    technical_assignment: Optional[str] = None
+    status: str = "Open"
+
+@router.post("/leads")
+async def create_lead(body: LeadCreate, current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        data = body.model_dump(exclude_none=True)
+        result = await frappe_post("/api/resource/Lead", data=data)
+        return {"success": True, "data": result.get("data", {})}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/leads")
+async def list_leads(
+    limit: int = Query(20, le=100),
+    filters: Optional[str] = None,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    try:
+        params = {
+            "fields": '["name","lead_name","mobile_no","status","technical_assignment"]',
+            "limit_page_length": limit,
+        }
+        if filters:
+            params["filters"] = filters
+        result = await frappe_get("/api/resource/Lead", params=params)
+        return {"success": True, "data": result.get("data", [])}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/leads/{name}")
+async def get_lead(name: str, current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        result = await frappe_get(f"/api/resource/Lead/{name}")
+        return {"success": True, "data": result.get("data", {})}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Lead not found: {name}")
+
+@router.post("/ai/estimate")
+async def create_ai_estimate(body: AIEstimateRequest, current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        estimate = await ai_service.generate_estimate(body.technical_assignment)
+        await frappe_put(f"/api/resource/Lead/{body.lead_name}", data={
+            "technical_assignment": body.technical_assignment,
+            "ai_estimate_result": json.dumps(estimate)
+        })
+        return {"success": True, "data": estimate}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/scenarios")
+async def list_scenarios(current_user: CurrentUser = Depends(get_//Current User logic here),
+):
+    try:
+        result = await frappe_get("/api/resource/Security Scenario", params={"fields": '["name","scenario_name","description"]'})
+        return {"success": True, "data": result.get("data", [])}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/scenarios/{scenario_id}/apply")
+async def apply_scenario(scenario_id: str, body: dict, current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        items_result = await frappe_get(
+            f"/api/resource/Security Scenario Item", 
+            params={"filters": f'[["parent","=","{scenario_id}"]]'}
+        )
+        scenario_items = items_result.get("data", [])
+        if not scenario_items:
+            raise HTTPException(status_code=404, detail="No items found for this scenario")
+        quotation_name = body.get("quotation")
+        if quotation_name:
+            return {"success": True, "items": scenario_items}
+        lead_name = body.get("lead_name")
+        if lead_name:
+            lead_res = await frappe_get(f"/api/resource/Lead/{lead_name}")
+            lead_data = lead_res.get("data", {})
+            current_estimate = json.loads(lead_data.get("ai_estimate_result", "{}"))
+            existing_items = current_estimate.get("items", [])
+            for s_item in scenario_items:
+                existing_items.append({
+                    "item_code": s_item["item_code"],
+                    "quantity": s_item["qty"],
+                    "price": 0,
+                    "reason": "Added via scenario"
+                })
+            current_estimate["items"] = existing_items
+            await frappe_put(f"/api/resource/Lead/{lead_//Lead name here}", data={"ai_estimate_result": json.dumps(current_estimate)})
+            return {"success": True, "data": current_estimate}
+        raise HTTPException(status_code=400, detail="Either 'quotation' or 'lead_name' is required")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class WarrantyScanRequest(BaseModel):
+    serial_number: str
+    delivery_note: str
+    item_code: Optional[str] = None
+
+@router.post("/warranty/scan")
+async def scan_serial_number(body: WarrantyScanRequest, current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        warranty_card_name = f"WARR-{body.delivery_note}"
+        card_exists = await frappe_get(f"/api/resource/Warranty Card/{warranty_card_name}")
+        if not card_exists.get("data"):
+            await frappe_post("/api/resource/Warranty Card", data={
+                "name": warranty_card_name,
+                "sales_invoice": body.delivery_note,
+                "status": "Active"
+            })
+        await frappe_post("/api/resource/Warranty Card Item", data={
+            "parent": warranty_card_name,
+            "item_code": body.item_code,
+            "serial_number": body.serial_number,
+            "warranty_expiry": "2027-06-17"
+        })
+        return {"success": True, "message": f"Serial {body.serial_number} registered"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/warranty/card/{card_id}")
+async def get_warranty_card(card_id: str, current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        result = await frappe_get(f"/api/resource/Warranty Card/{card_id}")
+        items = await frappe_get("/api/resource/Warranty Card Item", params={
+            "filters": f'[["parent","=","{card_id}"]]'
+        })
+        return {"success": True, "data": result.get("data"), "items": items.get("data", [])}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/leads/{name}")
+async def get_lead(name: str, current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        result = await frappe_get(f"/api/resource/Lead/{name}")
+        return {"success": True, "data": result.get("data", {})}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Lead not found: {name}")
+
+@router.post("/ai/estimate")
+async def create_ai_estimate(body: AIEstimateRequest, current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        estimate = await ai_service.generate_estimate(body.technical_assignment)
+        await frappe_put(f"/api/resource/Lead/{body.lead_name}", data={
+            "technical_assignment": body.technical_assignment,
+            "ai_estimate_result": json.dumps(estimate)
+        })
+        return {"success": True, "data": estimate}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/scenarios")
+async def list_scenarios(current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        result = await frappe_get("/api/resource/Security Scenario", params={"fields": '["name","scenario_name","description"]'})
+        return {"success": True, "data": result.get("data", [])}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/scenarios/{scenario_id}/apply")
+async def apply_scenario(scenario_id: str, body: dict, current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        items_result = await frappe_get(
+            f"/api/resource/Security Scenario Item", 
+            params={"filters": f'[["parent","=","{scenario_id}"]]'}
+        )
+        scenario_items = items_result.get("data", [])
+        if not scenario_items:
+            raise HTTPException(status_code=404, detail="No items found for this scenario")
+        quotation_name = body.get("quotation")
+        if quotation_name:
+            return {"success": True, "items": scenario_items}
+        lead_name = body.get("lead_name")
+        if lead_name:
+            lead_res = await frappe_get(f"/api/resource/Lead/{lead_name}")
+            lead_data = lead_res.get("data", {})
+            current_estimate = json.loads(lead_data.get("ai_estimate_result", "{}"))
+            existing_items = current_estimate.get("items", [])
+            for s_item in scenario_items:
+                existing_items.append({
+                    "item_code": s_item["item_code"],
+                    "quantity": s_item["qty"],
+                    "price": 0,
+                    "reason": "Added via scenario"
+                })
+            current_estimate["items"] = existing_items
+            await frappe_put(f"/api/resource/Lead/{lead_name}", data={"ai_estimate_result": json.dumps(current_estimate)})
+            return {"success": True, "data": current_estimate}
+        raise HTTPException(status_code=400, detail="Either 'quotation' or 'lead_name' is required")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/leads/{name}")
+async def get_lead(name: str, current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        result = await frappe_get(f"/api/resource/Lead/{name}")
+        return {"success": True, "data": result.get("data", {})}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Lead not found: {name}")
+
+@router.post("/ai/estimate")
+async def create_ai_estimate(body: AIEstimateRequest, current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        estimate = await ai_service.generate_estimate(body.technical_assignment)
+        await frappe_put(f"/api/resource/Lead/{body.lead_name}", data={
+            "technical_assignment": body.technical_assignment,
+            "ai_estimate_result": json.dumps(estimate)
+        })
+        return {"success": True, "data": estimate}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/scenarios")
+async def list_scenarios(current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        result = await frappe_get("/api/resource/Security Scenario", params={"fields": '["name","scenario_name","description"]'})
+        return {"success": True, "data": result.get("data", [])}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/scenarios/{scenario_id}/apply")
+async def apply_scenario(scenario_id: str, body: dict, current_user: CurrentUser = Depends(get_current_user)):
+    try:
+        items_result = await frappe_get(
+            f"/api/resource/Security Scenario Item", 
+            params={"filters": f'[["parent","=","{scenario_id}"]]'}
+        )
+        scenario_items = items_result.get("data", [])
+        if not scenario_items:
+            raise HTTPException(status_code=404, detail="No items found for this scenario")
+        quotation_name = body.get("quotation")
+        if quotation_name:
+            return {"success": True, "items": scenario_items}
+        lead_name = body.get("lead_name")
+        if lead_name:
+            lead_res = await frappe_get(f"/api/resource/Lead/{lead_name}")
+            lead_data = lead_res.get("data", {})
+            current_estimate = json.loads(lead_data.get("ai_estimate_result", "{}"))
+            existing_items = current_estimate.get("items", [])
+            for s_item in scenario_items:
+                existing_items.append({
+                    "item_code": s_item["item_code"],
+                    "quantity": s_item["qty"],
+                    "price": 0,
+                    "reason": "Added via scenario"
+                })
+            current_estimate["items"] = existing_items
+            await frappe_put(f"/api/resource/Lead/{lead_name}", data={"ai_estimate_result": json.dumps(current_estimate)})
+            return {"success": True, "data": current_estimate}
+        raise HTTPException(status_code=400, detail="Either 'quotation' or 'lead_name' is required")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 # =========================================================================
 # BUSINESS FLOW: Quotation → PO → SI
 # =========================================================================
@@ -451,6 +711,33 @@ async def list_quotations(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.post("/quotation/{qt_name}/create-order")
+async def create_order_from_quotation(qt_name: str, body: dict, current_user: CurrentUser = Depends(get_current_user)):
+    """Step 2: Convert approved Quotation to Sales Order."""
+    try:
+        settings = await get_settings()
+        company = settings.get("company_name", "RIAD SMART SYSTEM")
+        currency = settings.get("currency", "UAH")
+        
+        qt_result = await frappe_get(f"/api/resource/Quotation/{qt_name}")
+        quotation = qt_result.get("data", {})
+        if not quotation:
+            raise HTTPException(status_code=404, detail="Quotation not found")
+        
+        data = {
+            "customer": quotation.get("party_name"),
+            "company": company,
+            "currency": currency,
+            "conversion_rate": 1,
+            "naming_series": "SO-.YYYY.-",
+            "items": quotation.get("items", []),
+            "transaction_date": body.get("transaction_date", ""),
+        }
+        result = await frappe_post("/api/resource/Sales Order", data=data)
+        return {"success": True, "data": result.get("data", {})}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/quotation/{qt_name}/create-po")
 async def create_po_from_quotation(qt_name: str, body: dict, current_user: CurrentUser = Depends(get_current_user)):
@@ -612,27 +899,28 @@ async def create_invoice_from_po(po_name: str, body: dict, current_user: Current
         retail_total = float(si.get("grand_total") or 0)
         margin = retail_total - wholesale_total
 
-        return {
-            "success": True,
-            "data": {
-                "purchase_order": po_name,
-                "sales_invoice": si.get("name"),
-                "customer": customer,
-                "wholesale_total": wholesale_total,
-                "retail_total": retail_total,
-                "margin": round(margin, 2),
-                "link": f"https://erp.riad.fun/app/sales-invoice/{si.get('name')}",
-                "terms": {
-                    "payment": payment_terms,
-                    "delivery": delivery_terms,
-                    "warranty": warranty_terms,
-                },
-            },
+@router.post("/sales-invoice/{si_name}/create-act")
+async def create_act_from_invoice(si_name: str, body: dict, current_user: CurrentUser = Depends(get_current_user)):
+    """Final Step: Create Installation Act from Sales Invoice."""
+    try:
+        si_result = await frappe_get(f"/api/resource/Sales Invoice/{si_name}")
+        si = si_result.get("data", {})
+        if not si:
+            raise HTTPException(status_code=404, detail="Sales Invoice not found")
+        
+        data = {
+            "customer": si.get("customer"),
+            "company": si.get("company"),
+            "transaction_date": body.get("date", ""),
+            "items": si.get("items", []),
+            "naming_series": "ACT-.YYYY.-",
         }
-    except HTTPException:
-        raise
+        result = await frappe_post("/api/resource/Installation Act", data=data)
+        return {"success": True, "data": result.get("data", {})}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/pricing/calculate")
 
 
 @router.get("/pricing/calculate")

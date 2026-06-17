@@ -108,11 +108,14 @@ async def proxy(
             content=body,
             headers=headers,
         )
-        return Response(
+        # Add deprecation header
+        response = Response(
             status_code=resp.status_code,
             content=resp.content,
             media_type="application/json",
         )
+        response.headers["X-Deprecated"] = "true"
+        return response
     except httpx.ConnectError:
         return Response(
             status_code=502,

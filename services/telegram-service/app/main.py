@@ -19,8 +19,8 @@ STATES = {}
 async def login_as_bot():
     global BOT_TOKEN
     async with httpx.AsyncClient(timeout=10.0) as client:
-        resp = await client.post(f"{API_URL}/api/v1/auth/login", json={
-            "username": "joker@riad.fun", "password": "jokerLA23",
+        resp = await client.post(f"{API_URL}/api/v2/auth/login", json={
+            "username": settings.bot_api_username, "password": settings.bot_api_password,
         })
         if resp.status_code == 200:
             BOT_TOKEN = resp.json().get("access_token")
@@ -252,7 +252,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_mytickets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🔄 Завантажую...")
     try:
-        result = await api_get("/api/v1/tickets?limit=20")
+        result = await api_get("/api/v2/tickets?limit=20")
         if not result.get("success"):
             await update.message.reply_text("❌ Помилка отримання заявок")
             return
@@ -291,7 +291,7 @@ async def callback_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text("🔄 Завантажую деталі...")
 
     try:
-        result = await api_get(f"/api/v1/tickets/{ticket_id}")
+        result = await api_get(f"/api/v2/tickets/{ticket_id}")
         if not result.get("success"):
             await query.edit_message_text("❌ Помилка")
             return
@@ -299,7 +299,7 @@ async def callback_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE):
         t = result["data"]
 
         # Get visits for this ticket
-        visits_r = await api_get(f"/api/v1/visits?ticket_id={ticket_id}")
+        visits_r = await api_get(f"/api/v2/visits?ticket_id={ticket_id}")
         visits = visits_r.get("data", []) if visits_r.get("success") else []
 
         text = (
@@ -354,7 +354,7 @@ async def callback_accept(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     ticket_id = query.data.replace("accept_", "")
     try:
-        result = await api_post(f"/api/v1/tickets/{ticket_id}/status", {"status": "accepted"})
+        result = await api_post(f"/api/v2/tickets/{ticket_id}/status", {"status": "accepted"})
         if result.get("success"):
             await query.edit_message_text("✅ Заявку прийнято!")
         else:
@@ -372,7 +372,7 @@ async def callback_visit_start(update: Update, context: ContextTypes.DEFAULT_TYP
 
     visit_id = query.data.replace("vstart_", "")
     try:
-        result = await api_post(f"/api/v1/visits/{visit_id}/start", {"lat": 0.0, "lon": 0.0})
+        result = await api_post(f"/api/v2/visits/{visit_id}/start", {"lat": 0.0, "lon": 0.0})
         if result.get("success"):
             keyboard = [
                 [InlineKeyboardButton("📸 Фото", callback_data=f"photo_{visit_id}"),
@@ -399,7 +399,7 @@ async def callback_visit_finish(update: Update, context: ContextTypes.DEFAULT_TY
 
     visit_id = query.data.replace("vfinish_", "")
     try:
-        result = await api_post(f"/api/v1/visits/{visit_id}/finish", {"lat": 0.0, "lon": 0.0})
+        result = await api_post(f"/api/v2/visits/{visit_id}/finish", {"lat": 0.0, "lon": 0.0})
         if result.get("success"):
             await query.edit_message_text(f"✅ Виїзд завершено!")
         else:
@@ -417,7 +417,7 @@ async def callback_newvisit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     ticket_id = query.data.replace("newvisit_", "")
     try:
-        result = await api_post("/api/v1/visits", {
+        result = await api_post("/api/v2/visits", {
             "ticket_id": ticket_id,
             "engineer_id": "a0000000-0000-0000-0000-000000000001",
         })
@@ -493,7 +493,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(
-                    f"{API_URL}/api/v1/visits/{visit_id}/photos",
+                    f"{API_URL}/api/v2/visits/{visit_id}/photos",
                     headers={"Authorization": f"Bearer {BOT_TOKEN}"},
                     data=data,
                     files=files,
@@ -533,7 +533,7 @@ async def callback_materials(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # Завантажуємо матеріали зі складу
     try:
-        items_r = await api_get("/api/v1/items?limit=20")
+        items_r = await api_get("/api/v2/items?limit=20")
         items = items_r.get("data", []) if items_r.get("success") else []
     except:
         items = []
@@ -593,7 +593,7 @@ async def callback_addmat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     item_code = parts[1] if len(parts) > 1 else "unknown"
 
     try:
-        result = await api_post(f"/api/v1/visits/{visit_id}/materials", {
+        result = await api_post(f"/api/v2/visits/{visit_id}/materials", {
             "item_code": item_code,
             "item_name": item_code,
             "quantity": 1,
@@ -666,7 +666,7 @@ async def _newticket_step(update: Update, chat_id: int, text: str) -> bool:
         await update.message.reply_text("⏳ Створюю заявку...", reply_markup=ReplyKeyboardRemove())
 
         title = f"{data['title']} | {data['address']} | {data['contact']}"
-        result = await api_post("/api/v1/tickets", {
+        result = await api_post("/api/v2/tickets", {
             "customer_id": "a0000000-0000-0000-0000-000000000001",
             "object_id": "a0000000-0000-0000-0000-000000000002",
             "ticket_type": "service_request",
@@ -719,7 +719,7 @@ async def _newticket_step(update: Update, chat_id: int, text: str) -> bool:
 async def cmd_object(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         # Показуємо список об'єктів
-        result = await api_get("/api/v1/objects?limit=10")
+        result = await api_get("/api/v2/objects?limit=10")
         if result.get("success") and result.get("data"):
             keyboard = []
             for obj in result["data"]:
@@ -744,7 +744,7 @@ async def callback_object(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _show_object(update: Update, obj_code: str):
-    result = await api_get("/api/v1/objects?limit=100")
+    result = await api_get("/api/v2/objects?limit=100")
     if not result.get("success"):
         await update.message.reply_text("❌ Помилка")
         return
@@ -763,7 +763,7 @@ async def _show_object(update: Update, obj_code: str):
 
 
 async def _show_object_by_id(query, obj_id: str):
-    result = await api_get(f"/api/v1/objects/{obj_id}")
+    result = await api_get(f"/api/v2/objects/{obj_id}")
     if not result.get("success"):
         await query.edit_message_text("❌ Помилка")
         return
@@ -771,10 +771,10 @@ async def _show_object_by_id(query, obj_id: str):
 
 
 async def _send_object_card(message, obj):
-    equip_r = await api_get(f"/api/v1/equipment?limit=50")
+    equip_r = await api_get(f"/api/v2/equipment?limit=50")
     equipment = [e for e in equip_r.get("data", []) if str(e.get("object_id")) == str(obj["id"])]
 
-    tickets_r = await api_get("/api/v1/tickets?limit=50")
+    tickets_r = await api_get("/api/v2/tickets?limit=50")
     tickets = [t for t in tickets_r.get("data", []) if str(t.get("object_id")) == str(obj["id"])]
     open_t = [t for t in tickets if t["status"] not in ["closed", "cancelled"]]
 
@@ -799,7 +799,7 @@ async def _send_object_card(message, obj):
 
 
 async def _send_object_card_inline(query, obj):
-    equip_r = await api_get(f"/api/v1/equipment?limit=50")
+    equip_r = await api_get(f"/api/v2/equipment?limit=50")
     equipment = [e for e in equip_r.get("data", []) if str(e.get("object_id")) == str(obj["id"])]
 
     text = (
@@ -822,7 +822,7 @@ async def _send_object_card_inline(query, obj):
 async def cmd_sla(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("📊 Завантажую...")
     try:
-        result = await api_get("/api/v1/tickets?limit=100")
+        result = await api_get("/api/v2/tickets?limit=100")
         if not result.get("success"):
             await update.message.reply_text("❌ Помилка")
             return
@@ -863,9 +863,9 @@ async def cmd_sla(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_kpi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("📈 Завантажую...")
     try:
-        t_r = await api_get("/api/v1/tickets?limit=100")
-        o_r = await api_get("/api/v1/objects?limit=100")
-        v_r = await api_get("/api/v1/visits?limit=100")
+        t_r = await api_get("/api/v2/tickets?limit=100")
+        o_r = await api_get("/api/v2/objects?limit=100")
+        v_r = await api_get("/api/v2/visits?limit=100")
 
         tickets = t_r.get("data", []) if t_r.get("success") else []
         objects = o_r.get("data", []) if o_r.get("success") else []
@@ -926,7 +926,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         visit_id = state.get("visit_id")
         parts = [p.strip() for p in text.split("|")]
         if len(parts) >= 2:
-            result = await api_post(f"/api/v1/visits/{visit_id}/materials", {
+            result = await api_post(f"/api/v2/visits/{visit_id}/materials", {
                 "item_code": parts[0],
                 "item_name": parts[0],
                 "quantity": float(parts[1].replace("м", "").replace("шт", "").replace(" ", "")) if parts[1].replace("м", "").replace("шт", "").replace(".", "").replace(" ", "").isdigit() else 1,
