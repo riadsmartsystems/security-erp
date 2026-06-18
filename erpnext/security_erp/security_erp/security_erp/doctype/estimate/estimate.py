@@ -23,6 +23,30 @@ class Estimate(Document):
     def on_submit(self):
         self.status = "Sent"
 
+    @frappe.whitelist()
+    def apply_template(self, template_name):
+        tmpl = frappe.get_doc("Estimate Template", template_name)
+        for ti in tmpl.items:
+            self.append("items", {
+                "item_code": ti.item_code,
+                "item_name": ti.item_name,
+                "qty": ti.qty,
+                "rate": ti.rate,
+            })
+        self.calculate_totals()
+
+    @frappe.whitelist()
+    def apply_scenario(self, scenario_name):
+        scenario = frappe.get_doc("Security Scenario", scenario_name)
+        for si in scenario.items:
+            self.append("items", {
+                "item_code": si.item_code,
+                "item_name": si.item_name,
+                "qty": si.qty,
+                "rate": si.rate,
+            })
+        self.calculate_totals()
+
     def create_quotation(self):
         if self.status not in ("Approved", "Sent"):
             frappe.throw("Only Approved or Sent estimates can be converted to Quotation")

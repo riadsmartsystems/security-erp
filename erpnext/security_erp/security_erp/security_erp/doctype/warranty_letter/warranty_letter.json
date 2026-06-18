@@ -1,0 +1,29 @@
+{
+    "name": "Warranty Letter",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "fields": [
+        {"fieldname": "letter_number", "fieldtype": "Data", "label": "Letter Number", "read_only": 1, "unique": 1, "in_list_view": 1},
+        {"fieldname": "installation_act", "fieldtype": "Link", "label": "Installation Act", "options": "Installation Act", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "customer", "fieldtype": "Link", "label": "Customer", "options": "Customer", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "customer_name", "fieldtype": "Data", "label": "Customer Name", "fetch_from": "customer.customer_name", "read_only": 1},
+        {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+        {"fieldname": "issue_date", "fieldtype": "Date", "label": "Issue Date", "reqd": 1, "default": "Today"},
+        {"fieldname": "warranty_months", "fieldtype": "Int", "label": "Warranty (Months)", "default": 12},
+        {"fieldname": "expiry_date", "fieldtype": "Date", "label": "Expiry Date", "read_only": 1},
+        {"fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "Draft\nIssued", "default": "Draft", "in_list_view": 1},
+        {"fieldname": "notes", "fieldtype": "Text Editor", "label": "Notes"}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+        {"role": "Service Manager", "read": 1, "write": 1, "create": 1}
+    ],
+    "autoname": "naming_series:",
+    "naming_series": {"field": "letter_number", "options": "WL-.YYYY.-.####"},
+    "title_field": "customer_name",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 1
+}

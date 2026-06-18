@@ -21,6 +21,20 @@ class InstallationAct(Document):
 
     def on_submit(self):
         self.status = "Pending Approval"
+        for item in self.items:
+            if not item.serial_number:
+                continue
+            if frappe.db.exists("Equipment", {"serial_number": item.serial_number}):
+                eq = frappe.get_doc("Equipment", {"serial_number": item.serial_number})
+            else:
+                eq = frappe.new_doc("Equipment")
+                eq.serial_number = item.serial_number
+            eq.item_code = item.item_code
+            eq.status = "Installed"
+            eq.installation_act = self.name
+            eq.security_object = self.security_object
+            eq.save(ignore_permissions=True)
+        self.save(ignore_permissions=True)
 
     def on_cancel(self):
         self.status = "Rejected"

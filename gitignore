@@ -1,0 +1,42 @@
+# Середовище
+.env
+*.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.eggs/
+dist/
+build/
+.venv/
+env/
+
+# Node
+node_modules/
+
+# Docker volumes (якщо монтуються локально)
+mariadb_data/
+redis_data/
+
+# Cloudflare creds (секрети — не комітити)
+configs/cloudflared/creds.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Логи
+*.log
+logs/
+
+# Backup
+*.backup
+.env.backup

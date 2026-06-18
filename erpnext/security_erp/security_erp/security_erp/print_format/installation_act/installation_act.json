@@ -1,0 +1,13 @@
+{
+    "name": "Installation Act",
+    "doctype": "Print Format",
+    "module": "Security ERP",
+    "doc_type": "Installation Act",
+    "print_format_type": "Jinja",
+    "custom_format": 1,
+    "standard": "No",
+    "description": "Акт виконаних робіт",
+    "font": "Default",
+    "orientation": "Portrait",
+    "disabled": 0
+}
