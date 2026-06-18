@@ -1,138 +1,483 @@
-x-erpnext-common: &erpnext-common
-  image: frappe/erpnext:v15.111.0
-  restart: unless-stopped
-  volumes:
-    - ./erpnext/security_erp:/home/frappe/frappe-bench/apps/security_erp
-    - erpnext_sites:/home/frappe/frappe-bench/sites
-  environment:
-    FRAPPE_SITE_NAME_HEADER: ${SITE_NAME}
+# =============================================================================
+# Security ERP Platform - Docker Compose
+# =============================================================================
+# Architecture: ERPNext (MariaDB) is the single source of truth.
+# Security API proxies Frappe REST API. All business logic lives in ERPNext.
+# PostgreSQL is used ONLY by n8n for workflow persistence.
+# =============================================================================
 
 networks:
   erpnet:
     driver: bridge
+  dbnet:
+    driver: bridge
+    internal: true
+
+volumes:
+  mariadb_data:
+  redis_data:
+  minio_data:
+  erpnext_sites:
+  erpnext_assets:
+  erpnext_logs:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  n8n_data:
+  nats_data:
+  postgres_data:
 
 services:
+  # =========================================================================
+  # REVERSE PROXY
+  # =========================================================================
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - "--api.dashboard=false"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=security-erp_erpnet"
+      - "--providers.file.filename=/etc/traefik/dynamic.yml"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--log.level=WARN"
+      - "--accesslog=false"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./configs/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - erpnet
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=basic-auth@file"
 
-  # ── Дані ─────────────────────────────────────────────
-
+  # =========================================================================
+  # DATABASE (MariaDB - single source of truth)
+  # =========================================================================
   mariadb:
     image: mariadb:10.6
+    container_name: mariadb
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MARIADB_DATABASE}
+      MYSQL_USER: ${MARIADB_USER}
+      MYSQL_PASSWORD: ${MARIADB_PASSWORD}
     volumes:
       - mariadb_data:/var/lib/mysql
       - ./configs/mariadb.cnf:/etc/mysql/conf.d/custom.cnf:ro
+    networks:
+      - erpnet
+      - dbnet
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
-      start_period: 30s
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
 
   redis:
     image: redis:7-alpine
+    container_name: redis
     restart: unless-stopped
+    command: redis-server --requirepass "${REDIS_PASSWORD}" --maxmemory 512mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
+    networks:
+      - erpnet
+      - dbnet
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
-      timeout: 3s
+      timeout: 5s
       retries: 5
 
-  # ── ERPNext ──────────────────────────────────────────
+  # =========================================================================
+  # FILE STORAGE
+  # =========================================================================
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BROWSER: ${MINIO_BROWSER}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - erpnet
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =========================================================================
+  # EVENT BUS
+  # =========================================================================
+  nats:
+    image: nats:2-alpine
+    container_name: nats
+    restart: unless-stopped
+    command: "--user ${NATS_USER} --pass ${NATS_PASSWORD} -js -m 8222"
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats_data:/data
+    networks:
+      - erpnet
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8222/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =========================================================================
+  # ERPNEXT (single database, all business logic here)
+  # =========================================================================
+  erpnext-frontend:
+    image: frappe/erpnext:v15.111.0
+    container_name: erpnext-frontend
+    restart: unless-stopped
+    command: "nginx-entrypoint.sh"
+    environment:
+      BACKEND: erpnext-backend:8000
+      SOCKETIO_PORT: 9000
+      FRAPPE_SITE_NAME_HEADER: erp.localhost
+    volumes:
+      - erpnext_sites:/home/frappe/frappe-bench/sites
+    networks:
+      - erpnet
+    depends_on:
+      erpnext-backend:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.erpnext.rule=Host(`${SITE_NAME}`) || Host(`erp.riad.fun`)"
+      - "traefik.http.services.erpnext.loadbalancer.server.port=8080"
 
   erpnext-backend:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
+    image: frappe/erpnext:v15.111.0
+    container_name: erpnext-backend
     restart: unless-stopped
-    command: ["sh", "-c", "/home/frappe/frappe-bench/env/bin/pip install -e /home/frappe/frappe-bench/apps/security_erp && bench serve --port 8000"]
-    volumes:
-      - ./erpnext/security_erp:/home/frappe/frappe-bench/apps/security_erp
-      - erpnext_sites:/home/frappe/frappe-bench/sites
+    command: ["sh", "-c", "sed -i 's/erpnextsecurity_erp_app/erpnext/g' /home/frappe/frappe-bench/sites/apps.txt; grep -qxF 'security_erp_app' /home/frappe/frappe-bench/sites/apps.txt || printf 'security_erp_app\\n' >> /home/frappe/frappe-bench/sites/apps.txt; /home/frappe/frappe-bench/env/bin/pip install -e /home/frappe/frappe-bench/apps/security_erp_app && bench serve --port 8000"]
     environment:
-      FRAPPE_SITE_NAME_HEADER: ${SITE_NAME}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      REDIS_CACHE: redis://:${REDIS_PASSWORD}@redis:6379/1
+      REDIS_QUEUE: redis://:${REDIS_PASSWORD}@redis:6379/2
+      REDIS_SOCKETIO: redis://:${REDIS_PASSWORD}@redis:6379/3
+      SOCKETIO_PORT: 9000
+      FRAPPE_SITE_NAME_HEADER: erp.localhost
+    volumes:
+      - erpnext_sites:/home/frappe/frappe-bench/sites
+      - erpnext_logs:/home/frappe/frappe-bench/logs
+      - ./security_erp_app:/home/frappe/frappe-bench/apps/security_erp_app
+    networks:
+      - erpnet
+      - dbnet
     depends_on:
       mariadb:
         condition: service_healthy
       redis:
         condition: service_healthy
-    # Без Host-заголовка: /api/method/ping відповідає навіть до створення сайту
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/method/ping || exit 1"]
-      start_period: 120s
+      test: ["CMD", "curl", "-fsS", "-H", "Host: erp.localhost", "http://localhost:8000/api/method/ping"]
       interval: 15s
-      timeout: 5s
+      timeout: 10s
       retries: 10
-
-  erpnext-frontend:
-    <<: *erpnext-common
-    command: nginx-entrypoint.sh
-    environment:
-      # УВАГА: повністю перевизначає environment з anchor — всі потрібні змінні тут
-      FRAPPE_SITE_NAME_HEADER: ${SITE_NAME}
-      BACKEND: erpnext-backend:8000
-      SOCKETIO_PORT: 9000
-    depends_on:
-      erpnext-backend:
-        condition: service_healthy
-    ports:
-      - "8080:8080"
+      start_period: 120s
 
   erpnext-worker-default:
-    <<: *erpnext-common
-    command: bench worker --queue default
+    image: frappe/erpnext:v15.111.0
+    container_name: erpnext-worker-default
+    restart: unless-stopped
+    command: ["sh", "-c", "sed -i 's/erpnextsecurity_erp_app/erpnext/g' /home/frappe/frappe-bench/sites/apps.txt; grep -qxF 'security_erp_app' /home/frappe/frappe-bench/sites/apps.txt || printf 'security_erp_app\\n' >> /home/frappe/frappe-bench/sites/apps.txt; /home/frappe/frappe-bench/env/bin/pip install -e /home/frappe/frappe-bench/apps/security_erp_app && bench worker --queue default"]
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      REDIS_CACHE: redis://:${REDIS_PASSWORD}@redis:6379/1
+      REDIS_QUEUE: redis://:${REDIS_PASSWORD}@redis:6379/2
+    volumes:
+      - erpnext_sites:/home/frappe/frappe-bench/sites
+      - erpnext_logs:/home/frappe/frappe-bench/logs
+      - ./security_erp_app:/home/frappe/frappe-bench/apps/security_erp_app
+    networks:
+      - erpnet
+      - dbnet
     depends_on:
       erpnext-backend:
         condition: service_healthy
 
   erpnext-worker-short:
-    <<: *erpnext-common
-    command: bench worker --queue short
+    image: frappe/erpnext:v15.111.0
+    container_name: erpnext-worker-short
+    restart: unless-stopped
+    command: ["sh", "-c", "sed -i 's/erpnextsecurity_erp_app/erpnext/g' /home/frappe/frappe-bench/sites/apps.txt; grep -qxF 'security_erp_app' /home/frappe/frappe-bench/sites/apps.txt || printf 'security_erp_app\\n' >> /home/frappe/frappe-bench/sites/apps.txt; /home/frappe/frappe-bench/env/bin/pip install -e /home/frappe/frappe-bench/apps/security_erp_app && bench worker --queue short"]
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      REDIS_CACHE: redis://:${REDIS_PASSWORD}@redis:6379/1
+      REDIS_QUEUE: redis://:${REDIS_PASSWORD}@redis:6379/2
+    volumes:
+      - erpnext_sites:/home/frappe/frappe-bench/sites
+      - erpnext_logs:/home/frappe/frappe-bench/logs
+      - ./security_erp_app:/home/frappe/frappe-bench/apps/security_erp_app
+    networks:
+      - erpnet
+      - dbnet
     depends_on:
       erpnext-backend:
         condition: service_healthy
 
   erpnext-scheduler:
-    <<: *erpnext-common
-    command: bench schedule
+    image: frappe/erpnext:v15.111.0
+    container_name: erpnext-scheduler
+    restart: unless-stopped
+    command: ["sh", "-c", "sed -i 's/erpnextsecurity_erp_app/erpnext/g' /home/frappe/frappe-bench/sites/apps.txt; grep -qxF 'security_erp_app' /home/frappe/frappe-bench/sites/apps.txt || printf 'security_erp_app\\n' >> /home/frappe/frappe-bench/sites/apps.txt; /home/frappe/frappe-bench/env/bin/pip install -e /home/frappe/frappe-bench/apps/security_erp_app && bench schedule"]
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      REDIS_CACHE: redis://:${REDIS_PASSWORD}@redis:6379/1
+      REDIS_QUEUE: redis://:${REDIS_PASSWORD}@redis:6379/2
+    volumes:
+      - erpnext_sites:/home/frappe/frappe-bench/sites
+      - erpnext_logs:/home/frappe/frappe-bench/logs
+      - ./security_erp_app:/home/frappe/frappe-bench/apps/security_erp_app
+    networks:
+      - erpnet
+      - dbnet
     depends_on:
       erpnext-backend:
         condition: service_healthy
 
   erpnext-socketio:
-    <<: *erpnext-common
-    command: node /home/frappe/frappe-bench/apps/frappe/socketio.js
+    image: frappe/erpnext:v15.111.0
+    container_name: erpnext-socketio
+    restart: unless-stopped
+    command: "node /home/frappe/frappe-bench/apps/frappe/socketio.js"
+    volumes:
+      - erpnext_sites:/home/frappe/frappe-bench/sites
+    networks:
+      - erpnet
+    depends_on:
+      - erpnext-backend
+
+  # =========================================================================
+  # SECURITY API GATEWAY (thin proxy to Frappe REST API)
+  # =========================================================================
+  security-api:
+    build:
+      context: ./services/security-api
+      dockerfile: Dockerfile
+    container_name: security-api
+    restart: unless-stopped
+    environment:
+      FRAPPE_URL: http://erpnext-backend:8000
+      FRAPPE_API_KEY: ${FRAPPE_API_KEY}
+      FRAPPE_API_SECRET: ${FRAPPE_API_SECRET}
+      FRAPPE_USERNAME: ${FRAPPE_USERNAME:-Administrator}
+      FRAPPE_PASSWORD: ${FRAPPE_PASSWORD}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      SECRET_KEY: ${SECURITY_API_SECRET_KEY}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL}
+      AI_SERVICE_KEY: ${AI_SERVICE_KEY}
+      LLM_URL: ${LLM_URL}
+      LLM_MODEL: ${LLM_MODEL}
+    ports:
+      - "8000:8000"
+    networks:
+      - erpnet
     depends_on:
       erpnext-backend:
+        condition: service_started
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`api.${DOMAIN}`)"
+      - "traefik.http.routers.api.service=api-svc"
+      - "traefik.http.services.api-svc.loadbalancer.server.port=8000"
+      - "traefik.http.routers.api2.rule=Host(`erp.${DOMAIN}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.api2.priority=200"
+      - "traefik.http.routers.api2.service=api-svc"
+
+  # =========================================================================
+  # POSTGRESQL (n8n workflow persistence only)
+  # =========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-n8n}
+      POSTGRES_USER: ${INTEGRATION_DB_USER:-n8n_user}
+      POSTGRES_PASSWORD: ${INTEGRATION_DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - erpnet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${INTEGRATION_DB_USER:-n8n_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =========================================================================
+  # TELEGRAM SERVICE
+  # =========================================================================
+  telegram-service:
+    build:
+      context: ./services/telegram-service
+      dockerfile: Dockerfile
+    container_name: telegram-service
+    restart: unless-stopped
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      VIBER_BOT_TOKEN: ${VIBER_BOT_TOKEN}
+      SECURITY_API_URL: http://security-api:8000
+      NATS_URL: nats://${NATS_USER}:${NATS_PASSWORD}@nats:4222
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      NOTIFICATION_TELEGRAM_CHAT_IDS: ${NOTIFICATION_TELEGRAM_CHAT_IDS}
+      NOTIFICATION_VIBER_USER_IDS: ${NOTIFICATION_VIBER_USER_IDS}
+      FRAPPE_USERNAME: ${FRAPPE_USERNAME}
+      FRAPPE_PASSWORD: ${FRAPPE_PASSWORD}
+    networks:
+      - erpnet
+    depends_on:
+      security-api:
+        condition: service_started
+      nats:
         condition: service_healthy
 
-  # ── Proxy ────────────────────────────────────────────
+  # =========================================================================
+  # AUTOMATION (n8n)
+  # =========================================================================
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_USER_MANAGEMENT_DISABLED: "true"
+      N8N_DISABLE_UI: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB}
+      DB_POSTGRESDB_USER: ${INTEGRATION_DB_USER}
+      DB_POSTGRESDB_PASSWORD: ${INTEGRATION_DB_PASSWORD}
+      GENERIC_TIMEZONE: ${TIMEZONE}
+      N8N_USER_FOLDER: /home/node/.n8n
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./configs/n8n/workflows:/home/node/.n8n/import/workflows:ro
+    networks:
+      - erpnet
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.n8n.rule=Host(`n8n.${DOMAIN}`)"
+      - "traefik.http.routers.n8n.entrypoints=web"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+      - "traefik.http.routers.n8n.middlewares=basic-auth@file"
 
-  traefik:
-    image: traefik:v2.10
+  # =========================================================================
+  # MONITORING
+  # =========================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
     restart: unless-stopped
     command:
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--providers.file.directory=/etc/traefik/dynamic"
-      - "--entrypoints.web.address=:80"
-    ports:
-      - "80:80"
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
     volumes:
+      - ./configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - erpnet
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./configs/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - erpnet
+    depends_on:
+      - prometheus
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./configs/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - erpnet
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./configs/promtail/promtail.yml:/etc/promtail/config.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./configs/traefik:/etc/traefik/dynamic:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - erpnet
+    depends_on:
+      - loki
 
-  # ── Cloudflare Tunnel (DEFER — розкоментувати коли готові creds) ──────────
-  # Для роботи потрібні:
-  #   configs/cloudflared/config.yml
-  #   configs/cloudflared/creds.json
-  # Якщо файли відсутні — Docker змонтує директорії, сервіс упаде в crashloop.
-
+  # =========================================================================
+  # CLOUDFLARE TUNNEL
+  # =========================================================================
   cloudflared:
     image: cloudflare/cloudflared:latest
+    container_name: cloudflared_tunnel
     restart: unless-stopped
     command: tunnel --config /etc/cloudflared/config.yml run
     extra_hosts:
@@ -142,8 +487,3 @@ services:
       - ./configs/cloudflared/creds.json:/etc/cloudflared/creds.json:ro
     networks:
       - erpnet
-
-volumes:
-  mariadb_data:
-  redis_data:
-  erpnext_sites:

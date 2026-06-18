@@ -27,7 +27,6 @@
         {"fieldname": "objects", "fieldtype": "Table", "label": "Contract Objects", "options": "Contract Object"},
         {"fieldname": "section_break_notes", "fieldtype": "Section Break", "label": "Notes"},
         {"fieldname": "notes", "fieldtype": "Text Editor", "label": "Notes"},
-        {"fieldname": "quotation", "fieldtype": "Link", "label": "Quotation", "options": "Quotation"},
         {"fieldname": "amended_from", "fieldtype": "Link", "label": "Amended From", "options": "Contract", "read_only": 1, "no_copy": 1}
     ],
     "permissions": [

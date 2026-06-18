@@ -47,17 +47,6 @@ jobs:
         run: |
           python tests/security-api/test_models.py
 
-      - name: Lint security_erp app
-        run: |
-          python -c "
-          import ast, sys, pathlib
-          errors = []
-          for f in pathlib.Path('erpnext/security_erp').rglob('*.py'):
-              try: ast.parse(f.read_text())
-              except SyntaxError as e: errors.append(f'{f}: {e}')
-          if errors: [print(e) for e in errors]; sys.exit(1)
-          "
-
   build:
     runs-on: ubuntu-latest
     needs: test

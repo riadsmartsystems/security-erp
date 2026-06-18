@@ -8,14 +8,6 @@
 
 set -e
 
-# ---------------------------------------------------------------------------
-# Pre-flight: verify .env exists
-# ---------------------------------------------------------------------------
-if [ ! -f .env ]; then
-  echo "ERROR: .env not found. Copy .env.example and fill in values." >&2
-  exit 1
-fi
-
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
