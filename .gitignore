@@ -44,3 +44,4 @@ android-app/
 /home/joker/flutter/
 /home/joker/jdk-21.0.11/
 /home/joker/android-sdk/
+.env.backup
