@@ -23,6 +23,9 @@ after_install = "security_erp.events.after_install"
 # --------------------------------------------------------------------------
 
 doc_events = {
+    "Address": {
+        "validate": "security_erp.events.address_validate",
+    },
     "Lead": {
         "on_update": "security_erp.events.lead_on_update",
     },
