@@ -1,0 +1,11 @@
+{
+    "name": "Security KP",
+    "module": "Security ERP",
+    "doctype": "Print Format",
+    "doc_type": "Quotation",
+    "print_format_type": "Jinja",
+    "html": "",
+    "disabled": 0,
+    "standard": "No",
+    "custom": 1
+}

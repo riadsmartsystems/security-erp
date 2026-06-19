@@ -1,4 +1,4 @@
 FROM frappe/erpnext:v15.111.0
 USER root
-RUN pip install gunicorn gevent httpx "anthropic>=0.25"
+RUN pip install gunicorn gevent
 USER frappe

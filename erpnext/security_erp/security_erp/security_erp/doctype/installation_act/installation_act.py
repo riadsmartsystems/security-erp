@@ -21,6 +21,33 @@ class InstallationAct(Document):
 
     def on_submit(self):
         self.status = "Pending Approval"
+        self.create_equipment_records()
 
     def on_cancel(self):
         self.status = "Rejected"
+
+    def create_equipment_records(self):
+        for item in self.items:
+            if not item.serial_number:
+                continue
+
+            existing = frappe.db.exists("Equipment", {"serial_number": item.serial_number})
+            if existing:
+                equip = frappe.get_doc("Equipment", existing)
+                equip.status = "Installed"
+                equip.install_date = self.act_date
+                equip.save()
+            else:
+                equip = frappe.get_doc({
+                    "doctype": "Equipment",
+                    "security_object": self.project,
+                    "equipment_type": item.item_code,
+                    "model": item.item_name or item.item_code,
+                    "serial_number": item.serial_number,
+                    "vendor": self.customer,
+                    "status": "Installed",
+                    "install_date": self.act_date,
+                })
+                equip.insert()
+
+        frappe.msgprint("Equipment records created/updated")

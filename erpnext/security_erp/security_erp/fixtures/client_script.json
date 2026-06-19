@@ -1,0 +1,10 @@
+[
+    {
+        "name": "Address Default Ukraine",
+        "doctype": "Client Script",
+        "dt": "Address",
+        "script": "frappe.ui.form.on('Address', {\n    refresh: function(frm) {\n        if (frm.is_new()) {\n            if (!frm.doc.country) {\n                frm.set_value('country', 'Ukraine');\n            }\n            if (!frm.doc.city) {\n                frm.set_value('city', 'Кривий Ріг');\n            }\n            if (!frm.doc.state) {\n                frm.set_value('state', 'Дніпропетровська');\n            }\n        }\n    }\n});\n",
+        "enabled": 1,
+        "module": "Security ERP"
+    }
+]
