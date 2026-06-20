@@ -1,4 +1,17 @@
 http:
+  routers:
+    erpnext:
+      rule: "Host(`erp.localhost`) || Host(`erp.riad.fun`)"
+      entrypoints:
+        - web
+      service: erpnext
+
+  services:
+    erpnext:
+      loadBalancer:
+        servers:
+          - url: "http://erpnext-frontend:8080"
+
   middlewares:
     basic-auth:
       basicAuth:

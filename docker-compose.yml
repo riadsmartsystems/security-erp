@@ -65,7 +65,7 @@ services:
     <<: *erpnext-common
     environment:
       BACKEND: erpnext-backend:8000
-      FRAPPE_SITE_NAME_HEADER: erp.localhost
+      FRAPPE_SITE_NAME_HEADER: ${SITE_NAME:-erp.localhost}
       SOCKETIO_PORT: "9000"
     command: nginx-entrypoint.sh
     depends_on:
@@ -73,6 +73,11 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.erpnext.rule=Host(`${DOMAIN:-erp.localhost}`) || Host(`erp.riad.fun`)"
+      - "traefik.http.routers.erpnext.entrypoints=web"
+      - "traefik.http.services.erpnext.loadbalancer.server.port=8080"
 
   erpnext-worker-default:
     <<: *erpnext-common
