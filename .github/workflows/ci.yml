@@ -29,7 +29,7 @@ jobs:
         run: |
           black --check services/
 
-      - name: Verify Python syntax
+      - name: Verify Python syntax (security-api)
         run: |
           python -m py_compile services/security-api/app/main.py
           python -m py_compile services/security-api/app/routes/doctypes.py
@@ -37,7 +37,22 @@ jobs:
           python -m py_compile services/security-api/app/core/database.py
           python -m py_compile services/security-api/app/core/config.py
           python -m py_compile services/security-api/app/services/ai_service.py
-          python -m py_compile services/telegram-service/app/main.py
+
+      - name: Lint and syntax check security_erp app
+        run: |
+          python -c "
+          import ast, sys, pathlib
+          errors = []
+          for f in pathlib.Path('erpnext/security_erp').rglob('*.py'):
+              try:
+                  ast.parse(f.read_text())
+              except SyntaxError as e:
+                  errors.append(f'{f}: {e}')
+          if errors:
+              [print(e) for e in errors]
+              sys.exit(1)
+          print(f'Syntax OK: {len(list(pathlib.Path(\"erpnext/security_erp\").rglob(\"*.py\")))} files checked')
+          "
 
       - name: Install test dependencies
         run: |
@@ -57,7 +72,7 @@ jobs:
       - name: Build Docker images
         run: |
           docker build -t security-api -f services/security-api/Dockerfile services/security-api/
-          docker build -t telegram-service -f services/telegram-service/Dockerfile services/telegram-service/
+          docker build -t erpnext-backend -f Dockerfile.backend .
 
   deploy:
     runs-on: ubuntu-latest
