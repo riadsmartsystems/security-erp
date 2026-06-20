@@ -1,0 +1,41 @@
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; }
+  h2 { text-align: center; }
+  .header-table { width: 100%; border: none; margin-bottom: 16px; }
+  .warranty-box { border: 2px solid #333; padding: 16px; margin-top: 20px; }
+  .signature { margin-top: 50px; }
+</style>
+
+<h2>ГАРАНТІЙНИЙ ЛИСТ № {{ doc.letter_number or doc.name }}</h2>
+
+<table class="header-table">
+  <tr>
+    <td style="border:none;"><strong>Клієнт:</strong> {{ doc.customer }}</td>
+    <td style="border:none; text-align:right;"><strong>Дата видачі:</strong> {{ doc.issue_date }}</td>
+  </tr>
+  <tr>
+    <td style="border:none;" colspan="2"><strong>Акт виконаних робіт:</strong> {{ doc.installation_act }}</td>
+  </tr>
+</table>
+
+<div class="warranty-box">
+  <p>Цим листом підтверджуємо, що на виконані монтажні роботи та встановлене обладнання
+  надається гарантія строком <strong>{{ doc.warranty_months }} місяців</strong>.</p>
+
+  <p><strong>Початок гарантійного строку:</strong> {{ doc.issue_date }}</p>
+  <p><strong>Закінчення гарантійного строку:</strong> {{ doc.expiry_date }}</p>
+
+  <p>Гарантія поширюється на дефекти матеріалів та виробничі дефекти, що виникли
+  з вини виконавця. Гарантія не поширюється на пошкодження, спричинені неправильною
+  експлуатацією, механічними пошкодженнями або третіми особами.</p>
+
+  {% if doc.notes %}
+  <p><strong>Примітки:</strong> {{ doc.notes }}</p>
+  {% endif %}
+</div>
+
+<div class="signature">
+  <p><strong>Виконавець:</strong></p>
+  <p style="margin-top:40px;">______________________&nbsp;&nbsp;&nbsp;&nbsp;____________________</p>
+  <p>(підпис)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(дата)</p>
+</div>
