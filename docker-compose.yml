@@ -63,6 +63,10 @@ services:
 
   erpnext-frontend:
     <<: *erpnext-common
+    environment:
+      BACKEND: erpnext-backend:8000
+      FRAPPE_SITE_NAME_HEADER: erp.localhost
+      SOCKETIO_PORT: "9000"
     command: nginx-entrypoint.sh
     depends_on:
       erpnext-backend:
