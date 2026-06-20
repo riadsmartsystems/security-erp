@@ -27,6 +27,7 @@
         {"fieldname": "column_break_totals", "fieldtype": "Column Break"},
         {"fieldname": "discount_amount", "fieldtype": "Currency", "label": "Discount Amount", "read_only": 1},
         {"fieldname": "grand_total", "fieldtype": "Currency", "label": "Grand Total", "read_only": 1},
+        {"fieldname": "lead", "fieldtype": "Link", "label": "Ліід", "options": "Lead"},
         {"fieldname": "section_break_tz", "fieldtype": "Section Break", "label": "Technical Specification"},
         {"fieldname": "tz_text", "fieldtype": "Long Text", "label": "Technical Specification (TZ)"},
         {"fieldname": "section_break_notes", "fieldtype": "Section Break", "label": "Notes"},

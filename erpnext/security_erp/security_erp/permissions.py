@@ -9,7 +9,7 @@ def contract_has_permission(doc, user=None, permission_type=None):
     if not user:
         user = frappe.session.user
 
-    if frappe.has_permission("Contract", ptype=permission_type or "read", user=user):
+    if frappe.has_permission("Contract", ptype=permission_type or "read", doc=doc, user=user):
         return True
 
     return False

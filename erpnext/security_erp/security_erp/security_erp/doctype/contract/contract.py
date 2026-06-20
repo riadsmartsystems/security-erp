@@ -13,7 +13,7 @@ class Contract(Document):
 
     def before_insert(self):
         if not self.contract_number:
-            pass
+            self.contract_number = self.name
 
     def on_update(self):
         if self.has_value_changed("status"):

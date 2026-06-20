@@ -1,6 +1,4 @@
 import frappe
-import json
-import httpx
 
 
 def _patch_address():
@@ -125,15 +123,6 @@ def ticket_on_update(doc, method):
             after_commit=True,
         )
 
-        _notify_n8n("new-ticket", {
-            "ticket_number": doc.ticket_number,
-            "title": doc.title,
-            "priority": doc.priority,
-            "status": doc.status,
-            "object_name": doc.security_object,
-            "customer_name": doc.customer_name,
-        })
-
 
 def ticket_after_insert(doc, method):
     frappe.publish_realtime(
@@ -141,32 +130,3 @@ def ticket_after_insert(doc, method):
         {"ticket": doc.name, "ticket_number": doc.ticket_number, "priority": doc.priority},
         after_commit=True,
     )
-
-    _notify_n8n("new-ticket", {
-        "ticket_number": doc.ticket_number,
-        "title": doc.title,
-        "priority": doc.priority,
-        "status": doc.status,
-        "object_name": doc.security_object,
-        "customer_name": doc.customer_name,
-    })
-
-    if doc.priority == "Critical":
-        _notify_n8n("emergency-ticket", {
-            "ticket_number": doc.ticket_number,
-            "title": doc.title,
-            "address": doc.description,
-            "contact": doc.customer_name,
-        })
-
-
-def _notify_n8n(webhook_path, data):
-    try:
-        n8n_url = frappe.conf.get("n8n_url", "http://n8n:5678")
-        httpx.post(
-            f"{n8n_url}/webhook/{webhook_path}",
-            json=data,
-            timeout=5.0,
-        )
-    except Exception:
-        pass

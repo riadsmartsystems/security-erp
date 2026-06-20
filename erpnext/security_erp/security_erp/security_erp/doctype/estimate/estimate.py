@@ -24,6 +24,25 @@ class Estimate(Document):
         self.status = "Sent"
 
     @frappe.whitelist()
+    def apply_template(self, template_name):
+        template = frappe.get_doc("Estimate Template", template_name)
+        if not template.items:
+            frappe.msgprint("Template has no items")
+            return
+
+        for ti in template.items:
+            self.append("items", {
+                "item_code": ti.item_code,
+                "item_name": ti.item_name,
+                "qty": ti.qty or 1,
+                "rate": ti.rate or 0,
+                "description": ti.description,
+            })
+
+        self.save()
+        frappe.msgprint(f"Applied template: {template_name}")
+
+    @frappe.whitelist()
     def apply_scenario(self, scenario_name):
         scenario = frappe.get_doc("Security Scenario", scenario_name)
         if not scenario.items:
