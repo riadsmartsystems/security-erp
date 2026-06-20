@@ -2,12 +2,10 @@
 _Оновлено: 2026-06-17_
 
 ## Infrastructure
-- [x] Docker Compose налаштовано (20 контейнерів)
+- [x] Docker Compose налаштовано (10 контейнерів)
 - [x] Cloudflare Tunnel підключено (riad.fun)
 - [x] TLS 1.3 для всіх публічних ендпоінтів
-- [x] MariaDB healthy, Redis healthy, MinIO healthy, NATS healthy
-- [x] PostgreSQL лише для n8n (integration schema)
-- [x] Monitoring: Prometheus + Grafana + Loki + Promtail
+- [x] MariaDB healthy, Redis healthy
 - [x] Traefik reverse proxy
 
 ## Security
@@ -25,7 +23,6 @@ _Оновлено: 2026-06-17_
 ## Single Database Architecture
 - [x] Всі дані в MariaDB через ERPNext DocTypes
 - [x] 25 DocTypes в модулі Security ERP
-- [x] PostgreSQL лише для n8n (integration schema)
 - [x] Security API → Frappe API proxy
 - [x] FSM/CMDB/AI мікросервіси ВИДАЛЕНІ (зайві, все в Frappe)
 
@@ -57,20 +54,6 @@ _Оновлено: 2026-06-17_
 - [x] Dark theme support
 - [x] Frappe field names corrected
 
-## Telegram Bot
-- [x] @riad_ss_bot працює
-- [x] /start, /mytickets, /newticket, /visit_start, /visit_finish
-- [x] /object, /sla, /kpi, /help, /photo, /materials
-- [x] Inline buttons для дій
-- [x] 5-кроковий /newticket діалог
-
-## n8n Workflows
-- [x] 10 workflows створено (9 active, 1 inactive)
-- [x] 6 webhooks + 4 schedulers
-- [x] Telegram notification через HTTP Request nodes
-- [x] Auto-import через entrypoint.sh
-- [x] Chat IDs → env vars (not hardcoded)
-
 ## Data Migration
 - [x] migrate_customers.py — CSV → ERPNext (готовий)
 - [x] migrate_objects.py — CSV → Security Object (готовий)
@@ -88,8 +71,7 @@ _Оновлено: 2026-06-17_
 - [x] Black formatting check (blocks build)
 - [x] Python syntax verification (py_compile)
 - [x] Unit tests (16 tests)
-- [x] Docker image build (security-api, telegram-service)
-- [x] Bandit security scan
+- [x] Docker image build (security-api)
 
 ## Load Testing
 - [x] k6 load tests: P95=181ms (target <500ms) — PASSED
@@ -100,11 +82,7 @@ _Оновлено: 2026-06-17_
 | Service | URL | Credentials |
 |---------|-----|-------------|
 | ERPNext | https://erp.riad.fun | see .env |
-| Security API | https://api.riad.fun | see .env |
-| n8n | https://n8n.riad.fun | see .env |
-| Grafana | https://grafana.riad.fun | see .env |
-| Telegram Bot | @riad_ss_bot | TELEGRAM_BOT_TOKEN in .env |
-| MinIO | http://localhost:9001 | MINIO_ROOT_USER/PASSWORD in .env |
+| Security API | https://api.riad.fun (DEFER) | see .env |
 
 ## Known Issues
 - [ ] ERPNext CSS/JS asset loading через Cloudflare (потрібен `bench set-config host_name https://erp.riad.fun` + `bench build --force`)
