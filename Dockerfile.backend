@@ -1,4 +1,7 @@
 FROM frappe/erpnext:v15.111.0
 USER root
 RUN pip install gunicorn gevent httpx "anthropic>=0.25"
+# Make security_erp importable in all bench processes (workers, scheduler, backend)
+RUN echo "/home/frappe/frappe-bench/apps/security_erp" \
+    > /home/frappe/frappe-bench/env/lib/python3.11/site-packages/security_erp.pth
 USER frappe

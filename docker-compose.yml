@@ -1,5 +1,7 @@
 x-erpnext-common: &erpnext-common
-  image: frappe/erpnext:v15.111.0
+  build:
+    context: .
+    dockerfile: Dockerfile.backend
   restart: unless-stopped
   volumes:
     - ./erpnext/security_erp:/home/frappe/frappe-bench/apps/security_erp
