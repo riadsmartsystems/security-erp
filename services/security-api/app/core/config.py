@@ -18,10 +18,12 @@ class Settings(BaseSettings):
 
     anthropic_api_key: str = ""
 
+    # API key for legacy v1 proxy — must NOT be Administrator's key
     frappe_api_key: str = ""
     frappe_api_secret: str = ""
-    frappe_username: str = "Administrator"
-    frappe_password: str = ""
+
+    # TTL for per-user Frappe SID cached in Redis; must match Frappe site session_expiry
+    frappe_session_ttl: int = 21600  # 6 hours
 
     rate_limit_default: int = 1000
     rate_limit_window: int = 60

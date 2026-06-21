@@ -7,11 +7,14 @@ from app.core.redis import get_redis
 
 security = HTTPBearer()
 
+_FRAPPE_SID_KEY = "frappe:sid:{user_id}"
+
 
 class CurrentUser:
-    def __init__(self, user_id: str, role: Role):
+    def __init__(self, user_id: str, role: Role, frappe_sid: str):
         self.user_id = user_id
         self.role = role
+        self.frappe_sid = frappe_sid
 
     def has(self, permission: Permission) -> bool:
         return has_permission(self.role, permission)
@@ -45,10 +48,17 @@ async def get_current_user(
     if is_blacklisted:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token revoked")
 
+    frappe_sid = await redis_client.get(_FRAPPE_SID_KEY.format(user_id=user_id))
+    if not frappe_sid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "FRAPPE_SESSION_EXPIRED", "message": "Frappe session expired, please re-login"},
+        )
+
     role_str = payload.get("role", "viewer")
     try:
         role = Role(role_str)
     except ValueError:
         role = Role.VIEWER
 
-    return CurrentUser(user_id=user_id, role=role)
+    return CurrentUser(user_id=user_id, role=role, frappe_sid=str(frappe_sid))

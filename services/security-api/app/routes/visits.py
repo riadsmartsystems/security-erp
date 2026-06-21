@@ -33,7 +33,7 @@ async def start_visit_v1(visit_id: str, body: VisitStartRequest, current_user: C
             "gps_checkin_lat": body.lat,
             "gps_checkin_lon": body.lon,
         }
-        result = await frappe_put(f"/api/resource/Visit/{visit_id}", data=data)
+        result = await frappe_put(f"/api/resource/Visit/{visit_id}", data=data, sid=current_user.frappe_sid)
         return {"success": True, "data": result.get("data", {})}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -47,7 +47,7 @@ async def finish_visit_v1(visit_id: str, body: VisitFinishRequest, current_user:
             "gps_checkout_lat": body.lat,
             "gps_checkout_lon": body.lon,
         }
-        result = await frappe_put(f"/api/resource/Visit/{visit_id}", data=data)
+        result = await frappe_put(f"/api/resource/Visit/{visit_id}", data=data, sid=current_user.frappe_sid)
         return {"success": True, "data": result.get("data", {})}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -64,7 +64,7 @@ async def add_material_v1(visit_id: str, body: VisitMaterialRequest, current_use
             "qty": body.quantity,
             "rate": body.unit_price,
         }
-        result = await frappe_post("/api/resource/Visit Material", data=data)
+        result = await frappe_post("/api/resource/Visit Material", data=data, sid=current_user.frappe_sid)
         return {"success": True, "data": result.get("data", {})}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -104,7 +104,7 @@ async def upload_photo_v1(
             "caption": caption,
             "image": f"data:{file.content_type};base64,{file_b64}",
         }
-        result = await frappe_post("/api/resource/Visit Photo", data=data)
+        result = await frappe_post("/api/resource/Visit Photo", data=data, sid=current_user.frappe_sid)
         return {"success": True, "data": result.get("data", {})}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
