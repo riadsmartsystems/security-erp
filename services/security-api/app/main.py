@@ -20,6 +20,12 @@ from app.routes.doctypes import router as doctypes_router
 from app.routes.visits import router as visits_router
 from app.routes.vault import router as vault_router
 from app.routes.act import act_router, public_router as act_public_router
+from app.routes.ai import router as ai_router
+from app.routes.estimates import router as estimates_router
+from app.routes.media import router as media_router
+from app.routes.scenarios import router as scenarios_router
+from app.routes.ai_admin import router as ai_admin_router
+from app.routes.sync import router as sync_router
 
 
 @asynccontextmanager
@@ -94,11 +100,17 @@ app.include_router(signatures_router)
 app.include_router(portal_router)
 app.include_router(public_router)
 app.include_router(mobile_router)
+app.include_router(estimates_router)
+app.include_router(media_router)
+app.include_router(scenarios_router)
+app.include_router(ai_admin_router)
 app.include_router(doctypes_router)
 app.include_router(visits_router)
 app.include_router(vault_router)
 app.include_router(act_router)
 app.include_router(act_public_router)
+app.include_router(ai_router)
+app.include_router(sync_router)
 app.include_router(proxy_router)
 
 
