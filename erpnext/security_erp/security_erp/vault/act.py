@@ -129,6 +129,7 @@ def generate(act_name: str, vault_session_token: str = "") -> dict:
         if old_token:
             cache.delete_value(_token_key(old_token))
             cache.delete_value(_otp_key(old_token))
+            cache.delete_value(_act_to_tok_key(act_name))
             append_audit_log(
                 "act_revoke",
                 vault_entry="",
@@ -241,7 +242,7 @@ def serve(token_hex: str, otp_code: str) -> dict:
         "act_view",
         vault_entry="",
         field_touched=act_name,
-        user=act.generated_by or "guest",
+        user=act.generated_by or "Guest",
         session_id="",
         ip=_current_ip(),
     )
@@ -275,7 +276,7 @@ def acknowledge(token_hex: str, otp_code: str) -> dict:
         "act_acknowledge",
         vault_entry="",
         field_touched=act_name,
-        user="guest",
+        user="Guest",
         session_id="",
         ip=_current_ip(),
     )
