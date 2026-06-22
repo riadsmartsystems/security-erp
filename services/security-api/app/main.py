@@ -18,6 +18,8 @@ from app.routes.public_api import router as public_router
 from app.routes.mobile import router as mobile_router
 from app.routes.doctypes import router as doctypes_router
 from app.routes.visits import router as visits_router
+from app.routes.vault import router as vault_router
+from app.routes.act import act_router, public_router as act_public_router
 
 
 @asynccontextmanager
@@ -94,6 +96,9 @@ app.include_router(public_router)
 app.include_router(mobile_router)
 app.include_router(doctypes_router)
 app.include_router(visits_router)
+app.include_router(vault_router)
+app.include_router(act_router)
+app.include_router(act_public_router)
 app.include_router(proxy_router)
 
 
@@ -110,6 +115,11 @@ async def order_page():
 @app.get("/test")
 async def test_page():
     return FileResponse("/app/app/static/test.html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+
+
+@app.get("/act/{token}")
+async def act_page(token: str):
+    return FileResponse("/app/app/static/act.html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
 @app.get("/")

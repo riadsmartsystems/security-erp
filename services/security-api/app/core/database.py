@@ -39,6 +39,20 @@ async def frappe_post(path: str, data: dict = None, sid: str = "") -> dict:
     return resp.json()
 
 
+async def frappe_guest_post(path: str, data: dict = None) -> dict:
+    """POST to a Frappe @whitelist(allow_guest=True) method without session cookie."""
+    resp = await _get_client().post(path, json=data, headers=_headers_with_host())
+    resp.raise_for_status()
+    return resp.json()
+
+
+async def frappe_guest_get(path: str, params: dict = None) -> dict:
+    """GET a Frappe @whitelist(allow_guest=True) method without session cookie."""
+    resp = await _get_client().get(path, params=params, headers=_headers_with_host())
+    resp.raise_for_status()
+    return resp.json()
+
+
 async def frappe_put(path: str, data: dict = None, sid: str = "") -> dict:
     cookies = {"sid": sid} if sid else None
     resp = await _get_client().put(path, json=data, cookies=cookies, headers=_headers_with_host())
