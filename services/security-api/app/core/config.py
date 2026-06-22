@@ -28,6 +28,15 @@ class Settings(BaseSettings):
     rate_limit_default: int = 1000
     rate_limit_window: int = 60
 
+    # R4: per-endpoint rate limits (sliding window via Redis sorted set)
+    rate_limit_login_max: int = 5
+    rate_limit_login_window: int = 900  # 15 min
+    rate_limit_refresh_max: int = 30
+    rate_limit_refresh_window: int = 900  # 15 min
+
+    # V3: Vault MFA session TTL
+    vault_mfa_ttl: int = 300  # 5 min
+
     class Config:
         env_file = ".env"
 
