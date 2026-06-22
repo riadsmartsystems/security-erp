@@ -37,6 +37,21 @@ jobs:
           python -m py_compile services/security-api/app/core/database.py
           python -m py_compile services/security-api/app/core/config.py
           python -m py_compile services/security-api/app/services/ai_service.py
+          python -m py_compile services/security-api/app/services/ai_orchestrator_service.py
+          python -m py_compile services/security-api/app/services/estimate_service.py
+          python -m py_compile services/security-api/app/routes/ai.py
+          python -m py_compile services/security-api/app/routes/estimates.py
+          python -m py_compile services/security-api/app/routes/media.py
+          python -m py_compile services/security-api/app/routes/scenarios.py
+          python -m py_compile services/security-api/app/routes/ai_admin.py
+          python -m py_compile services/security-api/app/schemas/ai.py
+          python -m py_compile services/security-api/app/schemas/estimate.py
+          python -m py_compile services/security-api/app/schemas/media.py
+          python -m py_compile services/security-api/app/schemas/scenario.py
+          python -m py_compile services/security-api/app/schemas/ai_admin.py
+          python -m py_compile services/security-api/app/schemas/sync.py
+          python -m py_compile services/security-api/app/services/sync_service.py
+          python -m py_compile services/security-api/app/routes/sync.py
 
       - name: Lint and syntax check security_erp app
         run: |
@@ -54,6 +69,10 @@ jobs:
           print(f'Syntax OK: {len(list(pathlib.Path(\"erpnext/security_erp\").rglob(\"*.py\")))} files checked')
           "
 
+      - name: A1 AI-Vault isolation lint
+        run: |
+          python tests/ai_isolation/check_ai_isolation.py
+
       - name: Install test dependencies
         run: |
           pip install fastapi pydantic pydantic-settings httpx python-jose bcrypt python-multipart
@@ -61,6 +80,42 @@ jobs:
       - name: Run unit tests
         run: |
           python tests/security-api/test_models.py
+
+      - name: Run A2 AI service tests
+        run: |
+          python -m unittest tests.ai.test_a2_ai_service -v
+        env:
+          PYTHONPATH: services/security-api:erpnext/security_erp
+
+      - name: Run A3 Whisper + RQ task tests
+        run: |
+          python -m unittest tests.a3.test_a3_tasks -v
+        env:
+          PYTHONPATH: services/security-api:erpnext/security_erp
+
+      - name: Verify A3 syntax (new files)
+        run: |
+          python -m py_compile services/whisper/main.py
+          python -m py_compile erpnext/security_erp/security_erp/tasks/transcribe.py
+          python -m py_compile erpnext/security_erp/security_erp/tasks/ai_estimate.py
+
+      - name: Run A4 estimate lifecycle + no-code admin + degradation tests
+        run: |
+          python -m unittest tests.a4.test_a4_session -v
+        env:
+          PYTHONPATH: services/security-api:erpnext/security_erp
+
+      - name: Verify S1 syntax (sync files)
+        run: |
+          python -m py_compile services/security-api/app/schemas/sync.py
+          python -m py_compile services/security-api/app/services/sync_service.py
+          python -m py_compile services/security-api/app/routes/sync.py
+
+      - name: Run S1 sync backend tests
+        run: |
+          python -m unittest tests.s1.test_s1_sync -v
+        env:
+          PYTHONPATH: services/security-api:erpnext/security_erp
 
   build:
     runs-on: ubuntu-latest
