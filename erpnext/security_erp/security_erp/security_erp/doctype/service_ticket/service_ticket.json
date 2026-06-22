@@ -29,8 +29,6 @@
         {"fieldname": "sla_resolution_breached", "fieldtype": "Check", "label": "Resolution Breached", "read_only": 1, "default": 0},
         {"fieldname": "sla_paused_at", "fieldtype": "Datetime", "label": "SLA Paused At", "read_only": 1, "hidden": 1},
         {"fieldname": "sla_pause_minutes", "fieldtype": "Int", "label": "SLA Pause Minutes", "read_only": 1, "hidden": 1},
-        {"fieldname": "tab_visits", "fieldtype": "Section Break", "label": "Visits"},
-        {"fieldname": "visits", "fieldtype": "Table", "label": "Visits", "options": "Visit"},
         {"fieldname": "tab_sla_events", "fieldtype": "Section Break", "label": "SLA Events", "collapsible": 1},
         {"fieldname": "sla_events", "fieldtype": "Table", "label": "SLA Events", "options": "SLA Event"},
         {"fieldname": "section_timestamps", "fieldtype": "Section Break", "label": "Timestamps", "collapsible": 1},
