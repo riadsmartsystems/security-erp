@@ -1,0 +1,40 @@
+{
+    "name": "Sync Conflict",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "istable": 0,
+    "autoname": "naming_series:",
+    "naming_series": "SCONF-.####",
+    "fields": [
+        {"fieldname": "conflict_doctype", "fieldtype": "Data",
+         "label": "Conflict DocType", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "conflict_docname", "fieldtype": "Data",
+         "label": "Conflict DocName", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "conflict_field", "fieldtype": "Data",
+         "label": "Conflict Field", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+        {"fieldname": "resolved", "fieldtype": "Check",
+         "label": "Resolved", "default": "0", "in_list_view": 1},
+        {"fieldname": "chosen", "fieldtype": "Select",
+         "label": "Chosen", "options": "\nserver\nclient"},
+        {"fieldname": "resolved_by", "fieldtype": "Data", "label": "Resolved By"},
+        {"fieldname": "section_values", "fieldtype": "Section Break", "label": "Values"},
+        {"fieldname": "server_value", "fieldtype": "Small Text", "label": "Server Value"},
+        {"fieldname": "client_value", "fieldtype": "Small Text", "label": "Client Value"},
+        {"fieldname": "column_break_versions", "fieldtype": "Column Break"},
+        {"fieldname": "server_version", "fieldtype": "Int", "label": "Server Version"},
+        {"fieldname": "client_base_version", "fieldtype": "Int", "label": "Client Base Version"},
+        {"fieldname": "device_id", "fieldtype": "Data", "label": "Device ID"}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+        {"role": "Service Manager", "read": 1, "write": 1},
+        {"role": "Engineer", "read": 1}
+    ],
+    "title_field": "conflict_docname",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 0
+}

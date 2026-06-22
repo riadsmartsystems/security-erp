@@ -164,6 +164,16 @@ async def push_batch(request: SyncPushRequest, user_id: str, sid: str) -> SyncPu
 async def _process_push_item(
     item: SyncPushItem, device_id: str, user_id: str, sid: str
 ) -> SyncPushItemResult:
+    # Status contract:
+    # applied        — doc created or updated; all scalars written; no conflicts
+    # merged         — doc updated; new additive child rows written; no conflicts
+    # conflict       — ≥1 scalar conflicted; conflict records created; safe scalars + additive written
+    # tombstoned     — op=delete applied (riad_deleted=1); or was already tombstoned (idempotent)
+    # ignored_duplicate — create replay with matching scalars and no new additive rows
+    #
+    # When status=conflict and has_changes=False (all scalars conflict, no additive changes),
+    # no PUT is issued and server_version is unchanged. Client must resolve before retrying.
+
     # Try to fetch the existing document
     server_doc: dict[str, Any] | None = None
     try:
