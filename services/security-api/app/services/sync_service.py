@@ -240,6 +240,7 @@ async def _process_push_item(
         )
         if all_match:
             additive_result = {}
+            has_new_rows = False
             for push_key, mapping in ADDITIVE_COLLECTIONS.get(item.doctype, {}).items():
                 existing_rows = server_doc.get(mapping["frappe_field"], [])
                 uuid_field = mapping["uuid_field"]
@@ -247,13 +248,17 @@ async def _process_push_item(
                 incoming_rows = item.additive.get(push_key, [])
                 already = [r.get("_uuid", "") for r in incoming_rows if r.get("_uuid") in existing_uuids]
                 added = [r.get("_uuid", "") for r in incoming_rows if r.get("_uuid") not in existing_uuids]
+                if added:
+                    has_new_rows = True
                 additive_result[push_key] = SyncAdditiveResult(added=added, already_present=already)
-            return SyncPushItemResult(
-                name=item.name,
-                status="ignored_duplicate",
-                server_version=server_version,
-                additive=additive_result,
-            )
+            if not has_new_rows:
+                return SyncPushItemResult(
+                    name=item.name,
+                    status="ignored_duplicate",
+                    server_version=server_version,
+                    additive=additive_result,
+                )
+            # else: fall through to union-merge to write the new rows
 
     # Scalar conflict detection
     conflicts: list[SyncConflictInfo] = []
@@ -330,7 +335,9 @@ async def _process_push_item(
 
     # Determine final version and status
     new_version = server_version + 1
-    has_changes = bool(safe_scalars or any(ar.added for ar in additive_result.values()))
+    has_scalar_changes = bool(safe_scalars)
+    has_additive_changes = any(ar.added for ar in additive_result.values())
+    has_changes = has_scalar_changes or has_additive_changes
 
     if not has_changes and not conflicts:
         return SyncPushItemResult(
@@ -340,10 +347,14 @@ async def _process_push_item(
             additive=additive_result,
         )
 
-    put_payload: dict[str, Any] = {"riad_version": new_version, **safe_scalars, **merged_children}
-    await frappe_put(f"/api/resource/{item.doctype}/{item.name}", put_payload, sid=sid)
+    if has_changes:
+        put_payload: dict[str, Any] = {"riad_version": new_version, **safe_scalars, **merged_children}
+        await frappe_put(f"/api/resource/{item.doctype}/{item.name}", put_payload, sid=sid)
+    else:
+        # Only conflicts, nothing to write — keep server_version unchanged
+        new_version = server_version
 
-    status = "conflict" if conflicts else ("merged" if merged_children else "applied")
+    status = "conflict" if conflicts else ("merged" if has_additive_changes else "applied")
     return SyncPushItemResult(
         name=item.name,
         status=status,
