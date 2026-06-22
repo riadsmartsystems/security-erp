@@ -8,6 +8,11 @@
 
 set -e
 
+if [ ! -f .env ]; then
+    echo "ERROR: .env not found. Copy .env.example and fill in values." >&2
+    exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
@@ -43,7 +48,7 @@ echo ""
 # Step 2: Rebuild Docker images
 # ---------------------------------------------------------------------------
 echo "[2/6] Rebuilding Docker images..."
-docker compose build --no-cache security-api telegram-service 2>&1 | tail -3
+docker compose build --no-cache erpnext-backend 2>&1 | tail -3
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -58,16 +63,8 @@ echo ""
 # ---------------------------------------------------------------------------
 echo "[4/6] Waiting for services to be healthy..."
 for i in $(seq 1 30); do
-    if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
-        echo "  Security API: OK"
-        break
-    fi
-    sleep 2
-done
-
-for i in $(seq 1 30); do
-    if curl -sf http://localhost:5678/healthz > /dev/null 2>&1; then
-        echo "  n8n: OK"
+    if curl -sf -H "Host: erp.localhost" http://localhost/api/method/ping > /dev/null 2>&1; then
+        echo "  ERPNext: OK"
         break
     fi
     sleep 2
@@ -122,9 +119,7 @@ echo "============================================"
 echo ""
 echo " Services:"
 echo "   ERPNext:    https://erp.riad.fun"
-echo "   API:        https://api.riad.fun"
-echo "   n8n:        https://n8n.riad.fun"
-echo "   Grafana:    https://grafana.riad.fun"
+echo "   API:        https://api.riad.fun (DEFER — не запущено)"
 echo ""
 echo " Post-deploy tasks:"
 echo "   1. Verify CSS/JS loads at https://erp.riad.fun"

@@ -19,6 +19,7 @@
         {"fieldname": "contract_value", "fieldtype": "Currency", "label": "Contract Value", "options": "Company:company:default_currency"},
         {"fieldname": "currency", "fieldtype": "Link", "label": "Currency", "options": "Currency", "default": "UAH"},
         {"fieldname": "payment_terms", "fieldtype": "Small Text", "label": "Payment Terms"},
+        {"fieldname": "quotation", "fieldtype": "Link", "label": "Quotation", "options": "Quotation"},
         {"fieldname": "sla_tab", "fieldtype": "Section Break", "label": "SLA"},
         {"fieldname": "sla_template", "fieldtype": "Link", "label": "SLA Template", "options": "Service Level Agreement"},
         {"fieldname": "response_time_hours", "fieldtype": "Float", "label": "Response Time (Hours)"},

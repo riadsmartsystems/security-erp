@@ -1,44 +1,67 @@
+import redis.asyncio as redis
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 
 from app.core.database import frappe_login, frappe_get, frappe_post
+from app.core.config import settings
+from app.core.redis import get_redis
 from app.schemas.auth import LoginRequest, TokenResponse, RefreshRequest, UserCreate
 from app.auth.jwt import create_access_token, create_refresh_token, decode_token
 from app.auth.dependencies import get_current_user, CurrentUser
 
 router = APIRouter(prefix="/api/v2/auth", tags=["auth"])
 
+_FRAPPE_SID_KEY = "frappe:sid:{user_id}"
+
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, request: Request):
+async def login(
+    body: LoginRequest,
+    request: Request,
+    redis_client: redis.Redis = Depends(get_redis),
+):
     result = await frappe_login(body.username, body.password)
     if not result:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    frappe_user = body.username
+    frappe_sid = result.get("sid")
+    if not frappe_sid:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Frappe did not return a session")
 
-    # For now, use default role mapping based on username
-    # Frappe API doesn't expose roles in standard User response
-    role = _default_role(frappe_user)
+    await redis_client.setex(_FRAPPE_SID_KEY.format(user_id=body.username), settings.frappe_session_ttl, frappe_sid)
 
-    access_token = create_access_token(frappe_user, role)
-    refresh_token = create_refresh_token(frappe_user)
+    try:
+        user_info = await frappe_get(f"/api/resource/User/{body.username}", sid=frappe_sid)
+        role = _map_frappe_role(user_info.get("data", {}))
+    except Exception:
+        role = "viewer"
+
+    access_token = create_access_token(body.username, role)
+    refresh_token = create_refresh_token(body.username)
 
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=900,
+        expires_in=settings.jwt_access_ttl,
     )
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(body: RefreshRequest):
+async def refresh(body: RefreshRequest, redis_client: redis.Redis = Depends(get_redis)):
     payload = decode_token(body.refresh_token)
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
     user_id = payload.get("sub")
+
+    frappe_sid = await redis_client.get(_FRAPPE_SID_KEY.format(user_id=user_id))
+    if not frappe_sid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "FRAPPE_SESSION_EXPIRED", "message": "Frappe session expired, please re-login"},
+        )
+
     try:
-        user_info = await frappe_get(f"/api/resource/User/{user_id}")
+        user_info = await frappe_get(f"/api/resource/User/{user_id}", sid=str(frappe_sid))
         role = _map_frappe_role(user_info.get("data", {}))
     except Exception:
         role = "viewer"
@@ -46,18 +69,22 @@ async def refresh(body: RefreshRequest):
     access_token = create_access_token(user_id, role)
     refresh_token = create_refresh_token(user_id)
 
-    return TokenResponse(access_token=access_token, refresh_token=refresh_token, expires_in=900)
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token, expires_in=settings.jwt_access_ttl)
 
 
 @router.post("/logout")
-async def logout(current_user: CurrentUser = Depends(get_current_user)):
+async def logout(
+    current_user: CurrentUser = Depends(get_current_user),
+    redis_client: redis.Redis = Depends(get_redis),
+):
+    await redis_client.delete(_FRAPPE_SID_KEY.format(user_id=current_user.user_id))
     return {"success": True}
 
 
 @router.get("/me")
 async def get_me(current_user: CurrentUser = Depends(get_current_user)):
     try:
-        user_info = await frappe_get(f"/api/resource/User/{current_user.user_id}")
+        user_info = await frappe_get(f"/api/resource/User/{current_user.user_id}", sid=current_user.frappe_sid)
         data = user_info.get("data", {})
         return {
             "id": current_user.user_id,
@@ -68,15 +95,11 @@ async def get_me(current_user: CurrentUser = Depends(get_current_user)):
             "is_active": data.get("enabled", 1),
         }
     except Exception:
-        default_names = {
-            "Administrator": "System Administrator",
-            "joker": "Joker",
-        }
         return {
             "id": current_user.user_id,
             "email": f"{current_user.user_id}@security-erp.local",
             "username": current_user.user_id,
-            "full_name": default_names.get(current_user.user_id, current_user.user_id),
+            "full_name": current_user.user_id,
             "role": current_user.role.value,
             "is_active": True,
         }
@@ -92,7 +115,7 @@ async def list_users(current_user: CurrentUser = Depends(get_current_user)):
             "filters": '[["enabled","=",1]]',
             "fields": '["name","email","full_name","enabled"]',
             "limit_page_length": 100,
-        })
+        }, sid=current_user.frappe_sid)
         users = result.get("data", [])
         return {"success": True, "data": users}
     except Exception as e:
@@ -111,7 +134,7 @@ async def create_user(body: UserCreate, current_user: CurrentUser = Depends(get_
             "new_password": body.password,
             "enabled": 1,
             "send_welcome_email": 0,
-        })
+        }, sid=current_user.frappe_sid)
         return {"success": True, "data": result.get("data", {})}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -137,11 +160,3 @@ def _map_frappe_role_from_names(role_names: list) -> str:
     if "Engineer" in role_names:
         return "engineer"
     return "viewer"
-
-
-def _default_role(username: str) -> str:
-    defaults = {
-        "Administrator": "owner",
-        "joker": "service_manager",
-    }
-    return defaults.get(username, "viewer")

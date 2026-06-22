@@ -1,33 +1,9 @@
 import httpx
-import json
-import asyncio
 from app.core.config import settings
- 
-_sid: str | None = None
-_sid_lock = asyncio.Lock()
- 
-FRAPPE_HOST = "erp.localhost"
- 
- 
-async def _get_sid() -> str:
-    global _sid
-    async with _sid_lock:
-        if _sid:
-            return _sid
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(
-                f"{settings.frappe_url}/api/method/login",
-                data={"usr": settings.frappe_username, "pwd": settings.frappe_password},
-                headers={"Host": FRAPPE_HOST},
-                follow_redirects=False,
-            )
-            if resp.status_code == 200:
-                _sid = resp.cookies.get("sid")
-        return _sid or ""
 
+FRAPPE_HOST = "erp.localhost"
 
 _client: httpx.AsyncClient | None = None
-_client_no_auth: httpx.AsyncClient | None = None
 
 
 def _get_client() -> httpx.AsyncClient:
@@ -45,55 +21,48 @@ def _get_client() -> httpx.AsyncClient:
     return _client
 
 
-def _get_client_no_auth() -> httpx.AsyncClient:
-    global _client_no_auth
-    if _client_no_auth is None or _client_no_auth.is_closed:
-        _client_no_auth = httpx.AsyncClient(
-            base_url=settings.frappe_url,
-            timeout=10.0,
-            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
-        )
-    return _client_no_auth
-
-
 def _headers_with_host() -> dict:
     return {"Host": FRAPPE_HOST}
 
 
-async def frappe_get(path: str, params: dict = None, sid: str = None) -> dict:
-    if not sid:
-        sid = await _get_sid()
+async def frappe_get(path: str, params: dict = None, sid: str = "") -> dict:
     cookies = {"sid": sid} if sid else None
-    client = _get_client()
-    resp = await client.get(path, params=params, cookies=cookies, headers=_headers_with_host())
+    resp = await _get_client().get(path, params=params, cookies=cookies, headers=_headers_with_host())
     resp.raise_for_status()
     return resp.json()
 
 
-async def frappe_post(path: str, data: dict = None) -> dict:
-    sid = await _get_sid()
+async def frappe_post(path: str, data: dict = None, sid: str = "") -> dict:
     cookies = {"sid": sid} if sid else None
-    client = _get_client()
-    body = json.dumps(data).encode() if data else None
-    resp = await client.post(path, content=body, cookies=cookies, headers={**_headers_with_host(), "Content-Type": "application/json"})
+    resp = await _get_client().post(path, json=data, cookies=cookies, headers=_headers_with_host())
     resp.raise_for_status()
     return resp.json()
 
 
-async def frappe_put(path: str, data: dict = None) -> dict:
-    sid = await _get_sid()
-    cookies = {"sid": sid} if sid else None
-    client = _get_client()
-    resp = await client.put(path, json=data, cookies=cookies, headers=_headers_with_host())
+async def frappe_guest_post(path: str, data: dict = None) -> dict:
+    """POST to a Frappe @whitelist(allow_guest=True) method without session cookie."""
+    resp = await _get_client().post(path, json=data, headers=_headers_with_host())
     resp.raise_for_status()
     return resp.json()
 
 
-async def frappe_delete(path: str) -> dict:
-    sid = await _get_sid()
+async def frappe_guest_get(path: str, params: dict = None) -> dict:
+    """GET a Frappe @whitelist(allow_guest=True) method without session cookie."""
+    resp = await _get_client().get(path, params=params, headers=_headers_with_host())
+    resp.raise_for_status()
+    return resp.json()
+
+
+async def frappe_put(path: str, data: dict = None, sid: str = "") -> dict:
     cookies = {"sid": sid} if sid else None
-    client = _get_client()
-    resp = await client.delete(path, cookies=cookies, headers=_headers_with_host())
+    resp = await _get_client().put(path, json=data, cookies=cookies, headers=_headers_with_host())
+    resp.raise_for_status()
+    return resp.json()
+
+
+async def frappe_delete(path: str, sid: str = "") -> dict:
+    cookies = {"sid": sid} if sid else None
+    resp = await _get_client().delete(path, cookies=cookies, headers=_headers_with_host())
     resp.raise_for_status()
     return resp.json()
 
@@ -119,10 +88,7 @@ async def frappe_login(username: str, password: str) -> dict | None:
 
 
 async def close_client():
-    global _client, _client_no_auth
+    global _client
     if _client and not _client.is_closed:
         await _client.aclose()
         _client = None
-    if _client_no_auth and not _client_no_auth.is_closed:
-        await _client_no_auth.aclose()
-        _client_no_auth = None

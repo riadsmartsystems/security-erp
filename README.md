@@ -40,14 +40,9 @@ docker compose exec erpnext-backend bench --site erp.localhost new-api-key --use
 
 | Сервіс | Порт | URL |
 |--------|------|-----|
-| ERPNext | 8080 | http://erp.localhost |
-| Security API | 8000 | http://api.localhost |
-| Telegram Service | — | (internal) |
-| n8n | 5678 | http://localhost:5678 |
-| MinIO Console | 9001 | http://localhost:9001 |
-| Grafana | 3000 | http://localhost:3000 |
-| Prometheus | 9090 | http://localhost:9090 |
-| Traefik | 8080 | http://localhost:8080 |
+| ERPNext | 8080 | http://erp.localhost / https://erp.riad.fun |
+| Traefik | 80 | http://localhost |
+| Security API | 8000 | http://api.localhost (DEFER — не в compose) |
 
 ## Структура проєкту
 
@@ -154,16 +149,10 @@ GET    /api/v1/topology/{id}    — Топологія мережі
 | Warehouse | - | - | Read | - | Read | - |
 | Accountant | Read | Read | Read | Read | - | Full |
 
-## Моніторинг
-
-- **Prometheus** — метрики CPU, RAM, API latency, error rate
-- **Grafana** — дашборди Infrastructure, ERP Health, FSM KPI
-- **Loki** — централізовані логи всіх контейнерів
-
 ## Фази розробки
 
-- [x] Phase 1 MVP: Docker, ERPNext, FSM, CMDB, Telegram, Security API
-- [x] Phase 1.5: Single-database architecture (all data in MariaDB via ERPNext)
+- [x] Phase 1 MVP: Docker, ERPNext, FSM, CMDB (25 DocTypes)
+- [x] Phase 1.5: Single-database architecture, Security API Gateway (DEFER)
 - [ ] Phase 2: AI Search, Config Backup, Bank Integration
 - [ ] Phase 3: AI Full, Predictive Maintenance, Monitoring Integration
 - [ ] Phase 4: Android App, Customer Portal, BI

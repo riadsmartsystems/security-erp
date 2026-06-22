@@ -23,6 +23,9 @@ after_install = "security_erp.events.after_install"
 # --------------------------------------------------------------------------
 
 doc_events = {
+    "Address": {
+        "validate": "security_erp.events.address_validate",
+    },
     "Lead": {
         "on_update": "security_erp.events.lead_on_update",
     },
@@ -59,6 +62,14 @@ scheduler_events = {
 }
 
 # --------------------------------------------------------------------------
+# Override DocType Class
+# --------------------------------------------------------------------------
+
+override_doctype_class = {
+    "Address": "security_erp.overrides.CustomAddress",
+}
+
+# --------------------------------------------------------------------------
 # Permissions
 # --------------------------------------------------------------------------
 
@@ -74,6 +85,8 @@ fixtures = [
     {"dt": "Custom Field", "filters": [["module", "=", "Security ERP"]]},
     {"dt": "Property Setter", "filters": [["module", "=", "Security ERP"]]},
     {"dt": "Workspace", "filters": [["module", "=", "Security ERP"]]},
+    {"dt": "Print Format", "filters": [["module", "=", "Security ERP"]]},
+    {"dt": "Client Script", "filters": [["module", "=", "Security ERP"]]},
     {"dt": "Role Profile"},
     {"dt": "Security Scenario"},
     {"dt": "Security Scenario Item"},

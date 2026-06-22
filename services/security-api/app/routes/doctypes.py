@@ -12,12 +12,12 @@ router = APIRouter(prefix="/api/v2", tags=["doctypes"])
 _settings_cache = None
 
 
-async def get_settings():
+async def get_settings(sid: str = "") -> dict:
     global _settings_cache
     if _settings_cache:
         return _settings_cache
     try:
-        result = await frappe_get("/api/resource/Security ERP Settings/Security ERP Settings")
+        result = await frappe_get("/api/resource/Security ERP Settings/Security ERP Settings", sid=sid)
         _settings_cache = result.get("data", {})
     except Exception:
         _settings_cache = {
@@ -90,15 +90,19 @@ class WarrantyScanRequest(BaseModel):
 
 @router.get("/settings")
 async def read_settings(current_user: CurrentUser = Depends(get_current_user)):
-    settings = await get_settings()
-    return {"success": True, "data": settings}
+    data = await get_settings(current_user.frappe_sid)
+    return {"success": True, "data": data}
 
 
 @router.put("/settings")
 async def update_settings(body: dict, current_user: CurrentUser = Depends(get_current_user)):
     global _settings_cache
     try:
-        result = await frappe_put("/api/resource/Security ERP Settings/Security ERP Settings", data=body)
+        result = await frappe_put(
+            "/api/resource/Security ERP Settings/Security ERP Settings",
+            data=body,
+            sid=current_user.frappe_sid,
+        )
         _settings_cache = None
         return {"success": True, "data": result.get("data", {})}
     except Exception as e:
@@ -108,7 +112,7 @@ async def update_settings(body: dict, current_user: CurrentUser = Depends(get_cu
 @router.get("/quotations/{name}")
 async def get_quotation_by_name(name: str, current_user: CurrentUser = Depends(get_current_user)):
     try:
-        result = await frappe_get(f"/api/resource/Quotation/{name}")
+        result = await frappe_get(f"/api/resource/Quotation/{name}", sid=current_user.frappe_sid)
         return {"success": True, "data": result.get("data", {})}
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -119,7 +123,7 @@ async def update_quotation_discount(name: str, body: dict, current_user: Current
     try:
         discount = float(body.get("discount_percentage", 0))
         payload = {"additional_discount_percentage": discount}
-        result = await frappe_put(f"/api/resource/Quotation/{name}", json=payload)
+        result = await frappe_put(f"/api/resource/Quotation/{name}", data=payload, sid=current_user.frappe_sid)
         return {"success": True, "data": result.get("data", {})}
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -135,7 +139,7 @@ async def create_contract(body: dict, current_user: CurrentUser = Depends(get_cu
             "end_date": body.get("end_date"),
             "notes": body.get("notes"),
         }
-        result = await frappe_post("/api/resource/Contract", json=payload)
+        result = await frappe_post("/api/resource/Contract", data=payload, sid=current_user.frappe_sid)
         return {"success": True, "data": result.get("data", {})}
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -161,7 +165,7 @@ async def create_installation_act(body: dict, current_user: CurrentUser = Depend
             "notes": body.get("notes"),
             "items": items_list,
         }
-        result = await frappe_post("/api/resource/Installation Act", json=payload)
+        result = await frappe_post("/api/resource/Installation Act", data=payload, sid=current_user.frappe_sid)
         return {"success": True, "data": result.get("data", {})}
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -182,7 +186,7 @@ async def create_warranty_card(body: dict, current_user: CurrentUser = Depends(g
             "sales_invoice": body.get("sales_invoice"),
             "items": items_list,
         }
-        result = await frappe_post("/api/resource/Warranty Card", json=payload)
+        result = await frappe_post("/api/resource/Warranty Card", data=payload, sid=current_user.frappe_sid)
         return {"success": True, "data": result.get("data", {})}
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -191,11 +195,10 @@ async def create_warranty_card(body: dict, current_user: CurrentUser = Depends(g
 @router.get("/purchase-orders/{name}/items")
 async def get_po_items(name: str, current_user: CurrentUser = Depends(get_current_user)):
     try:
-        r = await frappe_get(f"/api/resource/Purchase Order/{name}")
+        r = await frappe_get(f"/api/resource/Purchase Order/{name}", sid=current_user.frappe_sid)
         return {"success": True, "data": r.get("data", {}).get("items", [])}
     except Exception as e:
         raise HTTPException(500, str(e))
-
 
 
 @router.get("/scenarios")
@@ -204,7 +207,7 @@ async def get_scenarios(current_user: CurrentUser = Depends(get_current_user)):
         result = await frappe_get("/api/resource/Security Scenario", params={
             "fields": '["name","scenario_name","security_type","description"]',
             "limit_page_length": 50
-        })
+        }, sid=current_user.frappe_sid)
         return {"success": True, "data": result.get("data", [])}
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -212,10 +215,12 @@ async def get_scenarios(current_user: CurrentUser = Depends(get_current_user)):
 
 @router.post("/scenarios/{scenario_id}/apply")
 async def apply_scenario(scenario_id: str, body: dict, current_user: CurrentUser = Depends(get_current_user)):
+    sid = current_user.frappe_sid
     try:
         items_result = await frappe_get(
-            f"/api/resource/Security Scenario Item",
-            params={"filters": f'[["parent","=","{scenario_id}"]]'}
+            "/api/resource/Security Scenario Item",
+            params={"filters": f'[["parent","=","{scenario_id}"]]'},
+            sid=sid,
         )
         scenario_items = items_result.get("data", [])
         if not scenario_items:
@@ -225,7 +230,7 @@ async def apply_scenario(scenario_id: str, body: dict, current_user: CurrentUser
             return {"success": True, "items": scenario_items}
         lead_name = body.get("lead_name")
         if lead_name:
-            lead_res = await frappe_get(f"/api/resource/Lead/{lead_name}")
+            lead_res = await frappe_get(f"/api/resource/Lead/{lead_name}", sid=sid)
             lead_data = lead_res.get("data", {})
             current_estimate = json.loads(lead_data.get("ai_estimate_result", "{}"))
             existing_items = current_estimate.get("items", [])
@@ -237,7 +242,11 @@ async def apply_scenario(scenario_id: str, body: dict, current_user: CurrentUser
                     "reason": "Added via scenario"
                 })
             current_estimate["items"] = existing_items
-            await frappe_put(f"/api/resource/Lead/{lead_name}", data={"ai_estimate_result": json.dumps(current_estimate)})
+            await frappe_put(
+                f"/api/resource/Lead/{lead_name}",
+                data={"ai_estimate_result": json.dumps(current_estimate)},
+                sid=sid,
+            )
             return {"success": True, "data": current_estimate}
         raise HTTPException(status_code=400, detail="Either 'quotation' or 'lead_name' is required")
     except Exception as e:
@@ -246,21 +255,22 @@ async def apply_scenario(scenario_id: str, body: dict, current_user: CurrentUser
 
 @router.post("/warranty/scan")
 async def scan_serial_number(body: WarrantyScanRequest, current_user: CurrentUser = Depends(get_current_user)):
+    sid = current_user.frappe_sid
     try:
         warranty_card_name = f"WARR-{body.delivery_note}"
-        card_exists = await frappe_get(f"/api/resource/Warranty Card/{warranty_card_name}")
+        card_exists = await frappe_get(f"/api/resource/Warranty Card/{warranty_card_name}", sid=sid)
         if not card_exists.get("data"):
             await frappe_post("/api/resource/Warranty Card", data={
                 "name": warranty_card_name,
                 "sales_invoice": body.delivery_note,
                 "status": "Active"
-            })
+            }, sid=sid)
         await frappe_post("/api/resource/Warranty Card Item", data={
             "parent": warranty_card_name,
             "item_code": body.item_code,
             "serial_number": body.serial_number,
             "warranty_expiry": "2027-06-17"
-        })
+        }, sid=sid)
         return {"success": True, "message": f"Serial {body.serial_number} registered"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -268,11 +278,12 @@ async def scan_serial_number(body: WarrantyScanRequest, current_user: CurrentUse
 
 @router.get("/warranty/card/{card_id}")
 async def get_warranty_card(card_id: str, current_user: CurrentUser = Depends(get_current_user)):
+    sid = current_user.frappe_sid
     try:
-        result = await frappe_get(f"/api/resource/Warranty Card/{card_id}")
+        result = await frappe_get(f"/api/resource/Warranty Card/{card_id}", sid=sid)
         items = await frappe_get("/api/resource/Warranty Card Item", params={
             "filters": f'[["parent","=","{card_id}"]]'
-        })
+        }, sid=sid)
         return {"success": True, "data": result.get("data"), "items": items.get("data", [])}
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -282,7 +293,7 @@ async def get_warranty_card(card_id: str, current_user: CurrentUser = Depends(ge
 # BUSINESS FLOW: Quotation -> PO -> SI
 # =========================================================================
 
-async def _get_retail_prices(items):
+async def _get_retail_prices(items, sid: str):
     total_retail = 0
     for item in items:
         item_code = item.get("item_code")
@@ -290,7 +301,7 @@ async def _get_retail_prices(items):
         retail_price = item.get("rate", 0)
         if item_code:
             try:
-                result = await frappe_get(f"/api/resource/Item/{item_code}")
+                result = await frappe_get(f"/api/resource/Item/{item_code}", sid=sid)
                 retail_from_db = float(result.get("data", {}).get("retail_price") or 0)
                 if retail_from_db > 0:
                     retail_price = retail_from_db
@@ -304,13 +315,14 @@ async def _get_retail_prices(items):
 
 @router.post("/quotation")
 async def create_quotation(body: dict, current_user: CurrentUser = Depends(get_current_user)):
+    sid = current_user.frappe_sid
     try:
-        settings = await get_settings()
-        company = settings.get("company_name", "RIAD SMART SYSTEM")
-        currency = settings.get("currency", "UAH")
+        erp_settings = await get_settings(sid)
+        company = erp_settings.get("company_name", "RIAD SMART SYSTEM")
+        currency = erp_settings.get("currency", "UAH")
 
         items = body.get("items", [])
-        items, total_retail = await _get_retail_prices(items)
+        items, total_retail = await _get_retail_prices(items, sid)
 
         for item in items:
             item["rate"] = item["retail_price"]
@@ -324,9 +336,9 @@ async def create_quotation(body: dict, current_user: CurrentUser = Depends(get_c
             "conversion_rate": 1,
             "naming_series": "QTN-.YYYY.-",
             "items": items,
-            "terms": settings.get("payment_terms", ""),
+            "terms": erp_settings.get("payment_terms", ""),
         }
-        result = await frappe_post("/api/resource/Quotation", data=data)
+        result = await frappe_post("/api/resource/Quotation", data=data, sid=sid)
         quotation = result.get("data", {})
         quotation["total_retail"] = total_retail
         return {"success": True, "data": quotation}
@@ -348,7 +360,7 @@ async def list_quotations(
         }
         if status:
             params["filters"] = f'[["status","=","{status}"]]'
-        result = await frappe_get("/api/resource/Quotation", params=params)
+        result = await frappe_get("/api/resource/Quotation", params=params, sid=current_user.frappe_sid)
         return {"success": True, "data": result.get("data", [])}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -356,12 +368,13 @@ async def list_quotations(
 
 @router.post("/quotation/{qt_name}/create-order")
 async def create_order_from_quotation(qt_name: str, body: dict, current_user: CurrentUser = Depends(get_current_user)):
+    sid = current_user.frappe_sid
     try:
-        settings = await get_settings()
-        company = settings.get("company_name", "RIAD SMART SYSTEM")
-        currency = settings.get("currency", "UAH")
+        erp_settings = await get_settings(sid)
+        company = erp_settings.get("company_name", "RIAD SMART SYSTEM")
+        currency = erp_settings.get("currency", "UAH")
 
-        qt_result = await frappe_get(f"/api/resource/Quotation/{qt_name}")
+        qt_result = await frappe_get(f"/api/resource/Quotation/{qt_name}", sid=sid)
         quotation = qt_result.get("data", {})
         if not quotation:
             raise HTTPException(status_code=404, detail="Quotation not found")
@@ -375,7 +388,7 @@ async def create_order_from_quotation(qt_name: str, body: dict, current_user: Cu
             "items": quotation.get("items", []),
             "transaction_date": body.get("transaction_date", ""),
         }
-        result = await frappe_post("/api/resource/Sales Order", data=data)
+        result = await frappe_post("/api/resource/Sales Order", data=data, sid=sid)
         return {"success": True, "data": result.get("data", {})}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -383,14 +396,15 @@ async def create_order_from_quotation(qt_name: str, body: dict, current_user: Cu
 
 @router.post("/quotation/{qt_name}/create-po")
 async def create_po_from_quotation(qt_name: str, body: dict, current_user: CurrentUser = Depends(get_current_user)):
+    sid = current_user.frappe_sid
     try:
-        settings = await get_settings()
-        discount = float(settings.get("default_discount", 20)) / 100
-        company = settings.get("company_name", "RIAD SMART SYSTEM")
-        currency = settings.get("currency", "UAH")
+        erp_settings = await get_settings(sid)
+        discount = float(erp_settings.get("default_discount", 20)) / 100
+        company = erp_settings.get("company_name", "RIAD SMART SYSTEM")
+        currency = erp_settings.get("currency", "UAH")
         supplier = body.get("supplier", "")
 
-        qt_result = await frappe_get(f"/api/resource/Quotation/{qt_name}")
+        qt_result = await frappe_get(f"/api/resource/Quotation/{qt_name}", sid=sid)
         quotation = qt_result.get("data", {})
         if not quotation:
             raise HTTPException(status_code=404, detail="Quotation not found")
@@ -432,7 +446,7 @@ async def create_po_from_quotation(qt_name: str, body: dict, current_user: Curre
             "total_margin": total_margin,
             "margin_percent": margin_percent,
         }
-        result = await frappe_post("/api/resource/Purchase Order", data=data)
+        result = await frappe_post("/api/resource/Purchase Order", data=data, sid=sid)
         po = result.get("data", {})
         po["total_retail"] = total_retail
         po["total_margin"] = total_margin
@@ -446,12 +460,13 @@ async def create_po_from_quotation(qt_name: str, body: dict, current_user: Curre
 
 @router.post("/purchase-order/{po_name}/create-invoice")
 async def create_invoice_from_po(po_name: str, body: dict, current_user: CurrentUser = Depends(get_current_user)):
+    sid = current_user.frappe_sid
     try:
-        settings = await get_settings()
-        company = settings.get("company_name", "RIAD SMART SYSTEM")
-        currency = settings.get("currency", "UAH")
+        erp_settings = await get_settings(sid)
+        company = erp_settings.get("company_name", "RIAD SMART SYSTEM")
+        currency = erp_settings.get("currency", "UAH")
 
-        po_result = await frappe_get(f"/api/resource/Purchase Order/{po_name}")
+        po_result = await frappe_get(f"/api/resource/Purchase Order/{po_name}", sid=sid)
         po = po_result.get("data", {})
         if not po:
             raise HTTPException(status_code=404, detail="Purchase Order not found")
@@ -466,7 +481,7 @@ async def create_invoice_from_po(po_name: str, body: dict, current_user: Current
             if retail_price == 0:
                 retail_price = float(item.get("price_list_rate") or 0)
             if retail_price == 0:
-                discount = float(settings.get("default_discount", 20)) / 100
+                discount = float(erp_settings.get("default_discount", 20)) / 100
                 retail_price = float(item.get("rate") or 0) / (1 - discount)
 
             si_items.append({
@@ -483,7 +498,7 @@ async def create_invoice_from_po(po_name: str, body: dict, current_user: Current
             "naming_series": "SI-.YYYY.-",
             "items": si_items,
         }
-        si_result = await frappe_post("/api/resource/Sales Invoice", data=si_data)
+        si_result = await frappe_post("/api/resource/Sales Invoice", data=si_data, sid=sid)
         si = si_result.get("data", {})
 
         wholesale_total = float(po.get("grand_total") or 0)
@@ -510,8 +525,9 @@ async def create_invoice_from_po(po_name: str, body: dict, current_user: Current
 
 @router.post("/sales-invoice/{si_name}/create-act")
 async def create_act_from_invoice(si_name: str, body: dict, current_user: CurrentUser = Depends(get_current_user)):
+    sid = current_user.frappe_sid
     try:
-        si_result = await frappe_get(f"/api/resource/Sales Invoice/{si_name}")
+        si_result = await frappe_get(f"/api/resource/Sales Invoice/{si_name}", sid=sid)
         si = si_result.get("data", {})
         if not si:
             raise HTTPException(status_code=404, detail="Sales Invoice not found")
@@ -523,7 +539,7 @@ async def create_act_from_invoice(si_name: str, body: dict, current_user: Curren
             "items": si.get("items", []),
             "naming_series": "ACT-.YYYY.-",
         }
-        result = await frappe_post("/api/resource/Installation Act", data=data)
+        result = await frappe_post("/api/resource/Installation Act", data=data, sid=sid)
         return {"success": True, "data": result.get("data", {})}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -535,11 +551,12 @@ async def calculate_pricing(
     qty: int = Query(1, ge=1),
     current_user: CurrentUser = Depends(get_current_user),
 ):
+    sid = current_user.frappe_sid
     try:
-        settings = await get_settings()
-        discount = float(settings.get("default_discount", 20)) / 100
+        erp_settings = await get_settings(sid)
+        discount = float(erp_settings.get("default_discount", 20)) / 100
 
-        result = await frappe_get(f"/api/resource/Item/{item_code}")
+        result = await frappe_get(f"/api/resource/Item/{item_code}", sid=sid)
         item = result.get("data", {})
         retail_price = float(item.get("retail_price") or 0)
         if retail_price == 0:
@@ -570,12 +587,13 @@ async def calculate_margin(
     si_name: str = Query(...),
     current_user: CurrentUser = Depends(get_current_user),
 ):
+    sid = current_user.frappe_sid
     try:
-        po_result = await frappe_get(f"/api/resource/Purchase Order/{po_name}")
+        po_result = await frappe_get(f"/api/resource/Purchase Order/{po_name}", sid=sid)
         po = po_result.get("data", {})
         po_total = float(po.get("grand_total") or 0)
 
-        si_result = await frappe_get(f"/api/resource/Sales Invoice/{si_name}")
+        si_result = await frappe_get(f"/api/resource/Sales Invoice/{si_name}", sid=sid)
         si = si_result.get("data", {})
         si_total = float(si.get("grand_total") or 0)
 
@@ -601,14 +619,14 @@ async def calculate_margin(
 async def calculate_scenario(
     scenario_name: str,
     body: dict,
-    current_user: CurrentUser = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     cameras_count = int(body.get("cameras_count", 4))
     cable_meters = float(body.get("cable_meters", 20))
     total_watts = float(body.get("total_watts", 0))
 
     try:
-        r = await frappe_get(f"/api/resource/Security Scenario/{scenario_name}")
+        r = await frappe_get(f"/api/resource/Security Scenario/{scenario_name}", sid=current_user.frappe_sid)
         scenario_data = r.get("data", {})
         items = scenario_data.get("items", [])
         calculated = []

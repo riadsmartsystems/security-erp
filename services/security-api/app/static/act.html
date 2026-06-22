@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RIAD — Акт передачі доступів</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: #0f1117; color: #e2e8f0; min-height: 100vh;
+         display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .card { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 16px;
+          padding: 32px; max-width: 560px; width: 100%; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; color: #f7fafc; }
+  .meta { font-size: 14px; color: #718096; margin-bottom: 24px; line-height: 1.6; }
+  .meta span { color: #e2e8f0; }
+  label { display: block; font-size: 13px; color: #a0aec0; margin-bottom: 6px; }
+  input { width: 100%; padding: 12px 16px; background: #0f1117; border: 1px solid #2d3748;
+          border-radius: 10px; color: #f7fafc; font-size: 20px; letter-spacing: 8px;
+          text-align: center; outline: none; }
+  input:focus { border-color: #4299e1; }
+  button { width: 100%; padding: 14px; border: none; border-radius: 10px;
+           font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 12px;
+           transition: opacity .2s; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: #3182ce; color: #fff; }
+  .btn-success { background: #276749; color: #fff; }
+  .entry { background: #0f1117; border: 1px solid #2d3748; border-radius: 10px;
+           padding: 16px; margin-bottom: 12px; }
+  .entry-title { font-weight: 600; margin-bottom: 10px; color: #90cdf4; }
+  .field-row { display: flex; justify-content: space-between; align-items: center;
+               padding: 6px 0; border-bottom: 1px solid #1a1f2e; }
+  .field-row:last-child { border-bottom: none; }
+  .field-name { font-size: 12px; color: #718096; text-transform: uppercase; }
+  .field-value { font-family: monospace; font-size: 14px; }
+  .masked { color: #4a5568; letter-spacing: 2px; }
+  .reveal-btn { background: none; border: none; color: #4299e1; font-size: 12px;
+                cursor: pointer; padding: 2px 8px; margin: 0; width: auto; }
+  .error { color: #fc8181; font-size: 14px; margin-top: 12px; text-align: center; }
+  .success { color: #68d391; font-size: 15px; margin-top: 16px; text-align: center; }
+  #step-otp, #step-data { display: none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div id="step-loading">
+    <div class="meta">Завантаження акту…</div>
+  </div>
+
+  <div id="step-otp">
+    <h1>Акт передачі доступів</h1>
+    <div class="meta" id="meta-block"></div>
+    <label for="otp-input">Введіть 6-значний код (отримали окремим повідомленням)</label>
+    <input id="otp-input" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code">
+    <button class="btn-primary" id="btn-view" onclick="doView()">Переглянути доступи</button>
+    <div class="error" id="otp-error"></div>
+  </div>
+
+  <div id="step-data">
+    <h1>Доступи до об'єкта</h1>
+    <div class="meta" id="data-meta"></div>
+    <div id="entries"></div>
+    <button class="btn-success" id="btn-ack" onclick="doAcknowledge()">✓ Підтверджую отримання</button>
+    <div class="success" id="ack-success" style="display:none">Отримання підтверджено. Посилання анульовано.</div>
+    <div class="error" id="ack-error"></div>
+  </div>
+</div>
+
+<script>
+const token = window.location.pathname.split('/').pop();
+const BASE = window.location.origin;
+let currentOtp = '';
+
+const FIELD_LABELS = {
+  login_enc: 'Логін', password_enc: 'Пароль', ip_enc: 'IP-адреса',
+  domain_enc: 'Домен', ddns_enc: 'DDNS', serial_enc: 'Серійний №', notes_enc: 'Примітки'
+};
+
+async function init() {
+  try {
+    const r = await fetch(`${BASE}/api/v2/act/public/${token}`);
+    if (!r.ok) { showError('Посилання недійсне або закінчилося.'); return; }
+    const data = await r.json();
+    if (data.link_burned) { showError('Акт вже підтверджений клієнтом.'); return; }
+    document.getElementById('meta-block').innerHTML =
+      `Об'єкт: <span>${data.passport_label || '—'}</span><br>` +
+      `Клієнт: <span>${data.customer_label || '—'}</span><br>` +
+      `Записів: <span>${data.entry_count}</span><br>` +
+      `Дійсно до: <span>${data.expires_at}</span>`;
+    show('step-otp');
+  } catch(e) { showError('Помилка завантаження.'); }
+}
+
+async function doView() {
+  currentOtp = document.getElementById('otp-input').value.trim();
+  document.getElementById('otp-error').textContent = '';
+  document.getElementById('btn-view').disabled = true;
+  try {
+    const r = await fetch(`${BASE}/api/v2/act/public/${token}/view`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({otp: currentOtp})
+    });
+    const data = await r.json();
+    if (!r.ok) { document.getElementById('otp-error').textContent = data.detail?.message || 'Невірний код.'; document.getElementById('btn-view').disabled = false; return; }
+    renderEntries(data.entries || []);
+    document.getElementById('data-meta').textContent = `Акт: ${data.act_name}`;
+    show('step-data');
+  } catch(e) { document.getElementById('otp-error').textContent = 'Помилка мережі.'; document.getElementById('btn-view').disabled = false; }
+}
+
+async function doAcknowledge() {
+  document.getElementById('btn-ack').disabled = true;
+  document.getElementById('ack-error').textContent = '';
+  try {
+    const r = await fetch(`${BASE}/api/v2/act/public/${token}/acknowledge`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({otp: currentOtp})
+    });
+    if (!r.ok) { document.getElementById('ack-error').textContent = 'Помилка підтвердження.'; document.getElementById('btn-ack').disabled = false; return; }
+    document.getElementById('btn-ack').style.display = 'none';
+    document.getElementById('ack-success').style.display = 'block';
+    document.getElementById('entries').innerHTML = '<div class="meta" style="margin-top:16px">Дані видалено з екрану після підтвердження.</div>';
+  } catch(e) { document.getElementById('ack-error').textContent = 'Помилка мережі.'; document.getElementById('btn-ack').disabled = false; }
+}
+
+function renderEntries(entries) {
+  const container = document.getElementById('entries');
+  container.innerHTML = entries.map(e => `
+    <div class="entry">
+      <div class="entry-title">${e.vault_entry}</div>
+      ${Object.entries(e.fields).map(([k,v]) => `
+        <div class="field-row">
+          <span class="field-name">${FIELD_LABELS[k] || k}</span>
+          <span>
+            <span class="field-value masked" id="val-${k}-${e.vault_entry}">${'•'.repeat(Math.min(v.length,12))}</span>
+            <button class="reveal-btn" onclick="reveal('val-${k}-${e.vault_entry}','${v.replace(/'/g,"\\'")}')">Показати</button>
+          </span>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+function reveal(id, val) {
+  const el = document.getElementById(id);
+  el.textContent = val;
+  el.classList.remove('masked');
+}
+
+function show(id) {
+  document.getElementById('step-loading').style.display = 'none';
+  document.getElementById('step-otp').style.display = 'none';
+  document.getElementById('step-data').style.display = 'none';
+  document.getElementById(id).style.display = 'block';
+}
+
+function showError(msg) {
+  document.getElementById('step-loading').innerHTML = `<div class="error" style="font-size:16px">${msg}</div>`;
+}
+
+init();
+</script>
+</body>
+</html>

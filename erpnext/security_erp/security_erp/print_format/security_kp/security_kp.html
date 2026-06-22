@@ -1,0 +1,113 @@
+{%- from "templates/print_formats/standard_macros.html" import add_header -%}
+
+<div class="page-break">
+    <div class="row section-break">
+        <div class="col-xs-6">
+            <h3>{{ doc.company or "Security ERP" }}</h3>
+            <p>{{ doc.address_display or "" }}</p>
+        </div>
+        <div class="col-xs-6 text-right">
+            <h3>КОМЕРЦІЙНА ПРОПОЗИЦІЯ</h3>
+            <p><strong>№ {{ doc.name }}</strong></p>
+            <p>Дата: {{ doc.get_formatted("transaction_date") }}</p>
+            {% if doc.validity_days %}
+            <p>Дійсна до: {{ doc.get_formatted("valid_till") }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row section-break">
+        <div class="col-xs-6">
+            <p><strong>Клієнт:</strong> {{ doc.party_name }}</p>
+            {% if doc.customer_address %}
+            <p><strong>Адреса:</strong> {{ doc.address_display }}</p>
+            {% endif %}
+            {% if doc.contact_person %}
+            <p><strong>Контакт:</strong> {{ doc.contact_display }}</p>
+            {% endif %}
+        </div>
+        <div class="col-xs-6 text-right">
+            {% if doc.security_type %}
+            <p><strong>Тип безпеки:</strong> {{ doc.security_type }}</p>
+            {% endif %}
+            {% if doc.object_address %}
+            <p><strong>Об'єкт:</strong> {{ doc.object_address }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th style="width: 5%">#</th>
+                <th style="width: 40%">Найменування</th>
+                <th style="width: 10%">К-сть</th>
+                <th style="width: 15%">Ціна</th>
+                <th style="width: 15%">Сума</th>
+                <th style="width: 15%">Примітка</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in doc.items %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ item.item_name }}</td>
+                <td class="text-right">{{ item.qty }}</td>
+                <td class="text-right">{{ item.get_formatted("rate") }}</td>
+                <td class="text-right">{{ item.get_formatted("amount") }}</td>
+                <td>{{ item.description or "" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="row section-break">
+        <div class="col-xs-6"></div>
+        <div class="col-xs-6">
+            <table class="table table-condensed">
+                <tr>
+                    <td><strong>Разом:</strong></td>
+                    <td class="text-right">{{ doc.get_formatted("total") }}</td>
+                </tr>
+                {% if doc.discount_amount %}
+                <tr>
+                    <td>Знижка ({{ doc.additional_discount_percentage or 0 }}%):</td>
+                    <td class="text-right">-{{ doc.get_formatted("discount_amount") }}</td>
+                </tr>
+                {% endif %}
+                {% if doc.taxes %}
+                {% for tax in doc.taxes %}
+                <tr>
+                    <td>{{ tax.description }}:</td>
+                    <td class="text-right">{{ tax.get_formatted("tax_amount") }}</td>
+                </tr>
+                {% endfor %}
+                {% endif %}
+                <tr>
+                    <td><h4>До сплати:</h4></td>
+                    <td class="text-right"><h4>{{ doc.get_formatted("grand_total") }}</h4></td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    {% if doc.terms %}
+    <div class="row section-break">
+        <div class="col-xs-12">
+            <p><strong>Умови:</strong></p>
+            <p>{{ doc.terms }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row section-break">
+        <div class="col-xs-6">
+            <p>_________________</p>
+            <p>Підпис замовника</p>
+        </div>
+        <div class="col-xs-6 text-right">
+            <p>_________________</p>
+            <p>Підпис виконавця</p>
+        </div>
+    </div>
+</div>
