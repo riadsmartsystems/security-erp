@@ -26,9 +26,9 @@ class SyncPullResponse(BaseModel):
 
 
 class SyncPushAdditiveRow(BaseModel):
-    model_config = {"extra": "allow"}
+    model_config = {"extra": "allow", "populate_by_name": True}
 
-    _uuid: str = Field(alias="_uuid")
+    uuid: str = Field(alias="_uuid", default="")
     op: str = "add"  # "add" | "delete"
 
 
