@@ -4,6 +4,307 @@
 
 ---
 
+### C1 — Калькулятор backend ✅ DONE
+
+**Дата:** 2026-06-24
+**Статус:** DoD виконано
+
+#### Технічне рішення
+
+**DocType `Calculator Submission`** (security_erp):
+- object_type (Select), area_m2 (Float), cameras_count (Int), archive_days (Int)
+- contact_name (Data), contact_phone (Data), contact_email (Data) — PII
+- estimated_total (Currency, read_only), matched_scenario (Link → Security Scenario)
+- status (Select: новий/оброблено/спам), source_ip (Data, permlevel=1), captcha_passed (Check)
+- lead (Link → Lead, optional)
+
+**security_erp/calculator.py** — @frappe.whitelist(allow_guest=True):
+- `_match_scenario()` — детермінований підбір за security_type + qty_rule/qty_factor
+- `submit()` — insert(ignore_permissions=True) → {name, estimated_total, matched_scenario, status}
+- PII ніколи не потрапляє у AI Request Log
+
+**app/services/calculator_service.py** — Turnstile verification:
+- `verify_turnstile(token, client_ip) → bool`
+- SECRET_KEY відсутній → True (dev/test mode)
+
+**POST /api/v2/calculator/submit** (PUBLIC — без JWT):
+- Rate limit: rl:calc:{ip}, max=5, window=3600
+- CAPTCHA: verify_turnstile → 422 при невдачі
+- Frappe: frappe_guest_post (allow_guest=True, no SID)
+- Response: CalcSubmitResponse (без PII)
+
+#### Змінені/нові файли
+
+| Файл | Зміна |
+|------|-------|
+| `erpnext/security_erp/security_erp/doctype/calculator_submission/calculator_submission.json` | НОВИЙ — DocType |
+| `erpnext/security_erp/security_erp/doctype/calculator_submission/calculator_submission.py` | НОВИЙ — controller |
+| `erpnext/security_erp/security_erp/calculator.py` | НОВИЙ — submit() + _match_scenario() |
+| `services/security-api/app/services/calculator_service.py` | НОВИЙ — verify_turnstile() |
+| `services/security-api/app/schemas/calculator.py` | НОВИЙ — CalcSubmitRequest/Response |
+| `services/security-api/app/routes/calculator.py` | НОВИЙ — POST /api/v2/calculator/submit |
+| `services/security-api/app/main.py` | Оновлено: +calculator_router |
+| `services/security-api/app/core/config.py` | Оновлено: +rate_limit_calc_max/window |
+| `tests/c1/__init__.py` | НОВИЙ |
+| `tests/c1/test_calculator.py` | НОВИЙ — 10 тестів |
+| `.github/workflows/ci.yml` | Оновлено: +C1 syntax + gate + test step |
+
+#### DoD перевірка
+
+1. ✅ Calculator Submission DocType створено з permlevel=1 на source_ip
+2. ✅ calculator.submit() викликається через allow_guest=True
+3. ✅ Rate limit rl:calc: → 429 на 6-й запит (тест + CI gate)
+4. ✅ CAPTCHA fail → 422 (тест)
+5. ✅ Scenario match → estimated_total > 0 (тест)
+6. ✅ Scenario miss → estimated_total=0, status=новий (тест)
+7. ✅ PII (contact_phone) відсутній у API-відповіді (тест)
+8. ✅ Combined pytest: tests/r3/ + vault/ + r6/ + fix4/ + fix5/ + fix6/ + c1/ → 0 FAIL
+9. ✅ CI: syntax + gate + test step додано
+
+---
+
+### FIX-6 Ітерація 3 — Gateway discipline: CI-лінт check_gateway_discipline.py ✅ DONE
+
+**Дата:** 2026-06-23
+**Статус:** DoD виконано
+
+#### Технічне рішення
+
+**scripts/check_gateway_discipline.py** (НОВИЙ):
+- `check_file(filename, content) → (status, reason)` — класифікує один route-файл
+- `scan_routes(routes_dir) → list[tuple]` — сканує директорію, повертає `(filename, status, reason)`
+- `main(routes_dir=None) → int` — виводить результат, повертає exit code
+
+**Логіка класифікації:**
+- `EXCLUDED`: act.py, vault.py, auth.py, proxy.py, doctypes.py → silent skip (vault ізоляція, legacy)
+- `TODO`: serial.py, scenarios.py → `[TODO]` + повідомлення "known pending (FIX-7)"; НЕ блокують CI
+- `ai.py` special case: `frappe_post` до `/api/method/security_erp.ai.api.execute_ai` — дозволено (Administrator whitelist pattern); `frappe_get/put/delete` → VIOLATION
+- решта файлів: будь-який `frappe_get/post/put/delete` → VIOLATION → exit(1)
+
+**Exit codes:**
+- `0` — violations = тільки KNOWN_PENDING → CI проходить
+- `1` — нова непередбачена VIOLATION → CI падає (regression guard)
+
+**tests/fix6/test_check_gateway_discipline.py** (НОВИЙ):
+- 35 TDD тестів: TestCheckFileExcluded (5) + TestCheckFileKnownPending (3) + TestCheckFileOK (4)
+  + TestCheckFileViolation (4) + TestCheckFileAISpecial (4) + TestScanRoutes (8) + TestMainExitCode (7)
+- Тести використовують `tempfile.mkdtemp()` — mock filesystem, без залежності від реального repo
+
+**CI steps додано:**
+```yaml
+- name: FIX-6 CI gate — gateway discipline (regression guard)
+  run: python scripts/check_gateway_discipline.py
+
+- name: FIX-6 CI gate — check_gateway_discipline unit tests
+  run: python -m unittest tests.fix6.test_check_gateway_discipline -v
+```
+
+#### Змінені/нові файли
+
+| Файл | Зміна |
+|------|-------|
+| `scripts/check_gateway_discipline.py` | НОВИЙ — check_file/scan_routes/main; stdlib only (pathlib+sys) |
+| `tests/fix6/test_check_gateway_discipline.py` | НОВИЙ — 35 TDD тестів (7 класів) |
+| `.github/workflows/ci.yml` | +2 FIX-6 CI gate кроки |
+
+#### DoD перевірка
+
+1. ✅ **exit(0) для поточного repo** — `python3 scripts/check_gateway_discipline.py` → exit 0; 12 `[OK]` + 2 `[TODO]` (serial/scenarios)
+2. ✅ **Regression guard exit(1)** — додавання `new_evil_route.py` з `frappe_get` → `[VIOLATION]` → exit 1
+3. ✅ **serial.py + scenarios.py = KNOWN_PENDING** — `[TODO]` у виводі, CI не падає
+4. ✅ **CI step додано** — `FIX-6 CI gate — gateway discipline (regression guard)` у ci.yml
+5. ✅ **35/35 unit тестів зелені** — `python3 -m unittest tests.fix6.test_check_gateway_discipline` → `Ran 35 tests in 0.009s OK`
+6. ✅ **py_compile** — `python3 -m py_compile scripts/check_gateway_discipline.py` → Syntax OK
+7. ✅ **TDD дотримано** — тести написані ДО скрипту (35 FAIL RED), потім реалізовано (35 GREEN)
+
+---
+
+### FIX-6 Ітерація 2 — Gateway discipline: maps + media + ai_admin ✅ DONE
+
+**Дата:** 2026-06-23
+**Статус:** DoD виконано
+
+#### Технічне рішення
+
+**map_service.py** (`app/services/map_service.py` — НОВИЙ):
+- `get_map(*, sid, name) → dict` → `frappe_get("/api/resource/Installation Map/{name}", sid=sid)` → raw data dict
+- `add_mount_point(*, sid, name, point_uuid, point_data) → str` → `frappe_get` (union-merge) + `frappe_put` з merged list; idempotent; mode-validation (план/територія) → `ValueError` для route
+- `approve_map(*, sid, name, user_id) → str` → `frappe_put({approved_by, approved_at})` → повертає ISO timestamp
+
+**media_service.py** (`app/services/media_service.py` — НОВИЙ):
+- `upsert_media_asset(*, sid, client_uuid, drive_file_id, media_type, tag, parent_doctype, parent_name)` → try GET→PUT; except→POST; `ai_allowed=0` завжди
+- `enqueue_transcription(*, sid, name)` → `frappe_get` (verify) + `frappe_post(enqueue_transcribe)`
+- `save_manual_transcription(*, sid, name, text)` → `frappe_get` (verify) + `frappe_put({transcription, transcription_status=manual})`
+
+**ai_admin_service.py** (`app/services/ai_admin_service.py` — НОВИЙ):
+- `list_providers(*, sid) → list[dict]` → `frappe_get("/api/resource/AI Provider", ...)` → mapped list
+- `upsert_provider(*, sid, name, ...) → dict` → `frappe_put` (якщо name) або `frappe_post` (новий)
+- `list_request_logs(*, sid, page, page_size) → dict` → `frappe_get` з пагінацією → `{logs, total}`
+
+**routes/maps.py** (оновлено): видалено `from app.core.database import frappe_get/post/put`; `_unwrap` → service; union-merge → service; лишились `_map_frappe_error` (HTTP-шар) + role check
+
+**routes/media.py** (оновлено): видалено `frappe_get/post/put`; делегує у `media_service.upsert_media_asset/enqueue_transcription/save_manual_transcription`
+
+**routes/ai_admin.py** (оновлено): видалено `frappe_get/post/put`; делегує у `ai_admin_service`; `_require_ai_admin` залишено (роль — HTTP-шар)
+
+#### Змінені/нові файли
+
+| Файл | Зміна |
+|------|-------|
+| `app/services/map_service.py` | НОВИЙ — 3 async функції, frappe_get/put, sid= |
+| `app/services/media_service.py` | НОВИЙ — 3 async функції, frappe_get/post/put, sid= |
+| `app/services/ai_admin_service.py` | НОВИЙ — 3 async функції, frappe_get/post/put, sid= |
+| `app/routes/maps.py` | Рефакторинг: нуль frappe_* імпортів/викликів |
+| `app/routes/media.py` | Рефакторинг: нуль frappe_* імпортів/викликів |
+| `app/routes/ai_admin.py` | Рефакторинг: нуль frappe_* імпортів/викликів |
+| `tests/fix6/test_fix6_gateway_discipline.py` | +15 тестів (4 map + 4 media + 4 ai_admin + 3 grep-gate) |
+| `tests/s4/test_s4_gateway.py` | patch target: `app.routes.maps.*` → `app.services.map_service.*` |
+
+#### DoD перевірка
+
+1. ✅ **maps.py — нуль frappe_get/post/put** — `TestGatewayDisciplineMaps` PASS
+2. ✅ **media.py — нуль frappe_get/post/put** — `TestGatewayDisciplineMedia` PASS
+3. ✅ **ai_admin.py — нуль frappe_get/post/put** — `TestGatewayDisciplineAIAdmin` PASS
+4. ✅ **Сервіс-шар приймає sid=** — всі 3 сервіси keyword-only `sid: str`
+5. ✅ **pytest зелений** — `tests.fix6 + tests.s4` **31/31 PASS**
+
+---
+
+### FIX-6 Ітерація 1 — Gateway discipline: visits + warehouse ✅ DONE
+
+**Дата:** 2026-06-23
+**Статус:** DoD виконано
+
+#### Технічне рішення
+
+**visit_service.py** (`app/services/visit_service.py` — НОВИЙ):
+- `start_visit(*, sid, visit_id, lat, lon) → dict` → `frappe_put("/api/resource/Visit/{id}", data={status, gps_checkin_lat, gps_checkin_lon}, sid=sid)`
+- `finish_visit(*, sid, visit_id, lat, lon) → dict` → `frappe_put` з `status=Completed, gps_checkout_*`
+- `add_material(*, sid, visit_id, item_code, item_name, quantity, unit_price) → dict` → `frappe_post("/api/resource/Visit Material", ...)`
+- `upload_photo(*, sid, visit_id, file_bytes, content_type, photo_type, caption) → dict` → `frappe_post("/api/resource/Visit Photo", image=data:..;base64,..)`
+
+**warehouse_service.py** (`app/services/warehouse_service.py` — НОВИЙ):
+- `list_serials(*, sid, q, page, page_size) → dict` → `frappe_get("/api/resource/Serial No", ...)` → `{items, total, page, page_size}`
+- `list_stock(*, sid) → dict` → `frappe_get("/api/method/frappe.client.get_list", doctype=Bin)` → `{items: [aggregated by item_code]}`
+- `stock_detail(*, sid, item) → dict` → 2 frappe_get (bins + Serial No) → `{item_code, qty, item_name, warehouse, serials}`
+- `_unwrap(result)` переміщено сюди з route
+
+**routes/visits.py** (оновлено): видалено `import base64`, `from app.core.database import frappe_get/post/put`; додано `from app.services import visit_service`; кожен route-handler делегує у service
+
+**routes/warehouse.py** (оновлено): видалено `from app.core.database import frappe_get`, `import json`, `_unwrap`, inline Frappe calls; додано `from app.services import warehouse_service`; `_map_frappe_error` залишено (HTTP-шар)
+
+#### Змінені/нові файли (code-evidence)
+
+| Файл | Зміна |
+|------|-------|
+| `app/services/visit_service.py` | НОВИЙ — 4 async функції, frappe_post/put, sid= |
+| `app/services/warehouse_service.py` | НОВИЙ — 3 async функції + _unwrap, frappe_get, sid= |
+| `app/routes/visits.py` | Рефакторинг: нуль frappe_* імпортів/викликів |
+| `app/routes/warehouse.py` | Рефакторинг: нуль frappe_* імпортів/викликів |
+| `tests/fix6/__init__.py` | НОВИЙ |
+| `tests/fix6/test_fix6_gateway_discipline.py` | НОВИЙ — 9 TDD тестів (4 visit + 3 warehouse + 2 grep-gate) |
+| `tests/s4/test_s4_gateway.py` | patch target: `app.routes.warehouse` → `app.services.warehouse_service` |
+| `.github/workflows/ci.yml` | +FIX-6 syntax check step; +FIX-6 test run step |
+
+#### DoD перевірка
+
+1. ✅ **visits.py — нуль frappe_get/post/put** — `TestGatewayDisciplineVisits` PASS (grep assertNotIn)
+2. ✅ **warehouse.py — нуль frappe_get/post/put** — `TestGatewayDisciplineWarehouse` PASS (grep assertNotIn)
+3. ✅ **Сервіс-шар приймає sid=** — visit_service всі 4 функції keyword-only `sid: str`; warehouse_service всі 3 функції `sid: str`
+4. ✅ **pytest зелений** — `tests.fix6 + tests.s4` 16/16 PASS; попередні суїти без нових падінь
+
+---
+
+### FIX-5 — R4 Rate Limit + R2 Ukrainian Roles + CI ✅ DONE
+
+**Дата:** 2026-06-23
+**Статус:** DoD виконано
+
+#### Технічне рішення
+
+**R4 — Rate limiting (вже була підключена в попередніх сесіях):**
+- `auth.py` вже мав `_enforce_rate_limit()` + `check_rate_limit` імпорт; виклики в `/login` (рядки 48-52) і `/refresh` (рядки 123-127)
+- Ключ `/login`: `f"rl:login:{request.client.host}"` — max=5, window=900s
+- Ключ `/refresh`: `f"rl:refresh:{user_id}"` — max=30, window=900s
+- `config.py`: `rate_limit_login_max=5`, `rate_limit_login_window=900`, `rate_limit_refresh_max=30`, `rate_limit_refresh_window=900`
+- `rate_limit.py`: sliding window через Redis sorted set (zremrangebyscore + zadd + zcard + expire в транзакційному pipeline)
+
+**R2 — Ukrainian roles (вже була підключена в попередніх сесіях):**
+- `_map_frappe_role_from_names()` (`auth.py:344`): всі 4 українські назви присутні:
+  - `"Технік"` → `"engineer"` (рядок 355)
+  - `"Директор"` → `"director"` (рядок 357)
+  - `"Бухгалтер"` → `"accountant"` (рядок 359)
+  - `"Склад"` → `"warehouse"` (рядок 361)
+
+**Нове в цій сесії — тести і CI:**
+- `tests/fix5/test_fix5_rate_limit.py`: 14 TDD тестів (7 role mapping + 5 rate limit enforcement + 2 module contract)
+- `ci.yml`: R4 grep gate (доводить check_rate_limit на login/refresh без запуску Redis)
+- `ci.yml`: FIX-5 test run step
+- `ci.yml`: `rate_limit.py` додано до синтаксис-перевірки
+- `requirements-test.txt`: `prometheus-client>=0.20.0` — виправлено pre-existing відсутню залежність (r3 tearDown crashував)
+
+#### Змінені файли (code-evidence)
+
+| Файл | Зміна |
+|------|-------|
+| `tests/fix5/__init__.py` | Новий |
+| `tests/fix5/test_fix5_rate_limit.py` | 14 TDD тестів: TestUkrainianRoleMapping (7) + TestRateLimitEnforcement (5) + TestRateLimitModule (2) |
+| `.github/workflows/ci.yml` | +R4 grep gate; +FIX-5 test run step; +rate_limit.py syntax check; rename R3 syntax step |
+| `requirements-test.txt` | +`prometheus-client>=0.20.0` (pre-existing missing dep) |
+
+#### DoD перевірка
+
+1. ✅ **6-та спроба login → 429** — `TestRateLimitEnforcement.test_sixth_attempt_raises_429` PASS; `_enforce_rate_limit` raises `HTTPException(429, headers={"Retry-After": "..."})` коли `check_rate_limit` повертає `limited: True`
+2. ✅ **"Технік" → engineer** — `TestUkrainianRoleMapping.test_technician_maps_to_engineer` PASS; також director/accountant/warehouse 4/4
+3. ✅ **CI R4 gate зелений** — grep gate перевіряє `rl:login:` + `rl:refresh:` + `rate_limit_login_max` + `rate_limit_refresh_max` в `auth.py`
+4. ✅ **CI jti+did gate зелений** — існуючий R3 gate (ci.yml рядки 94-108) без змін
+5. ✅ **pytest зелений** — `tests.r3 + tests.fix5` 26/26 PASS
+
+---
+
+### FIX-4 — A3/A4 AI Task Bugs ✅ DONE
+
+**Дата:** 2026-06-23
+**Статус:** DoD виконано
+
+#### Технічне рішення
+
+**Bug A** — `enqueue_ai_estimate` відсутня в `tasks/ai_estimate.py`:
+- Додано `@frappe.whitelist() enqueue_ai_estimate(estimate_name, site_brief="", variant="standard")` яка викликає `frappe.enqueue("...run_ai_estimate", estimate_name=estimate_name, queue="long", timeout=600)`
+- `estimate_service.py:108` викликає її через `/api/method/security_erp.tasks.ai_estimate.enqueue_ai_estimate` → тепер резолвиться
+
+**Bug B** — `is_active` → `is_enabled` у `_get_providers_sync()`:
+- `frappe.get_all("AI Provider", filters={"is_active": 1})` → `filters={"is_enabled": 1}`
+- Поле `is_active` не існує в `ai_provider.json`; правильне поле — `is_enabled`
+- Також: `import redis` перенесено з top-level всередину `_get_redis_sync()` (lazy import — redis недоступний поза Docker-контейнером; попереджає ImportError в тест-середовищі)
+
+**Bug C** — `transcription_status` опції не відповідали значенням `transcribe.py`:
+- `media_asset.json`: options `"\nnone\npending\ndone\nmanual"` → `"pending\nprocessing\ndone\nfailed"`, default `"none"` → `"pending"`
+- `transcribe.py`: `_set_status(doc, "manual")` → `_set_status(doc, "failed")`, `_set_status(doc, "pending")` під час завантаження → `_set_status(doc, "processing")`
+- Семантика виправлена: `processing` = активна транскрипція, `failed` = помилка, `pending` = черга/retry (Whisper unavailable)
+
+**bench migrate:** потрібен на running ERPNext контейнері після деплою (змінено `media_asset.json` → DDL update для `transcription_status` options).
+
+#### Змінені файли (code-evidence)
+
+| Файл | Зміна |
+|------|-------|
+| `erpnext/security_erp/security_erp/tasks/ai_estimate.py` | +`enqueue_ai_estimate` (рядки 142-156); `is_active`→`is_enabled` (р.36); lazy `import redis` (р.27) |
+| `erpnext/security_erp/security_erp/security_erp/doctype/media_asset/media_asset.json` | `transcription_status` options: `pending\nprocessing\ndone\nfailed`, default `pending` |
+| `erpnext/security_erp/security_erp/tasks/transcribe.py` | `"manual"` → `"failed"` (рядки 49, 84); `"pending"` → `"processing"` (р.59) |
+| `tests/fix4/__init__.py` | Новий |
+| `tests/fix4/test_fix4_ai_bugs.py` | 14 TDD тестів (5 Bug A, 3 Bug B, 6 Bug C) |
+| `tests/a3/test_a3_tasks.py` | Фікс: redis mock + whitelist ідентичний декоратор; TestAIEstimateBuild → реальний API |
+
+#### DoD перевірка
+
+1. ✅ **`enqueue_ai_estimate` резолвиться** — `tests/fix4/test_fix4_ai_bugs.py::TestBugA` 5/5 PASS
+2. ✅ **`is_enabled` filter** — `tests/fix4/test_fix4_ai_bugs.py::TestBugB` 3/3 PASS; `frappe.get_all` перевірено мок-викликом
+3. ✅ **`transcription_status` field** існує в `media_asset.json` з опціями `pending/processing/done/failed` — `TestBugC` 6/6 PASS; `bench migrate` потрібен після деплою
+4. ✅ **pytest зелений** — `tests/a3/ + tests/fix4/` 24/24 PASS
+
+---
+
 ### S4 — Next.js карта-редактор + склад через v2 ✅ DONE
 
 **Дата:** 2026-06-23
@@ -175,54 +476,223 @@ Redis key schema: `frappe:sid:{user_id}`, TTL = `FRAPPE_SESSION_TTL` (default 21
 
 ---
 
-### R3 — Refresh-ротація + reuse-detection + Device Session ✅ DONE
+### R3 — Refresh-ротація + reuse-detection + Device Session ✅ DONE (FIX-1)
 
-**Дата:** 2026-06-22  
-**Статус:** DoD виконано
+**Дата:** 2026-06-23 (перша реалізація; попередній запис від 2026-06-22 був болванкою без коду)
+**Статус:** DoD виконано — код верифіковано, 12 pytest пройдено
+
+#### Аудит-підстава
+
+Аудит `full_audit_R1_S4.md` виявив: BUILD_LOG позначав R3 ✅ DONE, але:
+- `app/auth/jwt.py:37` — `create_refresh_token(user_id)` мав лише sub/type/iat/exp (без jti/did)
+- `app/routes/auth.py:51` — `/refresh` без будь-якої blacklist-перевірки
+- GET/DELETE `/api/v2/auth/sessions` — відсутні
+- Це security breach: refresh token використовувався необмежено без per-device revoke
 
 #### Технічне рішення
 
-Схема токенів:
-- Кожен refresh token тепер містить `jti` (UUID4, унікальний ID токена) і `did` (stable device ID — однаковий для всіх ротацій однієї сесії).
-- При `/refresh`: стара `jti` вноситься в Redis blacklist (TTL = залишок терміну дії токена), видається новий refresh token з новим `jti` і тим самим `did`.
-- Reuse detected: якщо `jti` вже в blacklist → видаляємо Redis-сесію пристрою + Frappe SID → 401 `RIAD-AUTH-REFRESH-REUSE`.
-- Легітимний RT2 після reuse-detection теж відхиляється (сесія пристрою видалена) → SESSION_REVOKED.
-
-Redis key schema:
-```
-rt:bl:{jti}                   → user_id  (TTL = remaining token lifetime)
-rt:sess:{user_id}:{device_id} → JSON {jti, created, last_seen, ip_address}  (TTL = jwt_refresh_ttl)
-rt:devices:{user_id}          → SET of active device_ids
+**JWT payload (code-evidence: `app/auth/jwt.py:37`):**
+```python
+def create_refresh_token(user_id: str, device_id: str) -> str:
+    payload = {
+        "sub": user_id, "type": "refresh",
+        "jti": str(uuid4()),   # унікальний ID токена
+        "did": device_id,      # стабільний device ID
+        "iat": now, "exp": ...,
+    }
 ```
 
-RIAD Device Session формалізовано як Frappe DocType (`security_erp/doctype/riad_device_session/`) з полями user, device_id, created_at, last_seen_at, revoked, revoke_reason, ip_address, jti. Основне зберігання — Redis (швидкий auth-path); DocType — для майбутнього admin-аудиту в Frappe Desk.
+**Redis key schema:**
+```
+rt:bl:{jti}                    → user_id  (TTL = залишок терміну токена)
+rt:sess:{user_id}:{device_id}  → JSON {jti, created, last_seen, ip_address} (TTL = jwt_refresh_ttl)
+rt:devices:{user_id}           → SET активних device_ids
+```
 
-#### Змінені файли
+**`/refresh` rotation + reuse-detection (`app/routes/auth.py:100-175`):**
+1. decode RT → отримати `jti` + `did`; якщо відсутні → `TOKEN_UPGRADE_REQUIRED` (backward compat)
+2. rate limit check
+3. `redis.get(rt:bl:{jti})` → якщо є → `_revoke_all_user_sessions()` → 401 `RIAD-AUTH-REFRESH-REUSE`
+4. `redis.get(rt:sess:{user_id}:{device_id})` → якщо немає → 401 `SESSION_REVOKED`
+5. `redis.setex(rt:bl:{jti}, remaining_ttl, user_id)` — blacklist старий jti
+6. `create_refresh_token(user_id, device_id)` → новий jti, той самий did
+7. оновити `rt:sess:` новими jti/last_seen
 
-| Файл | Що змінено |
-|------|------------|
-| `app/auth/jwt.py` | `create_refresh_token` отримав `device_id` param; додано `jti` (uuid4) і `did` до payload |
-| `app/routes/auth.py` | `/login`: створює Redis-сесію; `/refresh`: rotation + reuse-detection; `/logout`: опціональний RT body; нові: `GET /sessions`, `DELETE /sessions/{device_id}` |
-| `app/schemas/auth.py` | Доданий `LogoutRequest` (optional refresh_token) |
-| `security_erp/doctype/riad_device_session/` | Новий DocType: riad_device_session.json, .py, __init__.py |
+**`_revoke_all_user_sessions` (`app/routes/auth.py:316-330`):**
+- `smembers(rt:devices:{user_id})` → pipeline delete всіх `rt:sess:*` + devices SET + frappe SID
+
+**`/login` (`app/routes/auth.py:55-110`):**
+- `device_id = body.device_id or str(uuid4())`
+- `setex(rt:sess:{user}:{device}, jwt_refresh_ttl, JSON{jti,created,last_seen,ip})`
+- `sadd(rt:devices:{user}, device_id)`
+- `TokenResponse` повертає `device_id`
+
+**Нові ендпоінти:**
+- `GET /api/v2/auth/sessions` — список активних пристроїв з created/last_seen/ip
+- `DELETE /api/v2/auth/sessions/{device_id}` — per-device revoke (blacklistить jti, видаляє сесію)
+
+**`/logout` оновлено:** опціональний body з `refresh_token` → blacklist jti + видалення rt:sess
+
+#### Змінені файли з code-evidence
+
+| Файл | Рядки | Що змінено |
+|------|-------|------------|
+| `services/security-api/app/auth/jwt.py` | 37-48 | `create_refresh_token(user_id, device_id)` + `jti` (uuid4) + `did` |
+| `services/security-api/app/schemas/auth.py` | 1-55 | `LoginRequest.device_id` (Optional), `TokenResponse.device_id`, `LogoutRequest`, `DeviceSessionResponse` |
+| `services/security-api/app/routes/auth.py` | 1-340 | Повний rewrite: rotation, reuse-detection, /sessions GET/DELETE, /logout з RT |
+| `tests/r3/test_r3_refresh_rotation.py` | 1-410 | 12 unit-тестів: payload, rotation, reuse, SESSION_REVOKED, TOKEN_UPGRADE_REQUIRED, GET/DELETE sessions |
+| `.github/workflows/ci.yml` | (після Run unit tests) | R3 syntax check + jti+did CI gate + R3 unittest step |
 
 #### DoD перевірка
 
-1. ✅ **Reuse detection**: повторне використання RT1 після ротації → `{"code":"RIAD-AUTH-REFRESH-REUSE"}` + device session revoked
-2. ✅ **RT2 блокується**: після reuse-detection RT2 (легітимний, ще не використаний) повертає `{"code":"SESSION_REVOKED"}` — обидва боки (атакуючий і власник) виходять
-3. ✅ **Нормальна ротація**: `/refresh` → новий RT2 з новим `jti`, старий RT1 більше не працює
-4. ✅ **Frappe SID зберігається при нормальному refresh** — SID видаляється лише при reuse або явному logout
-5. ✅ **GET /sessions**: список активних сесій юзера (device_id, created, last_seen, ip_address)
-6. ✅ **DELETE /sessions/{device_id}**: вибіркове відкликання без інвалідації інших сесій
-7. ✅ **Синтаксис**: `py_compile` всіх змінених файлів — OK
-8. ✅ **Build**: Docker image `security-api-r3-test` збирається, сервіс стартує
+1. ✅ **`create_refresh_token` додає jti + did**: `test_jti_and_did_in_refresh_token` PASS
+2. ✅ **Кожен токен має унікальний jti**: `test_each_token_has_unique_jti` PASS
+3. ✅ **did зберігається**: `test_did_preserved_across_same_device` PASS
+4. ✅ **Reuse detection**: blacklisted jti → 401 `RIAD-AUTH-REFRESH-REUSE`: `test_reuse_detection_returns_correct_error_code` PASS
+5. ✅ **Нормальна ротація**: новий RT з новим jti, did незмінний: `test_normal_rotation_succeeds` PASS
+6. ✅ **Revoked session**: відсутня rt:sess → 401 `SESSION_REVOKED`: `test_session_revoked_when_no_sess_data` PASS
+7. ✅ **Backward compat**: старий RT без jti/did → `TOKEN_UPGRADE_REQUIRED`: `test_old_token_without_jti_rejected` PASS
+8. ✅ **GET /sessions**: два пристрої → обидва у відповіді: `test_get_sessions_returns_active_devices` PASS
+9. ✅ **DELETE /sessions/{id}**: відкликання конкретного пристрою: `test_delete_session_returns_success` PASS
+10. ✅ **DELETE невідомий**: → 404: `test_delete_nonexistent_session_returns_404` PASS
+11. ✅ **CI gate**: Python -c скрипт перевіряє jti+did у токені; синтаксис py_compile — OK
+12. ✅ **Всього 12/12 тестів**: Docker run python:3.12-slim + requirements-test.txt → `Ran 12 tests in 1.4s OK`
 
 #### Примітки
 
-- Backward-compat: старі refresh tokens (без `jti`/`did`) відхиляються з `TOKEN_UPGRADE_REQUIRED` — юзери мають перелогінитись після деплою.
-- `LogoutRequest.refresh_token` опціональний — logout без RT body продовжує працювати (видаляє Frappe SID, але не blacklistить RT).
-- DocType `RIAD Device Session` в Frappe поки не синхронізований (`bench migrate` потрібен) — Redis auth-path від цього не залежить.
-- Frappe SID видаляється при reuse для ВСІХ сесій user (спільний ключ `frappe:sid:{user_id}`). Після R5 (multi-device Frappe SID) це треба переглянути.
+- Backward-compat: старі RT (без jti/did) відхиляються `TOKEN_UPGRADE_REQUIRED` — юзери мають перелогінитись після деплою R3.
+- `LogoutRequest.refresh_token` опціональний — logout без RT body видаляє Frappe SID, але не blacklistить RT (прийнятно, RT протухне сам по TTL).
+- DocType `RIAD Device Session` (схема вже була) — Redis є основним сховищем для auth-path; DocType для майбутнього Frappe Desk аудиту (потребує `bench migrate`).
+- Frappe SID видаляється при reuse для ВСІХ сесій user (спільний `frappe:sid:{user_id}`). Multi-device Frappe SID — майбутнє завдання.
+- `_enforce_rate_limit` — обгортка над `check_rate_limit` (яка отримує Redis через DI сама), спрощує тестування патчем одного символу.
+
+---
+
+### FIX-2 — Vault крипто-ядро: переписати з нуля (V1+V2+V3) ✅ DONE
+
+**Дата:** 2026-06-23
+**Статус:** DoD виконано — 36 pytest зелених, isolation lint OK, syntax OK 84 файли
+
+#### Аудит-підстава
+
+Аудит `full_audit_R1_S4.md` виявив: source files Vault (`_key.py`, `_crypto.py`, `_hooks.py`,
+`api.py`, `audit.py`, `mfa.py`, `__init__.py`) відсутні — є лише `.pyc` у `__pycache__`.
+`vault_entry.py:7` імпортує `encrypt_doc_fields` → `ImportError` при кожному `VaultEntry.save()`.
+
+Рішення: переписати з нуля (не декомпіляція). Дизайн зафіксований у DECISIONS.md (Фаза 2, Вісь 6).
+
+#### Написані файли (code-evidence)
+
+| Файл | Рядки | Зміст |
+|------|-------|-------|
+| `erpnext/security_erp/security_erp/vault/_key.py` | 55 | `get_master_key()` + `_load_key()` — env VAULT_MASTER_KEY (hex/base64) або файл; NO БД |
+| `erpnext/security_erp/security_erp/vault/_crypto.py` | 65 | AES-256-GCM: `encrypt(pt,key)→"v1:b64nonce:b64ct:b64tag"`, `decrypt`, `_is_encrypted`, `_decrypt_field` |
+| `erpnext/security_erp/security_erp/vault/_hooks.py` | 75 | `ENC_FIELDS` list + `encrypt_doc_fields` (before_save) + `decrypt_doc_fields` (after_fetch) |
+| `erpnext/security_erp/security_erp/vault/audit.py` | 115 | `log_action` + `append_audit_log` + `verify_chain`; hash-chain: `sha256(prev_hash‖action‖user‖ts‖ve‖ft)` |
+| `erpnext/security_erp/security_erp/vault/mfa.py` | 90 | `VaultMFAError`, `verify_totp(user,code)→bool` (pyotp), `_check_mfa_session`, `create_vault_session`, `vault_mfa_verify` whitelist |
+| `erpnext/security_erp/security_erp/vault/api.py` | 145 | `vault_get`, `vault_set`, `vault_list` — @frappe.whitelist, MFA gate, audit log |
+| `erpnext/security_erp/security_erp/vault/__init__.py` | 25 | Re-export публічного API |
+| `tests/vault/test_v2_vault_crypto.py` | 230 | 36 тестів: _key, _crypto roundtrip, hash-chain, mfa, import sanity |
+| `requirements-test.txt` | +2 рядки | `pyotp>=2.9.0`, `cryptography>=42.0.0` |
+| `.github/workflows/ci.yml` | +6 рядків | V2 isolation lint step + V2 vault crypto pytest step |
+
+#### Ключові контракти (DECISIONS.md compliant)
+
+```python
+# _key.py
+get_master_key() → bytes  # 32 байти AES-256; з env/файл, NO БД, NO AI контекст
+
+# _crypto.py wire format: "v1:{b64_nonce}:{b64_ct}:{b64_tag}"
+encrypt("P@ss", key) → "v1:abc...:xyz...:def..."  # random 12-byte nonce кожен раз
+decrypt("v1:...", key) → "P@ss"  # tamper → Exception (GCM auth tag)
+
+# audit.py hash-chain
+record_hash = sha256(prev_hash ‖ "\x00" ‖ action ‖ "\x00" ‖ user ‖ ...)
+# r2.prev_hash == r1.record_hash (verified by test_chain_links_correctly)
+
+# mfa.py
+verify_totp(user, code) → bool   # pyotp.TOTP(secret).verify(code, valid_window=1)
+_check_mfa_session(token, user)  # raises VaultMFAError if Redis key expired
+```
+
+#### DoD перевірка
+
+1. ✅ **VaultEntry.save() без ImportError**: `from security_erp.vault._hooks import encrypt_doc_fields` → OK; `_load_key()` → 32 bytes; roundtrip `test_password` → plaintext
+2. ✅ **AES-256-GCM roundtrip**: 36 тестів включно з unicode, 10kB рядком, random nonce, tamper-detect
+3. ✅ **hash-chain**: `test_chain_links_correctly` — r2.prev_hash == r1.record_hash == r3.prev_hash; tamper → різний хеш
+4. ✅ **Ізоляція**: `check_vault_isolation.py` → `OK: 53 files scanned` (нуль порушень)
+5. ✅ **CI V2 Vault isolation lint** + **V2 Vault crypto tests** — обидва кроки додані у `ci.yml`
+6. ✅ **pytest**: `36 passed in 0.21s`; `Syntax OK: 84 files checked` для всього security_erp
+7. ✅ **Gate C2**: реальні prod-секрети ЗАБЛОКОВАНО до H1 key-escrow (DECISIONS.md V4)
+
+#### Ізоляція (DECISIONS.md Вісь 6)
+
+- Vault модулі (`vault/_key`, `vault/_crypto`, `vault/api`, `vault/audit`, `vault/mfa`) НЕ імпортуються з AI-контуру (`services/security-api/`, `tasks/`, `doctype/ai_*/`)
+- CI автоматично перевіряє після кожного push
+
+---
+
+### FIX-3 — AI Estimate: R6-поля + permlevel=1 ✅ DONE
+
+**Дата:** 2026-06-23
+**Статус:** DoD виконано — 16 pytest зелених, syntax OK, всі DocType-refs оновлено
+
+#### Аудит-підстава
+
+Аудит виявив: `estimate.json` + `estimate_item.json` — жодного permlevel, жодного поля
+`origin/reviewed_by/total_cost/purchase_rate/profit/margin`. Монтажник через FastAPI REST
+читав ціни собівартості → порушення H7 (приховування цін). DECISIONS.md B1 Вісь 3 зафіксувала:
+"estimate→AI Estimate з origin/reviewed_by/permlevel".
+
+#### Написані/змінені файли (code-evidence)
+
+| Файл | Дія | Code-evidence |
+|------|-----|---------------|
+| `doctype/estimate/estimate.json` | Оновлено | `name: "AI Estimate"`, `controller: ...estimate.Estimate`, 6 нових полів, permlevel=1 на 4 полях, 2 нових permission entries |
+| `doctype/estimate_item/estimate_item.json` | Оновлено | `name: "AI Estimate Item"`, 4 нових поля, permlevel=1 на 3 полях |
+| `doctype/estimate/estimate.py` | Оновлено | `calculate_totals()` → обчислює `total_cost`, `total_margin`, `item.profit`, `item.margin_pct` |
+| `doctype/estimate/estimate.js` | Оновлено | `frappe.ui.form.on("AI Estimate", ...)` |
+| `security_erp/estimate_utils.py` | Оновлено | `frappe.get_doc("AI Estimate", ...)` |
+| `tasks/ai_estimate.py` | Оновлено | `get_doc("AI Estimate", ...)` + `db.set_value("AI Estimate", ...)` |
+| `services/security-api/app/services/estimate_service.py` | Оновлено | Всі 6 API шляхів `/api/resource/Estimate/` → `/api/resource/AI Estimate/` |
+| `tests/r6/__init__.py` | Новий | pytest package |
+| `tests/r6/test_r6_estimate_fields.py` | Новий | 16 TDD тестів JSON-схеми |
+
+#### Нові поля (DECISIONS B1 Вісь 3)
+
+**estimate.json** (AI Estimate):
+- `origin` (Select: manual/ai/imported) — перmlevel=0
+- `variant` (Data) — permlevel=0
+- `reviewed_by` (Link→User) — **permlevel=1** (тільки Sales Manager / System Manager)
+- `reviewed_at` (Datetime) — **permlevel=1**
+- `total_cost` (Currency, read_only) — **permlevel=1**
+- `total_margin` (Currency, read_only) — **permlevel=1**
+
+**estimate_item.json** (AI Estimate Item):
+- `line_source` (Select: manual/catalog/ai) — permlevel=0
+- `purchase_rate` (Currency) — **permlevel=1**
+- `profit` (Currency, read_only) — **permlevel=1**
+- `margin_pct` (Percent, read_only) — **permlevel=1**
+
+#### Перملevel=1 grants (H7 enforcement)
+
+| Роль | permlevel=0 | permlevel=1 |
+|------|-------------|-------------|
+| System Manager | read/write/create/delete | read/write ✅ |
+| Sales Manager | read/write/create | read/write ✅ |
+| Service Manager (монтажник) | read | ❌ (hidden) |
+
+#### DoD перевірка
+
+1. ✅ **pytest 16/16**: `tests/r6/test_r6_estimate_fields.py` — 16 passed in 0.05s
+2. ✅ **Syntax OK**: `py_compile` estimate.py, estimate_utils.py, ai_estimate.py, estimate_service.py
+3. ✅ **DocType rename**: `name: "AI Estimate"` + `controller` field (зберігає Python шлях)
+4. ✅ **Child table**: `name: "AI Estimate Item"` + `options: "AI Estimate Item"` у parent
+5. ✅ **permlevel=1 на sensitive fields**: reviewed_by, reviewed_at, total_cost, total_margin, purchase_rate, profit, margin_pct
+6. ✅ **Service Manager НЕ має permlevel=1**: test_service_manager_no_permlevel1 PASSED
+7. ✅ **Всі Python refs оновлено**: нуль залишкових `"Estimate"` DocType-рядків у коді
+8. ⏳ **bench migrate**: потребує running ERPNext container — `docker compose exec erpnext-backend bench --site erp.localhost migrate`
+9. ⏳ **Runtime permlevel**: перевірка через Frappe API потребує working stack (DoD-2 FIX_PLAN)
 
 ---
 
@@ -770,7 +1240,114 @@ zcat backup.sql.gz | docker exec -i mariadb mysql -uroot -p _73c82ec6d255ebe3
 5. ✅ **Бекап-пайплайн:** знайдена критична зламана пайплайн (R5-FIX-4), задокументована з двоступеневим фіксом
 6. ✅ **Процедура відновлення:** виявлена прогалина (R5-FIX-5), задокументована
 
-**Примітка:** Реалізація R5-FIX-1..5 — наступна сесія R6.
+**Примітка:** Реалізація R5-FIX-1..5 — виконана у сесії FIX-7 (2026-06-23). Деталі нижче.
+
+---
+
+### FIX-7 — R5 Durability: binlog + Redis AOF + backup verification ✅ DONE
+
+**Дата:** 2026-06-23  
+**Сесія:** FIX-7  
+**Статус:** DoD виконано — усі 5 пунктів чек-листу закриті з фактичними доказами на сервері
+
+#### Фактичний стан (виконано на сервері)
+
+##### 1. MariaDB binlog — ✅ УВІМКНЕНО (було OFF)
+
+**Зміна:** `configs/mariadb.cnf` — додано:
+```ini
+log_bin            = /var/lib/mysql/mariadb-bin
+binlog_format      = ROW
+sync_binlog        = 1
+expire_logs_days   = 7
+max_binlog_size    = 100M
+```
+**Рестарт:** `docker compose restart mariadb`  
+**Верифікація:**
+```
+log_bin        = ON
+sync_binlog    = 1
+binlog_format  = ROW
+expire_logs_days = 7
+```
+**Binlog-файли:** `/var/lib/mysql/mariadb-bin.000001` (330 B) + `mariadb-bin.index` — PITR активний.
+
+---
+
+##### 2. Redis AOF — ✅ УВІМКНЕНО (було no)
+
+**Новий файл:** `configs/redis.conf`:
+```
+appendonly yes
+appendfsync everysec
+auto-aof-rewrite-percentage 100
+auto-aof-rewrite-min-size 64mb
+```
+**Зміна docker-compose.yml:** redis-сервіс — додано volume-mount конфігу + `command: redis-server /usr/local/etc/redis/redis.conf`  
+**Рекреація:** `docker compose up -d redis` (`restart` недостатній — потрібна рекреація для нових volumes/команди)  
+**Верифікація:**
+```
+appendonly   = yes
+appendfsync  = everysec
+/data/appendonlydir/  (AOF-файли існують)
+```
+
+---
+
+##### 3. Backup script — ✅ ВЖЕ ВИПРАВЛЕНИЙ
+
+`scripts/backup-mariadb.sh` містить:
+- `CONTAINER_NAME="${MARIADB_CONTAINER:-riadcrm-mariadb-1}"` — правильне ім'я контейнера
+- `--databases _73c82ec6d255ebe3` — дамп з CREATE DATABASE/USE
+- Автозавантаження `.env` якщо `MYSQL_ROOT_PASSWORD` не задано
+
+**Ручний запуск (перша дія сесії, до змін конфігу):**
+```
+[23 червня 2026 20:37:18] Starting daily backup...
+[23 червня 2026 20:37:20] Backup completed: mariadb_daily_20260623_203718.sql.gz (3,2M)
+```
+Exit code: 0
+
+---
+
+##### 4. Cron — ✅ АКТИВНИЙ
+
+```cron
+0 2 * * * cd /home/joker/RIAD CRM && set -a && . .env && set +a && bash scripts/backup-mariadb.sh daily
+0 3 * * 0 cd /home/joker/RIAD CRM && set -a && . .env && set +a && bash scripts/backup-mariadb.sh weekly
+```
+
+---
+
+##### 5. Остання резервна копія — ✅ < 1 години
+
+```
+mariadb_daily_20260623_203718.sql.gz  3,2M  23 чер 20:37  ← ця сесія (ручна)
+mariadb_daily_20260623_203447.sql.gz  3,2M  23 чер 20:34  ← попередня сесія
+```
+Валідація: `zcat | head -5` → MariaDB dump заголовок, БД `_73c82ec6d255ebe3` коректна.
+
+---
+
+#### DoD перевірка (FIX-7)
+
+1. ✅ **binlog ON, sync_binlog=1** — `SHOW VARIABLES` підтверджено, файл `mariadb-bin.000001` на диску
+2. ✅ **Redis AOF enabled (appendfsync everysec)** — `CONFIG GET` підтверджено, `appendonlydir/` існує
+3. ✅ **backup-mariadb.sh без помилок** — exit 0, файл 3.2MB, заголовок валідний
+4. ✅ **cron активний, остання копія < 1h** — timestamp 20:37
+5. ✅ **Весь стек healthy після рестартів** — 9/9 контейнерів `Up (healthy)`
+
+#### Підсумок R5-FIX
+
+| # | Пункт | Статус |
+|---|-------|--------|
+| R5-FIX-1 | MariaDB binlog | ✅ ON (ROW, sync_binlog=1) |
+| R5-FIX-2 | Redis AOF | ✅ yes (everysec, appendonlydir/) |
+| R5-FIX-3 | Шифрування бекапів | ⏳ відкладено (GPG потребує ключ; архітектура зафіксована) |
+| R5-FIX-4 | Backup pipeline | ✅ виправлено (попередня сесія) |
+| R5-FIX-5 | Restore --databases | ✅ виправлено (попередня сесія) |
+
+**R5-FIX-3 примітка:** GPG-шифрування відкладено — потребує GPG-ключа та key management. Відкрите питання вʼязано з H1/C2 gate. Бекапи захищені правами ФС (0640). Реалізувати при налаштуванні key management.
 
 ---
 
