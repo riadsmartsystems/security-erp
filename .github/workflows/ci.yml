@@ -72,6 +72,10 @@ jobs:
         run: |
           python tests/ai_isolation/check_ai_isolation.py
 
+      - name: V2 Vault isolation lint
+        run: |
+          python tests/vault_isolation/check_vault_isolation.py
+
       - name: Install test dependencies
         run: |
           pip install -r requirements-test.txt
@@ -79,6 +83,67 @@ jobs:
       - name: Run unit tests
         run: |
           python tests/security-api/test_models.py
+
+      - name: Verify R3/R4 syntax (auth + rate limit files)
+        run: |
+          python -m py_compile services/security-api/app/auth/jwt.py
+          python -m py_compile services/security-api/app/schemas/auth.py
+          python -m py_compile services/security-api/app/routes/auth.py
+          python -m py_compile services/security-api/app/core/rate_limit.py
+
+      - name: R3 CI gate — jti+did present in refresh token
+        run: |
+          python -c "
+          import sys, os
+          sys.path.insert(0, 'services/security-api')
+          os.environ.setdefault('SECRET_KEY', 'ci-test-secret-key-min-32-chars-ok')
+          os.environ.setdefault('FRAPPE_URL', 'http://localhost:8000')
+          os.environ.setdefault('REDIS_URL', 'redis://localhost:6379')
+          from app.auth.jwt import create_refresh_token, decode_token
+          token = create_refresh_token('ci-user@test.com', 'ci-device-id')
+          payload = decode_token(token)
+          assert 'jti' in payload, f'jti missing from refresh token: {payload}'
+          assert 'did' in payload, f'did missing from refresh token: {payload}'
+          assert payload['did'] == 'ci-device-id', f'did mismatch: {payload}'
+          print(f'R3 gate: jti={payload[\"jti\"][:8]}... did={payload[\"did\"]} OK')
+          "
+
+      - name: R4 CI gate — check_rate_limit wired on login and refresh
+        run: |
+          python -c "
+          content = open('services/security-api/app/routes/auth.py').read()
+          assert 'check_rate_limit' in content, 'check_rate_limit not imported in auth.py'
+          assert 'rl:login:' in content, 'login rate-limit key missing in auth.py'
+          assert 'rl:refresh:' in content, 'refresh rate-limit key missing in auth.py'
+          assert 'rate_limit_login_max' in content, 'rate_limit_login_max not referenced'
+          assert 'rate_limit_refresh_max' in content, 'rate_limit_refresh_max not referenced'
+          print('R4 gate: check_rate_limit on login + refresh OK')
+          "
+
+      - name: Run R3 refresh rotation tests
+        run: |
+          python -m unittest tests.r3.test_r3_refresh_rotation -v
+        env:
+          PYTHONPATH: services/security-api:erpnext/security_erp
+          SECRET_KEY: ci-test-secret-key-min-32-chars-ok
+          FRAPPE_URL: http://localhost:8000
+          REDIS_URL: redis://localhost:6379
+
+      - name: Run FIX-5 rate limit + Ukrainian roles tests
+        run: |
+          python -m unittest tests.fix5.test_fix5_rate_limit -v
+        env:
+          PYTHONPATH: services/security-api:erpnext/security_erp
+          SECRET_KEY: ci-test-secret-key-min-32-chars-ok
+          FRAPPE_URL: http://localhost:8000
+          REDIS_URL: redis://localhost:6379
+
+      - name: V2 Vault crypto tests
+        run: |
+          python -m pytest tests/vault/test_v2_vault_crypto.py -v
+        env:
+          PYTHONPATH: erpnext/security_erp
+          VAULT_MASTER_KEY: "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf"
 
       - name: Run A2 AI service tests
         run: |
@@ -131,6 +196,52 @@ jobs:
           python -m unittest tests.s4.test_s4_gateway -v
         env:
           PYTHONPATH: services/security-api:erpnext/security_erp
+
+      - name: Verify FIX-6 syntax (visit + warehouse service layer)
+        run: |
+          python -m py_compile services/security-api/app/services/visit_service.py
+          python -m py_compile services/security-api/app/services/warehouse_service.py
+
+      - name: Run FIX-6 gateway discipline tests
+        run: |
+          python -m unittest tests.fix6.test_fix6_gateway_discipline -v
+        env:
+          PYTHONPATH: services/security-api
+
+      - name: FIX-6 CI gate — gateway discipline (regression guard)
+        run: python scripts/check_gateway_discipline.py
+
+      - name: FIX-6 CI gate — check_gateway_discipline unit tests
+        run: |
+          python -m unittest tests.fix6.test_check_gateway_discipline -v
+        env:
+          PYTHONPATH: services/security-api
+
+      - name: Verify C1 syntax (calculator files)
+        run: |
+          python -m py_compile services/security-api/app/routes/calculator.py
+          python -m py_compile services/security-api/app/services/calculator_service.py
+          python -m py_compile services/security-api/app/schemas/calculator.py
+          python -m py_compile erpnext/security_erp/security_erp/calculator.py
+
+      - name: "C1 CI gate — check rl:calc: in calculator route"
+        run: |
+          python -c "
+          content = open('services/security-api/app/routes/calculator.py').read()
+          assert 'rl:calc:' in content, 'rl:calc: rate-limit key missing in calculator.py'
+          assert 'check_rate_limit' in content, 'check_rate_limit not used in calculator.py'
+          assert 'verify_turnstile' in content, 'verify_turnstile not used in calculator.py'
+          print('C1 gate: rl:calc: + verify_turnstile OK')
+          "
+
+      - name: Run C1 calculator backend tests
+        run: |
+          python -m pytest tests/c1/ -v
+        env:
+          PYTHONPATH: services/security-api:erpnext/security_erp
+          SECRET_KEY: ci-test-secret-key-min-32-chars-ok
+          FRAPPE_URL: http://localhost:8000
+          REDIS_URL: redis://localhost:6379
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
