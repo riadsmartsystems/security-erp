@@ -14,7 +14,7 @@ RESTRICTED_PATHS = [
     "services/security-api/",
     "erpnext/security_erp/security_erp/doctype/ai_provider/",
     "erpnext/security_erp/security_erp/doctype/ai_request_log/",
-    "erpnext/security_erp/security_erp/doctype/estimate/",
+    "erpnext/security_erp/security_erp/doctype/ai_estimate/",
     "erpnext/security_erp/security_erp/doctype/remote_inspection/",
     "erpnext/security_erp/security_erp/doctype/site_brief/",
     "erpnext/security_erp/security_erp/tasks/",
