@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     # V3: Vault MFA session TTL
     vault_mfa_ttl: int = 300  # 5 min
 
+    # C1: calculator rate limit
+    rate_limit_calc_max: int = 5
+    rate_limit_calc_window: int = 3600  # 1 hour
+
     # S3: Google Drive service account for media upload
     google_service_account_json: str = ""  # path to service account JSON key
     google_drive_folder_id: str = ""  # target folder ID in Drive
