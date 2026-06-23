@@ -19,7 +19,7 @@
 - lead (Link → Lead, optional)
 
 **security_erp/calculator.py** — @frappe.whitelist(allow_guest=True):
-- `_match_scenario()` — детермінований підбір за security_type + qty_rule/qty_factor
+- `_match_scenario()` — детермінований підбір за security_type + qty (base; qty_rule/qty_factor — separate enhancement when fields added to Security Scenario Item)
 - `submit()` — insert(ignore_permissions=True) → {name, estimated_total, matched_scenario, status}
 - PII ніколи не потрапляє у AI Request Log
 
@@ -58,8 +58,18 @@
 5. ✅ Scenario match → estimated_total > 0 (тест)
 6. ✅ Scenario miss → estimated_total=0, status=новий (тест)
 7. ✅ PII (contact_phone) відсутній у API-відповіді (тест)
-8. ✅ Combined pytest: tests/r3/ + vault/ + r6/ + fix4/ + fix5/ + fix6/ + c1/ → 0 FAIL
+8. ✅ Combined pytest: tests/r3/ + vault/ + r6/ + fix4/ + fix5/ + fix6/ + c1/ → 0 FAIL (175 tests)
 9. ✅ CI: syntax + gate + test step додано
+10. ✅ bench migrate: tabCalculator Submission створена в MariaDB
+11. ✅ vault isolation lint: OK (61 files scanned)
+
+#### Post-review fixes (commit ee386cf, d9ff5e6, 307c13c, dc081c4)
+
+1. **DocType path correction:** `security_erp/security_erp/doctype/` → `security_erp/security_erp/security_erp/doctype/` (triple-nested, matching all existing DocTypes)
+2. **AI Estimate rename:** `doctype/estimate/` → `doctype/ai_estimate/`, `doctype/estimate_item/` → `doctype/ai_estimate_item/` (directory names must match DocType names for Frappe module discovery)
+3. **Controller path update:** `security_erp.security_erp.doctype.estimate.estimate` → `security_erp.security_erp.doctype.ai_estimate.estimate`
+4. **Dead code removal:** `qty_rule`/`qty_factor` references removed from calculator.py (fields don't exist in Security Scenario Item DocType; base qty used instead)
+5. **Test path updates:** r6 tests + vault isolation lint updated for ai_estimate/ rename
 
 ---
 
