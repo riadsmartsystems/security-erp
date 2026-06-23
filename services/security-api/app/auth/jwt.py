@@ -13,7 +13,12 @@ def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
 
 
-def create_access_token(user_id: str, role: str, extra: Optional[dict] = None) -> str:
+def create_access_token(
+    user_id: str,
+    role: str,
+    extra: Optional[dict] = None,
+    frappe_roles: Optional[list] = None,
+) -> str:
     now = datetime.now(timezone.utc)
     payload = {
         "sub": user_id,
@@ -22,6 +27,8 @@ def create_access_token(user_id: str, role: str, extra: Optional[dict] = None) -
         "iat": now,
         "exp": now + timedelta(seconds=settings.jwt_access_ttl),
     }
+    if frappe_roles is not None:
+        payload["frappe_roles"] = frappe_roles
     if extra:
         payload.update(extra)
     return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)

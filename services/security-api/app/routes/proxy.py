@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from app.core.config import settings
 from app.core.database import FRAPPE_HOST
 from app.auth.dependencies import get_current_user, CurrentUser
-from app.auth.permissions import Permission, has_permission
+from app.auth.permissions import Permission
 
 router = APIRouter(tags=["proxy"])
 

@@ -37,8 +37,13 @@ class Settings(BaseSettings):
     # V3: Vault MFA session TTL
     vault_mfa_ttl: int = 300  # 5 min
 
+    # S3: Google Drive service account for media upload
+    google_service_account_json: str = ""  # path to service account JSON key
+    google_drive_folder_id: str = ""  # target folder ID in Drive
+
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 
 settings = Settings()

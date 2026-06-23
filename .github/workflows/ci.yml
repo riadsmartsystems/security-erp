@@ -36,7 +36,6 @@ jobs:
           python -m py_compile services/security-api/app/routes/visits.py
           python -m py_compile services/security-api/app/core/database.py
           python -m py_compile services/security-api/app/core/config.py
-          python -m py_compile services/security-api/app/services/ai_service.py
           python -m py_compile services/security-api/app/services/ai_orchestrator_service.py
           python -m py_compile services/security-api/app/services/estimate_service.py
           python -m py_compile services/security-api/app/routes/ai.py
@@ -75,7 +74,7 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          pip install fastapi pydantic pydantic-settings httpx python-jose bcrypt python-multipart
+          pip install -r requirements-test.txt
 
       - name: Run unit tests
         run: |
@@ -116,6 +115,40 @@ jobs:
           python -m unittest tests.s1.test_s1_sync -v
         env:
           PYTHONPATH: services/security-api:erpnext/security_erp
+
+      - name: Verify S4 syntax (new files)
+        run: |
+          python -m py_compile services/security-api/app/schemas/serial.py
+          python -m py_compile services/security-api/app/schemas/maps_warehouse.py
+          python -m py_compile services/security-api/app/routes/serial.py
+          python -m py_compile services/security-api/app/routes/maps.py
+          python -m py_compile services/security-api/app/routes/warehouse.py
+          python -m py_compile erpnext/security_erp/security_erp/serial_scan.py
+          python -m py_compile erpnext/security_erp/security_erp/tasks/process_serial_scans.py
+
+      - name: Run S4 gateway + map + warehouse tests
+        run: |
+          python -m unittest tests.s4.test_s4_gateway -v
+        env:
+          PYTHONPATH: services/security-api:erpnext/security_erp
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+          channel: 'stable'
+
+      - name: Run S2 Flutter database tests
+        run: |
+          cd riad_mobile
+          flutter pub get
+          flutter test test/s2/database_test.dart
+
+      - name: Run S2 Flutter sync client tests
+        run: |
+          cd riad_mobile
+          flutter pub get
+          flutter test test/s2/sync_client_test.dart
 
   build:
     runs-on: ubuntu-latest

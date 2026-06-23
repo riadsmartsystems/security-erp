@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Query
-from datetime import datetime, timezone
 import uuid
 
 router = APIRouter(prefix="/api/v1/portal", tags=["customer-portal"])

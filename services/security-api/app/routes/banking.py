@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Query
-import uuid
 
 router = APIRouter(prefix="/api/v1/banking", tags=["banking"])
 

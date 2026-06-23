@@ -1,11 +1,9 @@
 import json
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from app.core.database import frappe_get, frappe_post, frappe_put
 from app.auth.dependencies import get_current_user, CurrentUser
-from app.auth.permissions import Permission
-from app.services.ai_service import ai_service
 
 router = APIRouter(prefix="/api/v2", tags=["doctypes"])
 
@@ -197,18 +195,6 @@ async def get_po_items(name: str, current_user: CurrentUser = Depends(get_curren
     try:
         r = await frappe_get(f"/api/resource/Purchase Order/{name}", sid=current_user.frappe_sid)
         return {"success": True, "data": r.get("data", {}).get("items", [])}
-    except Exception as e:
-        raise HTTPException(500, str(e))
-
-
-@router.get("/scenarios")
-async def get_scenarios(current_user: CurrentUser = Depends(get_current_user)):
-    try:
-        result = await frappe_get("/api/resource/Security Scenario", params={
-            "fields": '["name","scenario_name","security_type","description"]',
-            "limit_page_length": 50
-        }, sid=current_user.frappe_sid)
-        return {"success": True, "data": result.get("data", [])}
     except Exception as e:
         raise HTTPException(500, str(e))
 

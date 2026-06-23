@@ -31,11 +31,14 @@ async def login(
 
     try:
         user_info = await frappe_get(f"/api/resource/User/{body.username}", sid=frappe_sid)
-        role = _map_frappe_role(user_info.get("data", {}))
+        data = user_info.get("data", {})
+        role = _map_frappe_role(data)
+        frappe_roles = _extract_frappe_roles(data)
     except Exception:
         role = "viewer"
+        frappe_roles = []
 
-    access_token = create_access_token(body.username, role)
+    access_token = create_access_token(body.username, role, frappe_roles=frappe_roles)
     refresh_token = create_refresh_token(body.username)
 
     return TokenResponse(
@@ -62,11 +65,14 @@ async def refresh(body: RefreshRequest, redis_client: redis.Redis = Depends(get_
 
     try:
         user_info = await frappe_get(f"/api/resource/User/{user_id}", sid=str(frappe_sid))
-        role = _map_frappe_role(user_info.get("data", {}))
+        data = user_info.get("data", {})
+        role = _map_frappe_role(data)
+        frappe_roles = _extract_frappe_roles(data)
     except Exception:
         role = "viewer"
+        frappe_roles = []
 
-    access_token = create_access_token(user_id, role)
+    access_token = create_access_token(user_id, role, frappe_roles=frappe_roles)
     refresh_token = create_refresh_token(user_id)
 
     return TokenResponse(access_token=access_token, refresh_token=refresh_token, expires_in=settings.jwt_access_ttl)
@@ -92,6 +98,7 @@ async def get_me(current_user: CurrentUser = Depends(get_current_user)):
             "username": current_user.user_id,
             "full_name": data.get("full_name", ""),
             "role": current_user.role.value,
+            "frappe_roles": current_user.frappe_roles,
             "is_active": data.get("enabled", 1),
         }
     except Exception:
@@ -101,6 +108,7 @@ async def get_me(current_user: CurrentUser = Depends(get_current_user)):
             "username": current_user.user_id,
             "full_name": current_user.user_id,
             "role": current_user.role.value,
+            "frappe_roles": current_user.frappe_roles,
             "is_active": True,
         }
 
@@ -140,9 +148,13 @@ async def create_user(body: UserCreate, current_user: CurrentUser = Depends(get_
         raise HTTPException(status_code=400, detail=str(e))
 
 
-def _map_frappe_role(user_data: dict) -> str:
+def _extract_frappe_roles(user_data: dict) -> list:
     roles = user_data.get("roles", [])
-    role_names = [r.get("role", "") for r in roles] if isinstance(roles, list) else []
+    return [r.get("role", "") for r in roles if isinstance(r, dict) and r.get("role")]
+
+
+def _map_frappe_role(user_data: dict) -> str:
+    role_names = _extract_frappe_roles(user_data)
     return _map_frappe_role_from_names(role_names)
 
 

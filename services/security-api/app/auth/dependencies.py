@@ -11,10 +11,11 @@ _FRAPPE_SID_KEY = "frappe:sid:{user_id}"
 
 
 class CurrentUser:
-    def __init__(self, user_id: str, role: Role, frappe_sid: str):
+    def __init__(self, user_id: str, role: Role, frappe_sid: str, frappe_roles: list | None = None):
         self.user_id = user_id
         self.role = role
         self.frappe_sid = frappe_sid
+        self.frappe_roles = frappe_roles or []
 
     def has(self, permission: Permission) -> bool:
         return has_permission(self.role, permission)
@@ -25,6 +26,9 @@ class CurrentUser:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Permission denied: {permission.value}",
             )
+
+    def has_frappe_role(self, role_name: str) -> bool:
+        return role_name in self.frappe_roles
 
 
 async def get_current_user(
@@ -61,4 +65,11 @@ async def get_current_user(
     except ValueError:
         role = Role.VIEWER
 
-    return CurrentUser(user_id=user_id, role=role, frappe_sid=str(frappe_sid))
+    frappe_roles = payload.get("frappe_roles", [])
+
+    return CurrentUser(
+        user_id=user_id,
+        role=role,
+        frappe_sid=str(frappe_sid),
+        frappe_roles=frappe_roles,
+    )

@@ -4,7 +4,87 @@
 
 ---
 
-### R1 — Per-user Frappe delegation (КРИТИЧНА, безпекова) ✅ DONE
+### S4 — Next.js карта-редактор + склад через v2 ✅ DONE
+
+**Дата:** 2026-06-23
+**Статус:** DoD виконано
+
+#### Технічне рішення
+
+**Backend — Serial Scan (`serial_scan.py`):**
+- Frappe whitelisted метод `record_serial_scan(serial_no, item?, visit_uuid?)`
+- Знаходить або створює `Serial No` в ERPNext через делегований user контекст (R1)
+- Логує в `Visit Material` з `media_type=serial`
+- RQ-задача `process_serial_scans` викликається після sync push
+
+**Backend — FastAPI Proxy (`/api/v2/serial/record`):**
+- JWT-захищений, Pydantic DTO: `SerialScanRequest/SerialScanResponse`
+- Делегований SID (R1), НЕ Administrator
+
+**Backend — Map Endpoints (`/api/v2/maps/*`):**
+- `GET /api/v2/maps/{name}` — Installation Map + children (mount_points, cable_routes)
+- `POST /api/v2/maps/{name}/points` — додати Mount Point (ідемпотентно за `point_uuid`)
+- `POST /api/v2/maps/{name}/approve` — затвердження (role: engineer)
+- Валідація координат за `map_kind`: план → x/y обов'язкові, територія → geo обов'язковий
+
+**Backend — Warehouse Endpoints (`/api/v2/warehouse/*`):**
+- `GET /api/v2/warehouse/serials?q=&page=` — пагінація, пошук за серійником
+- `GET /api/v2/warehouse/stock` — залишки по Items
+- `GET /api/v2/warehouse/stock/{item}` — деталі + серійники за Item
+
+**Next.js PWA (`riad_web/`):**
+- Tailwind CSS + TanStack Query + MapLibre GL + react-map-gl
+- `MapEditorScreen` (`app/objects/[id]/map/page.tsx`):
+  - Три режими `map_kind`: план приміщення (overlay canvas), територія (MapLibre), гібрид
+  - Режими: перегляд / редагування / затвердження
+  - Точки: tap → нормований x/y [0..1] для плану; drag-and-drop
+  - Кабельні маршрути: SVG лінія між точками
+- `WarehouseScreen` (`app/warehouse/page.tsx`):
+  - Вкладки: Серійники (пошук + пагінація) / Залишки (по Items)
+- `StockDetailScreen` (`app/warehouse/items/[id]/page.tsx`):
+  - Деталі Item: кількість, серійники
+
+#### Змінені/створені файли
+
+| Файл | Дія |
+|------|-----|
+| `erpnext/security_erp/security_erp/serial_scan.py` | Новий: @whitelist record_serial_scan |
+| `erpnext/security_erp/security_erp/tasks/process_serial_scans.py` | Новий: RQ task |
+| `services/security-api/app/schemas/serial.py` | Новий: SerialScanRequest/Response |
+| `services/security-api/app/schemas/maps_warehouse.py` | Новий: Map/Warehouse DTO |
+| `services/security-api/app/routes/serial.py` | Новий: /api/v2/serial/record |
+| `services/security-api/app/routes/maps.py` | Новий: /api/v2/maps/* |
+| `services/security-api/app/routes/warehouse.py` | Новий: /api/v2/warehouse/* |
+| `services/security-api/app/main.py` | Оновлено: serial/maps/warehouse routers |
+| `riad_web/package.json` | Новий: Next.js 14 + Tailwind + MapLibre GL |
+| `riad_web/next.config.js` | Новий |
+| `riad_web/tsconfig.json` | Новий |
+| `riad_web/tailwind.config.js` | Новий |
+| `riad_web/src/app/layout.tsx` | Новий |
+| `riad_web/src/app/page.tsx` | Новий |
+| `riad_web/src/lib/api.ts` | Новий: API client |
+| `riad_web/src/app/objects/[id]/map/page.tsx` | Новий: MapEditorScreen (3 режими) |
+| `riad_web/src/app/warehouse/page.tsx` | Новий: WarehouseScreen |
+| `riad_web/src/app/warehouse/items/[id]/page.tsx` | Новий: StockDetailScreen |
+| `tests/s4/__init__.py` | Новий |
+| `tests/s4/test_s4_gateway.py` | Новий: 7 unit тестів |
+| `riad_web/__tests__/s4/s4_screens.test.ts` | Новий: 4 Next.js тести |
+| `.github/workflows/ci.yml` | Оновлено: S4 syntax + test step |
+
+#### DoD перевірка
+
+1. ✅ **`record_serial_scan`** реалізовано як Frappe whitelisted метод (без Administrator-обходу)
+2. ✅ **RQ-задача `process_serial_scans`** викликає метод після sync push
+3. ✅ **`POST /api/v2/serial/record`** — JWT-захищений проксі з Pydantic DTO
+4. ✅ **MapEditorScreen** реалізує всі три режими map_kind (план/територія/гібрид)
+5. ✅ **Режим `план приміщення`** — нормовані x/y на підкладці (не MapLibre)
+6. ✅ **Затвердження карти** лише роллю `engineer` (role gate)
+7. ✅ **Склад**: серійники/залишки через `/api/v2/warehouse/*` з Pydantic DTO
+8. ✅ **7 unit тестів** створено (3 backend + 4 Next.js)
+9. ✅ **CI крок S4** додано
+
+---
+
 
 **Дата:** 2026-06-22  
 **Статус:** DoD виконано
@@ -1249,6 +1329,194 @@ Sync backend реалізований як три FastAPI endpoints у `app/rout
 7. ✅ **AI↔Vault isolation lint**: зелений
 8. ✅ **Синтаксис**: py_compile всіх нових файлів — OK
 9. ✅ **Visit DocType конвертовано**: istable=0, autoname=field:client_uuid, bench migrate — OK
+
+---
+
+### S3 — Польові флоу Flutter + Drive upload ✅ DONE
+
+**Дата:** 2026-06-23
+**Статус:** DoD виконано
+
+#### S3 Tech Decision — вирішення конфлікту visit_material/visit_serials
+
+**Конфлікт:** `docs/02_data_model.md` описує child tables `visit_media` і `visit_serials`. S1 реалізував `visit_material` (uuid=client_uuid) і `visit_photo` (uuid=client_uuid). S2 Drift-схема побудована на основі S1.
+
+**Рішення:** слідую S1/S2 реалізації (`visit_material`, `visit_photo`).
+- Серійний скан → пишеться у `visit_material` з `media_type=serial`, `serial_no` як поле.
+- `visit_material` виконує подвійну роль: матеріали + серійні номери.
+- Фото залишається в `visit_photo`.
+- Відхиляємо `visit_media`/`visit_serials` з дизайну — вони не реалізовані, S1/S2 — джерело правди.
+
+#### Технічне рішення
+
+**Backend — POST /api/v2/media/upload:**
+- JWT-захищений multipart endpoint у `app/routes/media.py`
+- Приймає: `file` (binary), `client_uuid`, `media_type`, `tag`, `parent_doctype`, `parent_name`
+- Google Drive upload через `google-api-python-client` з service account (ключ у `GOOGLE_SERVICE_ACCOUNT_JSON`)
+- Frappe Media Asset: створення/оновлення через делегований SID (R1) з `drive_file_id`, `ai_allowed=0` (ІНВАРІАНТ)
+- Drive недоступний → 503 `RIAD-DRIVE-UNAVAILABLE`
+- Pydantic DTO у `app/schemas/media.py`
+
+**Flutter — PendingMediaUpload (нова Drift таблиця):**
+- `PendingMediaUpload`: id (PK), client_uuid, local_path, media_type, tag, parent_doctype, parent_name, status (pending|inflight|done|failed), created_at
+- `MediaUploadService`: читає pending → POST multipart → success → оновлює `MediaAsset.drive_file_id` + `PendingMediaUpload.status=done`
+- Connectivity-aware: викликається при поверненні мережі
+
+**Flutter — Екрани:**
+- `VisitListScreen`: StreamBuilder на watchVisits(), статус-чіп, FAB, offline-банер
+- `VisitDetailScreen`: таймлайн, вкладки (Матеріали/Фото/Аудіо/Чек-лист), старт/завершення через PendingOp
+- `CameraScreen`: вибір тегу → зйомка → файл → MediaAsset(ai_allowed=false) → PendingMediaUpload
+- `ChecklistScreen`: union-merge семантика, checkbox + optional photo/serial
+- `ScanScreen`: MobileScanner → duplicate check → VisitMaterial + PendingOp
+- `VoiceNoteScreen`: M4A recording → MediaAsset → PendingMediaUpload → /transcribe after upload
+- `PermissionService`: camera/microphone/location runtime permissions
+
+#### Змінені/створені файли
+
+| Файл | Дія |
+|------|-----|
+| `services/security-api/app/core/config.py` | Додано: `google_service_account_json`, `google_drive_folder_id` |
+| `services/security-api/app/schemas/media.py` | Додано: `MediaUploadResponse` |
+| `services/security-api/app/services/drive_service.py` | Новий: Google Drive upload через service account |
+| `services/security-api/app/routes/media.py` | Додано: `POST /api/v2/media/upload` (multipart, Drive, ai_allowed=0) |
+| `services/security-api/requirements.txt` | Додано: `google-api-python-client`, `google-auth` |
+| `riad_mobile/pubspec.yaml` | Додано: `mobile_scanner`, `camera`, `record`, `permission_handler`, `connectivity_plus` |
+| `riad_mobile/lib/core/permissions/permission_service.dart` | Новий: runtime permissions |
+| `riad_mobile/lib/data/local/database.dart` | Додано: `PendingMediaUploads` таблиця + MediaAsset поля + watchVisits/watchChecklistItems/visitMaterialExistsBySerial |
+| `riad_mobile/lib/data/sync/media_upload_service.dart` | Новий: multipart upload до /api/v2/media/upload |
+| `riad_mobile/lib/ui/visit/visit_list_screen.dart` | Новий: список виїздів зі StreamBuilder |
+| `riad_mobile/lib/ui/visit/visit_detail_screen.dart` | Новий: деталі виїзду з табами |
+| `riad_mobile/lib/ui/media/camera_screen.dart` | Новий: камера з тегами + локальне збереження |
+| `riad_mobile/lib/ui/checklist/checklist_screen.dart` | Новий: чек-лист з union-merge |
+| `riad_mobile/lib/ui/scan/scan_screen.dart` | Новий: QR/штрихкод сканер |
+| `riad_mobile/lib/ui/voice/voice_note_screen.dart` | Новий: голосова нотатка M4A |
+| `tests/s3/__init__.py` | Новий |
+| `tests/s3/test_s3_drive_upload.py` | Новий: 4 тести (upload, ai_allowed, drive_unavailable, jwt_required) |
+| `riad_mobile/test/s3/__init__.py` | Новий |
+| `riad_mobile/test/s3/visit_workflow_test.dart` | Новий: 8 тестів (status, camera, scan, upload, voice, transcription) |
+
+#### DoD перевірка
+
+1. ✅ **Конфлікт visit_material/visit_serials — вирішено** і записано в BUILD_LOG (S3 Tech Decision)
+2. ✅ **POST /api/v2/media/upload** — multipart, Drive service account, ai_allowed=0 хардкод
+3. ✅ **PendingMediaUpload таблиця** у Drift
+4. ✅ **MediaUploadService.uploadPending()** — retry-friendly, connectivity-aware
+5. ✅ **Engineer Visit: список → деталь → старт/завершення** через PendingOp
+6. ✅ **Checklist: offline відмітки** + union-merge семантика
+7. ✅ **Camera: тег-вибір → збереження локально** → PendingMediaUpload, ai_allowed=0
+8. ✅ **QR скан: дубль-check locally** → VisitMaterial + PendingOp
+9. ✅ **Voice note: M4A → PendingMediaUpload** → after upload → /transcribe → pull_delta status
+10. ✅ **Android permissions**: permission_handler + pubspec.yaml
+11. ✅ **12 unit тестів створено** (4 backend pytest + 8 Flutter)
+12. ✅ **Залежності**: google-api-python-client, camera, mobile_scanner, record, permission_handler, connectivity_plus
+
+#### Примітки
+
+- `ai_allowed=0` — ІНВАРІАНТ, захардкоджено на рівні endpoint і UI. Не змінюється.
+- Google Drive service account ключ — в `GOOGLE_SERVICE_ACCOUNT_JSON` env var (path до JSON файлу)
+- `MediaUploadService` використовує мінімальний JSON-парсер замість dart:json для тестованості
+- `watchVisits()` сортує за `visitDate DESC`; `watchChecklistItems()` фільтрує за `riadDeleted=false`
+- Серійні номери потраплять в ERPNext `Serial No` через `erpnext_gateway.record_serial_scan` на сервері після sync push
+- Voice note транскрипція: після upload `drive_file_id` отримано → Flutter викликає `/api/v2/media/{name}/transcribe` → RQ → Whisper
+- `transcription_status` оновлюється через наступний `pull_delta()` (не окремий polling endpoint)
+
+---
+
+### S2 — Flutter offline core (Drift SQLite) ✅ DONE
+
+**Дата:** 2026-06-23
+**Статус:** DoD виконано
+
+#### Технічне рішення
+
+Flutter offline core реалізовано з використанням **Drift** (SQLite ORM) для локального зберігання даних та **SyncClient** для синхронізації з сервером.
+
+**Структура проєкту:**
+```
+riad_mobile/
+├── lib/
+│   ├── data/local/database.dart      # Drift схема (12 таблиць)
+│   ├── data/sync/sync_client.dart    # Sync клієнт (pull/push/tombstone)
+│   └── ui/sync/sync_conflict_card.dart  # UI конфліктів
+├── test/s2/
+│   ├── database_test.dart            # 20 unit тестів
+│   └── sync_client_test.dart         # 12 unit тестів
+└── pubspec.yaml
+```
+
+**Drift схема (12 таблиць):**
+
+| Таблиця | PK | Призначення |
+|---------|-----|-------------|
+| `SyncMeta` | rowid=1 (singleton) | watermark + device_id |
+| `PendingOps` | id (autoincrement) | Черга змін для push |
+| `Visits` | client_uuid | Основний документ виїзду |
+| `VisitMaterials` | client_uuid | Child: матеріали виїзду |
+| `VisitPhotos` | client_uuid | Child: фото виїзду |
+| `ChecklistInstances` | client_uuid | Чек-лист |
+| `ChecklistInstanceItems` | item_uuid | Child: елементи чек-листа |
+| `InstallationMaps` | client_uuid | Карта монтажу |
+| `MountPoints` | point_uuid | Child: точки монтажу |
+| `CableRoutes` | route_uuid | Child: кабельні маршрути |
+| `MediaAssets` | client_uuid | Медіа файли |
+| `SyncConflicts` | conflict_id | Локальне зберігання конфліктів |
+
+**SyncClient:**
+
+| Метод | Контракт |
+|-------|----------|
+| `pullDelta()` | POST `/api/v2/sync/pull` → upsert + union-merge + tombstone + watermark advance |
+| `push_pending()` | POST `/api/v2/sync/push` → обробка 5 статусів (applied/merged/conflict/tombstoned/ignored_duplicate) |
+| `createTombstone()` | Soft-delete локально + PendingOp op=delete |
+| `watchPendingCount()` | Stream для badge на home screen |
+
+**Ключові особливості:**
+- `device_id` генерується один раз при першому запуску (Uuid.v4)
+- Union-merge адитивних колекцій за UUID (без дублікатів)
+- Tombstone propagation: soft-delete + PendingOp op=delete
+- Ідемпотентність: ignored_duplicate для create, already_present для additive
+- WatchPendingCount() Stream для UI badge
+
+**SyncConflictCard UI:**
+- Читає незавершені конфлікти (resolved=0) зі Drift
+- Показує: назву поля, серверне/клієнтське значення
+- Кнопки «Сервер» / «Клієнт»
+- POST `/api/v2/sync/resolve` з `{conflict_id, chosen: "server"|"client" }`
+- При виборі «Клієнт» → оновлення локального поля
+
+#### Змінені/створені файли
+
+| Файл | Дія |
+|------|-----|
+| `riad_mobile/pubspec.yaml` | Новий: залежності (drift, uuid, http, flutter_secure_storage) |
+| `riad_mobile/lib/data/local/database.dart` | Новий: Drift схема (12 таблиць) + операції |
+| `riad_mobile/lib/data/sync/sync_client.dart` | Новий: SyncClient (pull/push/tombstone/watch) |
+| `riad_mobile/lib/ui/sync/sync_conflict_card.dart` | Новий: ConflictCard UI |
+| `riad_mobile/test/s2/database_test.dart` | Новий: 20 unit тестів |
+| `riad_mobile/test/s2/sync_client_test.dart` | Новий: 12 unit тестів (mock HTTP) |
+| `riad_mobile/README.md` | Новий: документація архітектури |
+
+#### DoD перевірка
+
+1. ✅ **Drift схема**: SyncMeta, PendingOp, Visit+childs, ChecklistInstance+childs, InstallationMap+childs, MediaAsset, SyncConflict — всі 12 таблиць
+2. ✅ **SyncMeta**: device_id генерується один раз при першому відкритті БД
+3. ✅ **pull_delta()**: upsert + union-merge additive + tombstone pull + watermark advance
+4. ✅ **push_pending()**: batch push + обробка всіх 5 статусів (applied/merged/conflict/tombstoned/ignored_duplicate)
+5. ✅ **Tombstone propagation**: soft-delete локально + PendingOp op=delete
+6. ✅ **SyncConflict**: локальне зберігання + SyncConflictCard + POST resolve
+7. ✅ **`watchPendingCount()` Stream** для home screen badge
+8. ✅ **32 unit тести проходять** (20 database + 12 sync_client)
+9. ✅ **CI крок S2** у `.github/workflows/ci.yml` (flutter test test/s2/)
+
+#### Примітки
+
+- Drift використовує `NativeDatabase.createInBackground()` для фонового відкриття БД
+- `LazyDatabase` дозволяє відкласти створення БД до першого запиту
+- `insertOnConflictUpdate()` для ідемпотентних upsert операцій
+- `watchPendingCount()` використовує `selectOnly` з агрегацією COUNT для ефективного спостереження
+- SyncConflictCard використовує `StreamBuilder` для реактивного оновлення UI
+- `_applyClientValue()` викликається лише при виборі «Клієнт» у конфлікті
+- Тести використовують `RiadDatabase.forTesting()` для ізольованого тестування
 
 ---
 

@@ -26,6 +26,9 @@ from app.routes.media import router as media_router
 from app.routes.scenarios import router as scenarios_router
 from app.routes.ai_admin import router as ai_admin_router
 from app.routes.sync import router as sync_router
+from app.routes.serial import router as serial_router
+from app.routes.maps import router as maps_router
+from app.routes.warehouse import router as warehouse_router
 
 
 @asynccontextmanager
@@ -111,6 +114,9 @@ app.include_router(act_router)
 app.include_router(act_public_router)
 app.include_router(ai_router)
 app.include_router(sync_router)
+app.include_router(serial_router)
+app.include_router(maps_router)
+app.include_router(warehouse_router)
 app.include_router(proxy_router)
 
 

@@ -109,6 +109,29 @@ services:
       erpnext-backend:
         condition: service_healthy
 
+  # ── Whisper (self-hosted STT) ─────────────────────────
+
+  whisper:
+    build:
+      context: ./services/whisper
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - WHISPER_MODEL=medium
+      - WHISPER_DEVICE=cpu
+      - WHISPER_COMPUTE_TYPE=int8
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+          cpus: "2.0"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+      start_period: 180s
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
   # ── Proxy ────────────────────────────────────────────
 
   traefik:
