@@ -25,23 +25,12 @@ def _match_scenario(object_type, area_m2, cameras_count, archive_days):
     items = frappe.get_all(
         "Security Scenario Item",
         filters={"parent": scenario.name},
-        fields=["item_code", "item_name", "qty", "qty_rule", "qty_factor"],
+        fields=["item_code", "item_name", "qty"],
     )
 
     total = 0.0
     for item in items:
-        base_qty = item.qty or 1
-        qty_rule = item.qty_rule or "fixed"
-        qty_factor = item.qty_factor or 1.0
-
-        if qty_rule == "per_camera":
-            qty = cameras_count * qty_factor
-        elif qty_rule == "per_100m2":
-            qty = (area_m2 / 100.0) * qty_factor
-        elif qty_rule == "per_point":
-            qty = (cameras_count + (area_m2 // 100)) * qty_factor
-        else:
-            qty = base_qty
+        qty = item.qty or 1
 
         try:
             item_doc = frappe.get_doc("Item", item.item_code)
