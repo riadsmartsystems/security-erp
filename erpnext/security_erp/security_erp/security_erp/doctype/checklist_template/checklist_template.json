@@ -1,0 +1,27 @@
+{
+    "name": "Checklist Template",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "istable": 0,
+    "autoname": "naming_series:",
+    "naming_series": "CHKTPL-.######",
+    "fields": [
+        {"fieldname": "template_name", "fieldtype": "Data", "label": "Template Name", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "type", "fieldtype": "Select", "label": "Type", "options": "\ninstallation\nservice\ninspection", "in_list_view": 1},
+        {"fieldname": "category", "fieldtype": "Data", "label": "Category"},
+        {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+        {"fieldname": "is_active", "fieldtype": "Check", "label": "Active", "default": "1", "in_list_view": 1},
+        {"fieldname": "section_items", "fieldtype": "Section Break", "label": "Template Items"},
+        {"fieldname": "template_items", "fieldtype": "Table", "label": "Template Items", "options": "Checklist Template Item"}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+        {"role": "Service Manager", "read": 1, "write": 1, "create": 1}
+    ],
+    "title_field": "template_name",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 0
+}

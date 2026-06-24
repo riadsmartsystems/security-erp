@@ -1,0 +1,29 @@
+--- a/services/security-api/app/routes/banking.py
++++ b/services/security-api/app/routes/banking.py
+@@ line 2 @@
+-import uuid
+ # REMOVED: uuid is never referenced in any handler in banking.py
+ # All uuid generation (if needed) should be done through frappe.generate_hash()
+
+--- a/services/security-api/app/routes/portal.py
++++ b/services/security-api/app/routes/portal.py
+@@ line 2 @@
+-from datetime import datetime, timezone
+ # REMOVED: datetime and timezone are never referenced in any handler in portal.py
+ # uuid IS used (portal_create_ticket) — keep it
+
+--- a/services/security-api/app/routes/proxy.py
++++ b/services/security-api/app/routes/proxy.py
+@@ line 7 @@
+-from app.auth.permissions import Role, Permission, has_permission, get_permissions, ROLE_PERMISSIONS
++from app.auth.permissions import Role, Permission, get_permissions, ROLE_PERMISSIONS
+ # REMOVED: has_permission — proxy.py uses internal _has_access() with role map dict, never calls has_permission()
+
+--- a/services/security-api/app/routes/visits.py
++++ b/services/security-api/app/routes/visits.py
+@@ line 2 @@
+-from fastapi import APIRouter, Depends, HTTPException, Request
++from fastapi import APIRouter, Depends, HTTPException
+ # REMOVED: Request — never used in any handler signature or body in visits.py
+ # base64 IS used (upload_photo_v1) — keep it
+ # Optional IS used (VisitMaterialRequest) — keep it

@@ -1,0 +1,33 @@
+{
+    "name": "AI Request Log",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "istable": 0,
+    "autoname": "naming_series:",
+    "naming_series": "AILOG-.######",
+    "fields": [
+        {"fieldname": "timestamp", "fieldtype": "Datetime", "label": "Timestamp", "reqd": 1, "in_list_view": 1, "read_only": 1},
+        {"fieldname": "feature", "fieldtype": "Select", "label": "Feature", "options": "\nproject_builder\ninspection_report\ncalculator\ntranscription", "in_list_view": 1},
+        {"fieldname": "provider_used", "fieldtype": "Link", "label": "Provider Used", "options": "AI Provider", "in_list_view": 1},
+        {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+        {"fieldname": "result_status", "fieldtype": "Select", "label": "Result Status", "options": "\nok\nerror\ntimeout\ndegradation\nmanual", "in_list_view": 1},
+        {"fieldname": "latency_ms", "fieldtype": "Int", "label": "Latency (ms)"},
+        {"fieldname": "tokens", "fieldtype": "Int", "label": "Tokens"},
+        {"fieldname": "section_payload", "fieldtype": "Section Break", "label": "Payload"},
+        {"fieldname": "anonymized_payload", "fieldtype": "Long Text", "label": "Anonymized Payload"},
+        {"fieldname": "fallback_chain", "fieldtype": "Small Text", "label": "Fallback Chain"},
+        {"fieldname": "column_break_2", "fieldtype": "Column Break"},
+        {"fieldname": "error_message", "fieldtype": "Small Text", "label": "Error Message"},
+        {"fieldname": "breaker_state", "fieldtype": "Data", "label": "Breaker State"}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1},
+        {"role": "Service Manager", "read": 1}
+    ],
+    "title_field": "timestamp",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 0
+}

@@ -5,6 +5,18 @@
 
 set -euo pipefail
 
+# Resolve container names (docker-compose adds project prefix)
+MARIADB_CONTAINER=$(docker ps --format '{{.Names}}' | grep -m1 'mariadb' || echo "mariadb")
+N8N_CONTAINER=$(docker ps --format '{{.Names}}' | grep -m1 'n8n' || echo "n8n")
+BACKEND_CONTAINER=$(docker ps --format '{{.Names}}' | grep -m1 'erpnext-backend' || echo "erpnext-backend")
+
+# Load .env if MARIADB_ROOT_PASSWORD not set
+if [ -z "${MARIADB_ROOT_PASSWORD:-}" ]; then
+    ENV_FILE="$(dirname "$0")/../.env"
+    if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE"; set +a; fi
+    MARIADB_ROOT_PASSWORD="${MARIADB_ROOT_PASSWORD:-${MYSQL_ROOT_PASSWORD:-}}"
+fi
+
 BACKUP_DIR="/home/joker/RIAD CRM/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 FULL_BACKUP=${1:-""}
@@ -15,17 +27,17 @@ echo "=== Security ERP Backup — $DATE ==="
 
 # 1. MariaDB (single database for everything)
 echo "[1/3] Backing up MariaDB..."
-docker exec mariadb mysqldump -u root -p"${MARIADB_ROOT_PASSWORD}" --all-databases --single-transaction > "$BACKUP_DIR/$DATE/mariadb_full.sql" 2>/dev/null
+docker exec "$MARIADB_CONTAINER" mysqldump -u root -p"${MARIADB_ROOT_PASSWORD}" --all-databases --single-transaction > "$BACKUP_DIR/$DATE/mariadb_full.sql" 2>/dev/null
 echo "  OK: mariadb_full.sql ($(du -h "$BACKUP_DIR/$DATE/mariadb_full.sql" | cut -f1))"
 
 # 2. n8n workflows
 echo "[2/3] Backing up n8n data..."
-docker exec n8n tar czf - /home/node/.n8n 2>/dev/null > "$BACKUP_DIR/$DATE/n8n_data.tar.gz" || echo "  WARNING: n8n backup failed"
+docker exec "$N8N_CONTAINER" tar czf - /home/node/.n8n 2>/dev/null > "$BACKUP_DIR/$DATE/n8n_data.tar.gz" || echo "  WARNING: n8n backup failed"
 echo "  OK: n8n_data.tar.gz"
 
 # 3. ERPNext sites config
 echo "[3/3] Backing up ERPNext config..."
-docker exec erpnext-backend tar czf - /home/frappe/frappe-bench/sites/erp.localhost/site_config.json 2>/dev/null > "$BACKUP_DIR/$DATE/erpnext_site_config.tar.gz" || echo "  WARNING: config backup failed"
+docker exec "$BACKEND_CONTAINER" tar czf - /home/frappe/frappe-bench/sites/erp.localhost/site_config.json 2>/dev/null > "$BACKUP_DIR/$DATE/erpnext_site_config.tar.gz" || echo "  WARNING: config backup failed"
 echo "  OK: erpnext_site_config.tar.gz"
 
 # Cleanup old backups (keep 7 days)

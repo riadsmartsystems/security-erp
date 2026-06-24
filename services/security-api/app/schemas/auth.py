@@ -7,6 +7,7 @@ from datetime import datetime
 class LoginRequest(BaseModel):
     username: str
     password: str
+    device_id: Optional[str] = None
 
 
 class TokenResponse(BaseModel):
@@ -14,10 +15,22 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     expires_in: int
+    device_id: Optional[str] = None
 
 
 class RefreshRequest(BaseModel):
     refresh_token: str
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: Optional[str] = None
+
+
+class DeviceSessionResponse(BaseModel):
+    device_id: str
+    created: Optional[float] = None
+    last_seen: Optional[float] = None
+    ip_address: Optional[str] = None
 
 
 class UserCreate(BaseModel):

@@ -1,0 +1,12 @@
+{
+    "name": "Access Transfer Act Entry",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "istable": 1,
+    "fields": [
+        {"fieldname": "vault_entry", "fieldtype": "Link", "label": "Vault Entry", "options": "Vault Entry", "reqd": 1, "in_list_view": 1}
+    ],
+    "permissions": []
+}

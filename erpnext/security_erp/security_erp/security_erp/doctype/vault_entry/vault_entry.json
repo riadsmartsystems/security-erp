@@ -1,0 +1,34 @@
+{
+    "name": "Vault Entry",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "istable": 0,
+    "autoname": "naming_series:",
+    "naming_series": "VAULT-.######",
+    "fields": [
+        {"fieldname": "passport", "fieldtype": "Link", "label": "Object Passport", "options": "Object Passport", "in_list_view": 1, "search_index": 1},
+        {"fieldname": "customer", "fieldtype": "Link", "label": "Customer", "options": "Customer", "in_list_view": 1},
+        {"fieldname": "category", "fieldtype": "Select", "label": "Category", "options": "\ncamera\nrouter\nwifi\nserver\naccess_control\nintercom\nalarm\nother", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+        {"fieldname": "label", "fieldtype": "Data", "label": "Label", "in_list_view": 1},
+        {"fieldname": "serial_no", "fieldtype": "Link", "label": "Serial No", "options": "Serial No"},
+        {"fieldname": "section_encrypted", "fieldtype": "Section Break", "label": "Encrypted Fields"},
+        {"fieldname": "login_enc", "fieldtype": "Long Text", "label": "Login (enc)", "permlevel": 1, "read_only": 1},
+        {"fieldname": "password_enc", "fieldtype": "Long Text", "label": "Password (enc)", "permlevel": 1, "read_only": 1},
+        {"fieldname": "ip_enc", "fieldtype": "Long Text", "label": "IP (enc)", "permlevel": 1, "read_only": 1},
+        {"fieldname": "domain_enc", "fieldtype": "Long Text", "label": "Domain (enc)", "permlevel": 1, "read_only": 1},
+        {"fieldname": "ddns_enc", "fieldtype": "Long Text", "label": "DDNS (enc)", "permlevel": 1, "read_only": 1},
+        {"fieldname": "serial_enc", "fieldtype": "Long Text", "label": "Serial (enc)", "permlevel": 1, "read_only": 1},
+        {"fieldname": "notes_enc", "fieldtype": "Long Text", "label": "Notes (enc)", "permlevel": 1, "read_only": 1}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "permlevel": 1},
+        {"role": "Service Manager", "read": 1, "write": 1, "create": 1}
+    ],
+    "title_field": "label",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 0
+}

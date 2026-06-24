@@ -22,8 +22,7 @@ build/
 *.log
 
 # Backups
-backups/*.sql
-backups/*.tar.gz
+backups/
 
 # OS
 .DS_Store
@@ -33,6 +32,7 @@ Thumbs.db
 secrets/
 *.pem
 *.key
+configs/vault_master_key
 configs/cloudflared/creds.json
 configs/cloudflared/*.json
 configs/n8n/telegram-credentials.json
@@ -44,3 +44,15 @@ android-app/
 /home/joker/jdk-21.0.11/
 /home/joker/android-sdk/
 .env.backup
+
+# Agent / tooling
+.claude/
+.mimocode/
+
+# Temporary docs
+Audit/
+docs/superpowers/
+docs/.~lock.*
+
+# Whisper (deferred)
+services/whisper/

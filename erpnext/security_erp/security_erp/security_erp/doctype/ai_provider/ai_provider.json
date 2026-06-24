@@ -1,0 +1,28 @@
+{
+    "name": "AI Provider",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "istable": 0,
+    "autoname": "field:provider_name",
+    "fields": [
+        {"fieldname": "provider_name", "fieldtype": "Data", "label": "Provider Name", "reqd": 1, "unique": 1, "in_list_view": 1},
+        {"fieldname": "provider_type", "fieldtype": "Select", "label": "Provider Type", "options": "\nGemini\nOpenAI\nClaude\nOther", "in_list_view": 1},
+        {"fieldname": "priority", "fieldtype": "Int", "label": "Priority", "default": "0", "in_list_view": 1},
+        {"fieldname": "is_enabled", "fieldtype": "Check", "label": "Enabled", "default": "1", "in_list_view": 1},
+        {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+        {"fieldname": "endpoint", "fieldtype": "Data", "label": "Endpoint"},
+        {"fieldname": "model", "fieldtype": "Data", "label": "Model"},
+        {"fieldname": "health_status", "fieldtype": "Select", "label": "Health Status", "options": "\nhealthy\ndegraded\ndown", "default": "healthy", "in_list_view": 1, "read_only": 1},
+        {"fieldname": "last_check", "fieldtype": "Datetime", "label": "Last Check", "read_only": 1}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+        {"role": "Service Manager", "read": 1}
+    ],
+    "title_field": "provider_name",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 0
+}

@@ -47,7 +47,7 @@ def transcribe_media(media_asset_name: str) -> dict:
     """
     doc = frappe.get_doc("Media Asset", media_asset_name)
     if not doc.drive_file_id:
-        _set_status(doc, "manual")
+        _set_status(doc, "failed")
         return {"status": "error", "reason": "no_drive_file_id"}
 
     drive_id = doc.drive_file_id
@@ -56,14 +56,14 @@ def transcribe_media(media_asset_name: str) -> dict:
     else:
         audio_url = f"https://drive.google.com/uc?export=download&id={drive_id}"
 
-    _set_status(doc, "pending")
+    _set_status(doc, "processing")
 
     try:
         audio_resp = requests.get(audio_url, timeout=30)
         audio_resp.raise_for_status()
     except Exception as exc:
         logger.error("Failed to download audio for %s: %s", media_asset_name, exc)
-        _set_status(doc, "manual")
+        _set_status(doc, "failed")
         return {"status": "error", "reason": f"download_failed: {exc}"}
 
     content_type = audio_resp.headers.get("content-type", "audio/ogg")
@@ -82,7 +82,7 @@ def transcribe_media(media_asset_name: str) -> dict:
         return {"status": "error", "reason": "whisper_unavailable"}
     except Exception as exc:
         logger.error("Whisper transcription failed for %s: %s", media_asset_name, exc)
-        _set_status(doc, "manual")
+        _set_status(doc, "failed")
         return {"status": "error", "reason": f"whisper_error: {exc}"}
 
     result = resp.json()

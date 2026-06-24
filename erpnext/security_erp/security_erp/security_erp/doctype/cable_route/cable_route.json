@@ -1,0 +1,17 @@
+{
+    "name": "Cable Route",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "istable": 1,
+    "fields": [
+        {"fieldname": "route_uuid", "fieldtype": "Data", "label": "Route UUID", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "from_point", "fieldtype": "Data", "label": "From Point (UUID)", "in_list_view": 1},
+        {"fieldname": "to_point", "fieldtype": "Data", "label": "To Point (UUID)", "in_list_view": 1},
+        {"fieldname": "cable_type", "fieldtype": "Link", "label": "Cable Type", "options": "Item"},
+        {"fieldname": "length_m", "fieldtype": "Float", "label": "Length (m)"},
+        {"fieldname": "path", "fieldtype": "JSON", "label": "Path"}
+    ],
+    "permissions": []
+}

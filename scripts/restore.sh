@@ -5,6 +5,15 @@
 
 set -euo pipefail
 
+if [ -z "${MYSQL_ROOT_PASSWORD:-}" ]; then
+    ENV_FILE="$(dirname "$0")/../.env"
+    if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE"; set +a; fi
+fi
+MARIADB_ROOT_PASSWORD="${MARIADB_ROOT_PASSWORD:-${MYSQL_ROOT_PASSWORD:-}}"
+
+# Resolve container names (docker-compose adds project prefix)
+MARIADB_CONTAINER=$(docker ps --format '{{.Names}}' | grep -m1 'mariadb' || echo "mariadb")
+
 BACKUP_DIR=${1:-""}
 
 if [ -z "$BACKUP_DIR" ]; then
@@ -31,37 +40,21 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 # 1. Restore MariaDB
-if [ -f "$BACKUP_DIR/mariadb_full.sql" ]; then
-    echo "[1/4] Restoring MariaDB..."
-    docker exec -i mariadb mysql -u root -p"${MARIADB_ROOT_PASSWORD}" < "$BACKUP_DIR/mariadb_full.sql" 2>/dev/null
+if [ -f "$BACKUP_DIR/mariadb_full.sql.gz" ]; then
+    echo "[1/2] Restoring MariaDB from compressed backup..."
+    gunzip -c "$BACKUP_DIR/mariadb_full.sql.gz" | docker exec -i "$MARIADB_CONTAINER" mysql -u root -p"${MARIADB_ROOT_PASSWORD}" 2>/dev/null
+    echo "  OK"
+elif [ -f "$BACKUP_DIR/mariadb_full.sql" ]; then
+    echo "[1/2] Restoring MariaDB..."
+    docker exec -i "$MARIADB_CONTAINER" mysql -u root -p"${MARIADB_ROOT_PASSWORD}" < "$BACKUP_DIR/mariadb_full.sql" 2>/dev/null
     echo "  OK"
 else
-    echo "[1/4] MariaDB backup not found, skipping"
+    echo "[1/2] MariaDB backup not found, skipping"
 fi
 
-# 2. Restore PostgreSQL
-if [ -f "$BACKUP_DIR/postgres_security_erp.sql" ]; then
-    echo "[2/4] Restoring PostgreSQL..."
-    docker exec -i postgres psql -U postgres -d security_erp < "$BACKUP_DIR/postgres_security_erp.sql" 2>/dev/null
-    echo "  OK"
-else
-    echo "[2/4] PostgreSQL backup not found, skipping"
-fi
-
-# 3. Restore n8n data
-if [ -f "$BACKUP_DIR/n8n_data.tar.gz" ]; then
-    echo "[3/4] Restoring n8n data..."
-    docker cp "$BACKUP_DIR/n8n_data.tar.gz" n8n:/tmp/n8n_backup.tar.gz
-    docker exec n8n tar xzf /tmp/n8n_backup.tar.gz -C / 2>/dev/null
-    docker exec n8n rm /tmp/n8n_backup.tar.gz
-    echo "  OK"
-else
-    echo "[3/4] n8n backup not found, skipping"
-fi
-
-# 4. Restart services
-echo "[4/4] Restarting services..."
-docker restart erpnext-backend mariadb postgres 2>/dev/null
+# 2. Restart services
+echo "[2/2] Restarting services..."
+docker restart "$MARIADB_CONTAINER" erpnext-backend 2>/dev/null
 echo "  OK"
 
 echo ""

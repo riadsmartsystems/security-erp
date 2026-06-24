@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+**ВАЖЛИВО: Завжди відповідати українською мовою. Користувач спілкується українською.**
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## What This Project Is
@@ -97,7 +99,7 @@ FastAPI app structured as:
 - `app/routes/auth.py` — `/api/v2/auth/*` (login/refresh/logout/me)
 - Other routes (`visits`, `doctypes`, `mobile`, `signatures`, `banking`, `portal`, `public_api`) — `/api/v2/*` typed endpoints
 
-**Important**: Role assignment at login is currently hardcoded via `_default_role()` in `routes/auth.py` because the Frappe API doesn't return roles in the standard User response. The `/api/v2/auth/refresh` endpoint does attempt a proper Frappe User lookup.
+**Role mapping**: `_map_frappe_role_from_names()` in `routes/auth.py:344` reads the `roles` array from `GET /api/resource/User/{id}`. Priority order: System Manager > Service Manager > Sales Manager > Projects Manager > HR Manager > Engineer/Технік > Директор > Бухгалтер > Склад > viewer. Ukrainian Frappe role names (Технік/Директор/Бухгалтер/Склад) are already handled — do not add duplicates.
 
 ### Custom Frappe App (`erpnext/security_erp/`)
 
@@ -151,6 +153,46 @@ The `security-api` container reads its own `.env` for:
 
 - `/api/v1/*` — legacy proxy routes (deprecated, marked with `X-Deprecated: true` response header)
 - `/api/v2/*` — current typed FastAPI routes
+
+## Redis Key Namespaces (security-api)
+
+Convention: namespace-prefixed keys prevent cross-feature collisions.
+
+| Prefix | Purpose | Example |
+|--------|---------|---------|
+| `rl:login:{ip}` | Login rate limit (sliding window) | max=5/900s |
+| `rl:refresh:{user_id}` | Refresh rate limit | max=30/900s |
+| `rt:bl:{jti}` | Refresh token blacklist (reuse-detection) | TTL = remaining JWT exp |
+| `rt:sess:{user_id}:{device_id}` | Active device session JSON | TTL = refresh token TTL |
+| `rt:devices:{user_id}` | Set of active device_ids for a user | no TTL (managed by revoke) |
+| `frappe:sid:{user_id}` | Cached Frappe SID per user | TTL = 6h (`frappe_session_ttl`) |
+| `act:tok:{token}` | Vault Access Transfer Act delivery token | TTL = 86400s |
+| `vault:mfa:{token}` | Vault MFA step-up session | TTL = 300s (`vault_mfa_ttl`) |
+
+Rate limit config lives in `app/core/config.py` (`rate_limit_login_max`, `rate_limit_login_window`, etc.).
+
+## CI Gate Pattern (infra-dependent features)
+
+When a feature requires Redis/DB to integration-test, use a **grep gate** in CI instead of a live-Redis test:
+
+```yaml
+- name: R4 CI gate — check_rate_limit wired on login and refresh
+  run: |
+    python -c "
+    content = open('services/security-api/app/routes/auth.py').read()
+    assert 'rl:login:' in content, 'login rate-limit key missing'
+    assert 'rl:refresh:' in content, 'refresh rate-limit key missing'
+    print('R4 gate OK')
+    "
+```
+
+Unit test the logic (mock `check_rate_limit` at call site) + grep gate = sufficient CI evidence. Real integration tests → staging/E9.
+
+## Test Environment Notes
+
+- `requirements-test.txt` must include ALL packages that `app/main.py` imports at module level (not just test-specific deps). When a test's `tearDown` does `from app.main import app`, any missing package causes ERROR in tearDown even if the test itself passed.
+- Current omission fixed: `prometheus-client>=0.20.0` was in `services/security-api/requirements.txt` but not in `requirements-test.txt`. Now synced.
+- Redis pipeline mock pattern: use `MagicMock()` for sync-queued commands (`zadd`, `zremrangebyscore`, `zcard`, `expire`) and `AsyncMock()` only for `execute()`. Using `AsyncMock` for queued commands causes `RuntimeWarning: coroutine never awaited`.
 
 ## Кодування — правила якості (незмінні)
 

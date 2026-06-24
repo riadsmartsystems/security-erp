@@ -1,0 +1,31 @@
+{
+    "name": "Checklist Instance",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "istable": 0,
+    "autoname": "field:client_uuid",
+    "fields": [
+        {"fieldname": "client_uuid", "fieldtype": "Data", "label": "Client UUID", "reqd": 1, "unique": 1, "in_list_view": 1},
+        {"fieldname": "template", "fieldtype": "Link", "label": "Template", "options": "Checklist Template", "in_list_view": 1},
+        {"fieldname": "visit", "fieldtype": "Link", "label": "Visit", "options": "Visit"},
+        {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+        {"fieldname": "passport", "fieldtype": "Link", "label": "Object Passport", "options": "Object Passport"},
+        {"fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "\nopen\ncompleted", "default": "open", "in_list_view": 1},
+        {"fieldname": "section_items", "fieldtype": "Section Break", "label": "Instance Items"},
+        {"fieldname": "instance_items", "fieldtype": "Table", "label": "Instance Items", "options": "Checklist Instance Item"},
+        {"fieldname": "section_sync", "fieldtype": "Section Break", "label": "Sync Metadata"},
+        {"fieldname": "riad_version", "fieldtype": "Int", "label": "RIAD Version", "default": "0", "read_only": 1},
+        {"fieldname": "riad_deleted", "fieldtype": "Check", "label": "Deleted", "default": "0", "read_only": 1},
+        {"fieldname": "riad_deleted_at", "fieldtype": "Datetime", "label": "Deleted At", "read_only": 1}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+        {"role": "Service Manager", "read": 1, "write": 1, "create": 1}
+    ],
+    "title_field": "template",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 0
+}

@@ -1,51 +1,18 @@
 """
 erpnext/security_erp/security_erp/ai/circuit_breaker.py
 
-FIX 2.5: Add sync methods (is_available_sync, record_success_sync, etc.)
-alongside existing async methods. Uses same Redis Lua scripts for atomicity.
+Multi-provider Circuit Breaker backed by Redis.
+Key format: cb:provider:{name}  (one hash per provider)
+Fields: state (closed/open/half_open), failures (int), opened_at (unix float)
 
-ROOT CAUSE: Async methods (is_available, record_success) use aioredis —
-not callable in gevent/RQ context without event loop.
-Sync methods use redis.Redis (sync client, gevent-safe via socket patching).
+Two API surfaces:
+  Async — for AIOrchestrator.execute() (FastAPI path)
+  Sync  — for _run_orchestrator_sync() in ai_estimate.py (RQ / gevent path)
 """
 
 import time
+from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
-
-# Existing Lua scripts — reused by both sync and async methods
-_LUA_CHECK = """
-local key = KEYS[1]
-local now = tonumber(ARGV[1])
-local state = redis.call('HGET', key, 'state')
-if state == 'open' then
-    local reset_at = tonumber(redis.call('HGET', key, 'reset_at') or '0')
-    if now >= reset_at then
-        redis.call('HSET', key, 'state', 'half_open')
-        return 'half_open'
-    end
-    return 'open'
-end
-return state or 'closed'
-"""
-
-_LUA_RECORD = """
-local key = KEYS[1]
-local result = ARGV[1]
-local now = tonumber(ARGV[2])
-local fail_threshold = tonumber(ARGV[3])
-local reset_timeout = tonumber(ARGV[4])
-if result == 'success' then
-    redis.call('HSET', key, 'state', 'closed', 'failures', '0')
-    return 'closed'
-end
-local failures = tonumber(redis.call('HINCRBY', key, 'failures', 1))
-if failures >= fail_threshold then
-    redis.call('HSET', key, 'state', 'open', 'reset_at', tostring(now + reset_timeout))
-    return 'open'
-end
-return 'closed'
-"""
 
 
 class CBState(str, Enum):
@@ -54,66 +21,77 @@ class CBState(str, Enum):
     HALF_OPEN = "half_open"
 
 
+@dataclass
+class CBStateData:
+    state: str
+    failures: int
+
+
 class CircuitBreaker:
-    def __init__(
-        self,
-        redis_client,  # can be redis.Redis (sync) or aioredis.Redis (async)
-        provider_name: str,
-        fail_threshold: int = 5,
-        reset_timeout: int = 60,
-    ):
+    def __init__(self, redis_client, fail_threshold: int = 5, reset_timeout: int = 60):
         self.r = redis_client
-        self.key = f"cb:{provider_name}"
         self.fail_threshold = fail_threshold
         self.reset_timeout = reset_timeout
 
-    # ── SYNC methods (gevent-safe) ──────────────────────────────────────────
+    def _key(self, name: str) -> str:
+        return f"cb:provider:{name}"
 
-    def is_available_sync(self) -> bool:
-        """Check if provider is available. Safe in gevent/RQ context."""
-        state = self.get_state_sync()
-        return state != CBState.OPEN
+    # ── ASYNC methods (FastAPI / AIOrchestrator path) ──────────────────────────
 
-    def get_state_sync(self) -> CBState:
-        script = self.r.register_script(_LUA_CHECK)
-        state = script(keys=[self.key], args=[int(time.time())])
-        return CBState(state or "closed")
+    async def get_state(self, name: str) -> CBStateData:
+        raw = await self.r.hgetall(self._key(name))
+        state = raw.get("state", "closed")
+        failures = int(raw.get("failures", 0))
+        return CBStateData(state=state, failures=failures)
 
-    def record_success_sync(self):
-        script = self.r.register_script(_LUA_RECORD)
-        script(
-            keys=[self.key],
-            args=["success", int(time.time()), self.fail_threshold, self.reset_timeout],
-        )
+    async def should_skip(self, name: str) -> bool:
+        """True when CB is open AND reset timeout has not elapsed (don't probe yet)."""
+        raw = await self.r.hgetall(self._key(name))
+        state = raw.get("state", "closed")
+        if state == "open":
+            opened_at = float(raw.get("opened_at", 0))
+            if time.time() - opened_at >= self.reset_timeout:
+                return False  # allow probe attempt
+        return state == "open"
 
-    def record_failure_sync(self):
-        script = self.r.register_script(_LUA_RECORD)
-        script(
-            keys=[self.key],
-            args=["failure", int(time.time()), self.fail_threshold, self.reset_timeout],
-        )
+    async def try_probe(self, name: str) -> str:
+        """Transition open→half_open when reset timeout has elapsed; return new state."""
+        key = self._key(name)
+        raw = await self.r.hgetall(key)
+        state = raw.get("state", "closed")
+        if state == "open":
+            opened_at = float(raw.get("opened_at", 0))
+            if time.time() - opened_at >= self.reset_timeout:
+                await self.r.hset(key, "state", "half_open")
+                return "half_open"
+            return "open"
+        return state
 
-    # ── ASYNC methods (for potential future async contexts) ─────────────────
+    async def record_failure(self, name: str) -> None:
+        key = self._key(name)
+        failures = await self.r.hincrby(key, "failures", 1)
+        if int(failures) >= self.fail_threshold:
+            await self.r.hset(key, mapping={"state": "open", "opened_at": str(time.time())})
 
-    async def is_available(self) -> bool:
-        state = await self.get_state()
-        return state != CBState.OPEN
+    async def record_success(self, name: str) -> None:
+        await self.r.hset(self._key(name), mapping={"state": "closed", "failures": "0"})
 
-    async def get_state(self) -> CBState:
-        script = self.r.register_script(_LUA_CHECK)
-        state = await script(keys=[self.key], args=[int(time.time())])
-        return CBState(state or "closed")
+    # ── SYNC methods (RQ / gevent path in ai_estimate.py) ─────────────────────
 
-    async def record_success(self):
-        script = self.r.register_script(_LUA_RECORD)
-        await script(
-            keys=[self.key],
-            args=["success", int(time.time()), self.fail_threshold, self.reset_timeout],
-        )
+    def is_available_sync(self, name: str) -> bool:
+        raw = self.r.hgetall(self._key(name))
+        state = raw.get("state", "closed")
+        if state == "open":
+            opened_at = float(raw.get("opened_at", 0))
+            if time.time() - opened_at >= self.reset_timeout:
+                return True  # allow probe
+        return state != "open"
 
-    async def record_failure(self):
-        script = self.r.register_script(_LUA_RECORD)
-        await script(
-            keys=[self.key],
-            args=["failure", int(time.time()), self.fail_threshold, self.reset_timeout],
-        )
+    def record_failure_sync(self, name: str) -> None:
+        key = self._key(name)
+        failures = self.r.hincrby(key, "failures", 1)
+        if int(failures) >= self.fail_threshold:
+            self.r.hset(key, mapping={"state": "open", "opened_at": str(time.time())})
+
+    def record_success_sync(self, name: str) -> None:
+        self.r.hset(self._key(name), mapping={"state": "closed", "failures": "0"})

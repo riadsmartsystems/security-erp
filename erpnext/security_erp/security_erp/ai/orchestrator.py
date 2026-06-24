@@ -12,7 +12,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 
-from security_erp.ai.adapters.base import AIResult, AbstractAIAdapter, timed_call
+from security_erp.ai.adapters.base import AIResult, AbstractAIAdapter
 from security_erp.ai.circuit_breaker import CBState, CircuitBreaker
 
 logger = logging.getLogger("ai.orchestrator")
@@ -44,7 +44,7 @@ class AIOrchestrator:
                 logger.info("Half-open probe for %s", name)
 
             try:
-                result = await asyncio.wait_for(timed_call(provider, task, payload, params), timeout=30.0)
+                result = await asyncio.wait_for(provider.complete(task, payload, params), timeout=30.0)
             except asyncio.TimeoutError:
                 logger.warning("Timeout for %s", name)
                 await self._cb.record_failure(name)

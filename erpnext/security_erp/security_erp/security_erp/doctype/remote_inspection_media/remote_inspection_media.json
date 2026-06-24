@@ -1,0 +1,13 @@
+{
+    "name": "Remote Inspection Media",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "istable": 1,
+    "fields": [
+        {"fieldname": "media", "fieldtype": "Link", "label": "Media", "options": "Media Asset", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "kind", "fieldtype": "Select", "label": "Kind", "options": "\nphoto\nvideo\naudio", "in_list_view": 1}
+    ],
+    "permissions": []
+}

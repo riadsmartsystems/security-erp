@@ -10,35 +10,25 @@ exactly like vault.py does for all vault operations.
 from fastapi import APIRouter, Depends, HTTPException
 from app.auth.dependencies import get_current_user
 from app.core.database import frappe_post
+from app.core.redis import get_redis
 from app.services.ai_orchestrator_service import (
     _anonymize_payload,
     sync_provider_health,
     write_ai_request_log,
 )
-from app.schemas.ai import AIExecuteRequest, AIExecuteResponse
+from app.schemas.ai import AIExecuteRequest, AIExecuteResponse, AIDegradationResponse
 
-router = APIRouter()
+router = APIRouter(prefix="/api/v2/ai")
 
 
 @router.post("/execute", response_model=AIExecuteResponse)
 async def execute_ai(
     request: AIExecuteRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    """
-    Thin proxy: security-api receives request, anonymizes PII,
-    then delegates to Frappe process via @whitelist API.
+    """Thin proxy: anonymize PII, delegate to Frappe @whitelist API."""
+    anonymized_payload = _anonymize_payload(request.task, request.payload)
 
-    Frappe process has security_erp on PYTHONPATH (via Dockerfile.backend .pth file),
-    runs orchestrator in its own sync context (gevent-safe), returns result.
-
-    This pattern is identical to how vault.py calls security_erp.vault.api.*
-    """
-    # 1. Anonymize PII before any external call (principle 6)
-    anonymized_payload = _anonymize_payload(request.payload)
-
-    # 2. Delegate to Frappe process — it has security_erp installed
-    #    Frappe's @whitelist handles sync execution in gevent context correctly
     try:
         result = await frappe_post(
             "/api/method/security_erp.ai.api.execute_ai",
@@ -46,18 +36,9 @@ async def execute_ai(
                 "task": request.task,
                 "payload": anonymized_payload,
                 "params": request.params or {},
-                "provider_preference": request.provider_preference,
             },
         )
     except Exception as e:
-        # Graceful degradation: log failure, return manual mode signal
-        await write_ai_request_log(
-            task=request.task,
-            provider="none",
-            status="error",
-            error=str(e),
-            user=current_user.get("name"),
-        )
         raise HTTPException(
             status_code=503,
             detail={
@@ -67,27 +48,91 @@ async def execute_ai(
             },
         )
 
-    # 3. Log the request (provider used, tokens, latency — returned by Frappe)
-    await write_ai_request_log(
-        task=request.task,
-        provider=result.get("provider_used", "unknown"),
-        status=result.get("status", "ok"),
-        tokens_used=result.get("tokens_used"),
-        latency_ms=result.get("latency_ms"),
-        user=current_user.get("name"),
-    )
-
     return AIExecuteResponse(
-        result=result.get("result"),
-        provider_used=result.get("provider_used"),
         status=result.get("status", "ok"),
-        manual_fallback=result.get("manual_fallback", False),
+        content=result.get("result", ""),
+        tokens=result.get("tokens_used", 0),
+        latency_ms=result.get("latency_ms", 0.0),
+        origin=result.get("provider_used", ""),
+        raw_meta=result.get("raw_meta", {}),
     )
 
 
 @router.get("/providers/health")
 async def get_providers_health(
-    current_user: dict = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     """Check health of all configured AI providers via Circuit Breaker state in Redis."""
-    return await sync_provider_health()
+    r = await get_redis()
+    sid = getattr(current_user, "frappe_sid", "")
+    return await sync_provider_health(r, sid)
+
+
+@router.get("/degradation", response_model=AIDegradationResponse)
+async def get_degradation(
+    current_user=Depends(get_current_user),
+    r=Depends(get_redis),
+):
+    """AI degradation level for UI badges."""
+    from app.core.database import frappe_get
+
+    sid = getattr(current_user, "frappe_sid", "")
+
+    try:
+        providers_resp = await frappe_get(
+            "/api/resource/AI Provider",
+            params={
+                "fields": '["name", "provider_name", "health_status", "priority"]',
+                "filters": '[["is_enabled", "=", 1]]',
+                "limit_page_length": 50,
+            },
+            sid=sid,
+        )
+    except Exception:
+        return AIDegradationResponse(
+            level="manual",
+            providers=[],
+            message="Неможливо отримати стан провайдерів. Ручний режим.",
+        )
+
+    providers = providers_resp.get("data", [])
+    open_count = 0
+    half_open_count = 0
+    result_providers = []
+
+    for p in providers:
+        name = p.get("provider_name", "")
+        cb_key = f"cb:provider:{name}"
+        raw = await r.hgetall(cb_key)
+        cb_state = raw.get("state", "closed") if raw else "closed"
+
+        health_map = {"closed": "healthy", "half_open": "degraded", "open": "down"}
+        health = health_map.get(cb_state, "healthy")
+
+        if cb_state == "open":
+            open_count += 1
+        elif cb_state == "half_open":
+            half_open_count += 1
+
+        result_providers.append({
+            "name": name,
+            "health": health,
+            "priority": p.get("priority", 0),
+        })
+
+    total = len(providers)
+    if open_count == total and total > 0:
+        level = "manual"
+        message = "Всі AI-провайдери недоступні. Перейдіть на ручний режим."
+    elif half_open_count > 0 or open_count > 0:
+        level = "fallback"
+        message = "Частково доступні AI-провайдери. Використовується резервний."
+    else:
+        level = "primary"
+        message = "Всі AI-провайдери працюють нормально."
+
+    return AIDegradationResponse(
+        level=level,
+        providers=result_providers,
+        message=message,
+    )

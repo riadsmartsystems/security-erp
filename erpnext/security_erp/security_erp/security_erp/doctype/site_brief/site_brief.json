@@ -1,0 +1,36 @@
+{
+    "name": "Site Brief",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "istable": 0,
+    "autoname": "naming_series:",
+    "naming_series": "SB-.######",
+    "fields": [
+        {"fieldname": "object_type", "fieldtype": "Select", "label": "Object Type", "options": "\napartment\nhouse\noffice\nwarehouse\nterritory", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "area_m2", "fieldtype": "Float", "label": "Area (m2)"},
+        {"fieldname": "cameras_count", "fieldtype": "Int", "label": "Cameras Count"},
+        {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+        {"fieldname": "camera_type", "fieldtype": "Select", "label": "Camera Type", "options": "\nIP\nanalog\nmixed"},
+        {"fieldname": "archive_days", "fieldtype": "Int", "label": "Archive Days"},
+        {"fieldname": "source", "fieldtype": "Select", "label": "Source", "options": "\ncalculator\nengineer\ninspection", "in_list_view": 1},
+        {"fieldname": "section_features", "fieldtype": "Section Break", "label": "Features"},
+        {"fieldname": "access_control", "fieldtype": "Check", "label": "Access Control", "default": "0"},
+        {"fieldname": "intercom", "fieldtype": "Check", "label": "Intercom", "default": "0"},
+        {"fieldname": "alarm", "fieldtype": "Check", "label": "Alarm", "default": "0"},
+        {"fieldname": "network_needed", "fieldtype": "Check", "label": "Network Needed", "default": "0"},
+        {"fieldname": "power_backup", "fieldtype": "Check", "label": "Power Backup", "default": "0"},
+        {"fieldname": "section_notes", "fieldtype": "Section Break", "label": "Notes"},
+        {"fieldname": "tech_notes", "fieldtype": "Small Text", "label": "Technical Notes"},
+        {"fieldname": "lead", "fieldtype": "Link", "label": "Lead", "options": "Lead"}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+        {"role": "Service Manager", "read": 1, "write": 1, "create": 1}
+    ],
+    "title_field": "object_type",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 0
+}

@@ -5,7 +5,7 @@ import anthropic
 
 @frappe.whitelist()
 def generate_ai_estimate(doc_name):
-    doc = frappe.get_doc("Estimate", doc_name)
+    doc = frappe.get_doc("AI Estimate", doc_name)
     tz = doc.get("tz_text") or ""
     if not tz:
         frappe.throw("Заповніть поле «Технічне завдання» перед генерацією.")

@@ -1,0 +1,28 @@
+{
+    "name": "Object Passport",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "istable": 0,
+    "autoname": "naming_series:",
+    "naming_series": "PASS-.######",
+    "fields": [
+        {"fieldname": "security_object", "fieldtype": "Link", "label": "Security Object", "options": "Security Object", "in_list_view": 1, "search_index": 1},
+        {"fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "\nlead\ndesign\ninstalled\nservice\narchive", "default": "lead", "in_list_view": 1},
+        {"fieldname": "site_brief", "fieldtype": "Link", "label": "Site Brief", "options": "Site Brief"},
+        {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+        {"fieldname": "installation_map", "fieldtype": "Link", "label": "Installation Map", "options": "Installation Map"},
+        {"fieldname": "warranty_summary", "fieldtype": "Small Text", "label": "Warranty Summary"},
+        {"fieldname": "section_notes", "fieldtype": "Section Break", "label": "Notes"},
+        {"fieldname": "internal_notes", "fieldtype": "Text", "label": "Internal Notes"}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+        {"role": "Service Manager", "read": 1, "write": 1, "create": 1}
+    ],
+    "title_field": "security_object",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 0
+}

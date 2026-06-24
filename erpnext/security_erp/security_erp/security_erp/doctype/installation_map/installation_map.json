@@ -1,0 +1,30 @@
+{
+    "name": "Installation Map",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "istable": 0,
+    "autoname": "naming_series:",
+    "naming_series": "IMAP-.######",
+    "fields": [
+        {"fieldname": "passport", "fieldtype": "Link", "label": "Object Passport", "options": "Object Passport", "in_list_view": 1, "search_index": 1},
+        {"fieldname": "base_plan_media", "fieldtype": "Link", "label": "Base Plan Media", "options": "Media Asset"},
+        {"fieldname": "map_kind", "fieldtype": "Select", "label": "Map Kind", "options": "\nfloor_plan\nterritory\nhybrid", "default": "floor_plan", "in_list_view": 1},
+        {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+        {"fieldname": "approved_by", "fieldtype": "Link", "label": "Approved By", "options": "User", "read_only": 1},
+        {"fieldname": "approved_at", "fieldtype": "Datetime", "label": "Approved At", "read_only": 1},
+        {"fieldname": "section_points", "fieldtype": "Section Break", "label": "Mount Points"},
+        {"fieldname": "mount_points", "fieldtype": "Table", "label": "Mount Points", "options": "Mount Point"},
+        {"fieldname": "section_routes", "fieldtype": "Section Break", "label": "Cable Routes"},
+        {"fieldname": "cable_routes", "fieldtype": "Table", "label": "Cable Routes", "options": "Cable Route"}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+        {"role": "Service Manager", "read": 1, "write": 1, "create": 1}
+    ],
+    "title_field": "passport",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 0
+}

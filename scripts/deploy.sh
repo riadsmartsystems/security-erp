@@ -13,6 +13,9 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
+set -a; source .env; set +a
+MARIADB_ROOT_PASSWORD="${MARIADB_ROOT_PASSWORD:-${MYSQL_ROOT_PASSWORD:-}}"
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
@@ -39,7 +42,7 @@ echo ""
 # ---------------------------------------------------------------------------
 # Step 1: Pull latest code
 # ---------------------------------------------------------------------------
-echo "[1/6] Pulling latest code..."
+echo "[1/7] Pulling latest code..."
 cd "$PROJECT_DIR"
 git pull origin master 2>/dev/null || git pull origin main 2>/dev/null || echo "  (git pull skipped — not a git repo or no remote)"
 echo ""
@@ -47,21 +50,32 @@ echo ""
 # ---------------------------------------------------------------------------
 # Step 2: Rebuild Docker images
 # ---------------------------------------------------------------------------
-echo "[2/6] Rebuilding Docker images..."
+echo "[2/7] Rebuilding Docker images..."
 docker compose build --no-cache erpnext-backend 2>&1 | tail -3
 echo ""
 
 # ---------------------------------------------------------------------------
 # Step 3: Restart services
 # ---------------------------------------------------------------------------
-echo "[3/6] Restarting services..."
+echo "[3/7] Restarting services..."
 docker compose up -d 2>&1 | tail -5
 echo ""
 
 # ---------------------------------------------------------------------------
+# Step 3.5: Run bench migrate
+# ---------------------------------------------------------------------------
+if [ "$SKIP_MIGRATIONS" = false ]; then
+    echo "[3.5/7] Running bench migrate..."
+    docker exec erpnext-backend bench --site erp.localhost migrate 2>&1 | tail -20
+    echo ""
+else
+    echo "[3.5/7] Skipping bench migrate (--skip-migrations)"
+fi
+
+# ---------------------------------------------------------------------------
 # Step 4: Wait for health
 # ---------------------------------------------------------------------------
-echo "[4/6] Waiting for services to be healthy..."
+echo "[4/7] Waiting for services to be healthy..."
 for i in $(seq 1 30); do
     if curl -sf -H "Host: erp.localhost" http://localhost/api/method/ping > /dev/null 2>&1; then
         echo "  ERPNext: OK"
@@ -75,14 +89,14 @@ echo ""
 # Step 5: Fix ERPNext assets for Cloudflare
 # ---------------------------------------------------------------------------
 if [ "$SKIP_ASSETS" = false ]; then
-    echo "[5/6] Fixing ERPNext assets for Cloudflare..."
+    echo "[5/7] Fixing ERPNext assets for Cloudflare..."
     docker exec erpnext-backend bench set-config host_name https://erp.riad.fun 2>&1 | tail -1
     docker exec erpnext-backend bench build --force 2>&1 | tail -3
     "$SCRIPT_DIR/sync-erpnext-assets.sh" 2>/dev/null || echo "  (sync script not found — manual sync needed)"
     docker restart erpnext-frontend > /dev/null 2>&1
     echo "  Assets rebuilt and synced."
 else
-    echo "[5/6] Skipping asset rebuild (--skip-assets)"
+    echo "[5/7] Skipping asset rebuild (--skip-assets)"
 fi
 echo ""
 
@@ -90,7 +104,7 @@ echo ""
 # Step 6: Run migrations (optional)
 # ---------------------------------------------------------------------------
 if [ "$SKIP_MIGRATIONS" = false ]; then
-    echo "[6/6] Data migration (if CSV files present)..."
+    echo "[6/7] Data migration (if CSV files present)..."
     MIGRATION_DIR="$SCRIPT_DIR/migration"
     if [ -d "$MIGRATION_DIR" ]; then
         cd "$MIGRATION_DIR"
@@ -106,8 +120,16 @@ if [ "$SKIP_MIGRATIONS" = false ]; then
         echo "  (migration directory not found — skipping)"
     fi
 else
-    echo "[6/6] Skipping migrations (--skip-migrations)"
+    echo "[6/7] Skipping migrations (--skip-migrations)"
 fi
+
+# ---------------------------------------------------------------------------
+# Step 7: Verify durability
+echo "[7/7] Verifying durability..."
+MARIADB_CONTAINER=$(docker ps --format '{{.Names}}' | grep -m1 'mariadb' || echo "mariadb")
+REDIS_CONTAINER=$(docker ps --format '{{.Names}}' | grep -m1 'redis' || echo "redis")
+docker exec "$MARIADB_CONTAINER" mysql -u root -p"${MARIADB_ROOT_PASSWORD}" -e "SHOW VARIABLES LIKE 'log_bin';" 2>/dev/null | grep -q "ON" && echo "  binlog: OK" || echo "  binlog: WARNING"
+docker exec "$REDIS_CONTAINER" redis-cli CONFIG GET appendonly 2>/dev/null | grep -q "yes" && echo "  Redis AOF: OK" || echo "  Redis AOF: WARNING"
 
 # ---------------------------------------------------------------------------
 # Summary

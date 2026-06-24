@@ -17,7 +17,6 @@ SOLUTION:
 import json
 import time
 import frappe
-import redis
 from security_erp.ai.adapters.gemini import GeminiAdapter
 from security_erp.ai.adapters.stub import StubAdapter
 from security_erp.ai.circuit_breaker import CircuitBreaker
@@ -25,15 +24,16 @@ from security_erp.ai.adapters.base import AIResult, timed_call
 
 
 def _get_redis_sync():
+    import redis  # lazy — not available outside Docker; avoids import error in tests
     redis_url = frappe.conf.get("redis_cache") or "redis://localhost:6379"
     return redis.Redis.from_url(redis_url, decode_responses=True)
 
 
 def _get_providers_sync():
-    """Load active providers — sync, safe in RQ context."""
+    """Load enabled providers — sync, safe in RQ context."""
     providers_data = frappe.get_all(
         "AI Provider",
-        filters={"is_active": 1},
+        filters={"is_enabled": 1},
         fields=["name", "provider_type", "api_key_enc", "model", "priority"],
         order_by="priority asc",
     )
@@ -103,7 +103,7 @@ def run_ai_estimate(estimate_name: str):
     RQ entry point: generate AI estimate for a given Estimate document.
     Called via frappe.enqueue().
     """
-    doc = frappe.get_doc("Estimate", estimate_name)
+    doc = frappe.get_doc("AI Estimate", estimate_name)
 
     if doc.status != "Draft":
         return
@@ -127,7 +127,7 @@ def run_ai_estimate(estimate_name: str):
     is_manual_fallback = result.provider == "none" or result.content.startswith("[MANUAL]")
 
     frappe.db.set_value(
-        "Estimate",
+        "AI Estimate",
         estimate_name,
         {
             "ai_result": result.content,
@@ -137,3 +137,20 @@ def run_ai_estimate(estimate_name: str):
         },
     )
     frappe.db.commit()
+
+
+@frappe.whitelist()
+def enqueue_ai_estimate(estimate_name: str, site_brief: str = "", variant: str = "standard"):
+    """Frappe-whitelisted entrypoint called by estimate_service.py on sync timeout.
+
+    Enqueues run_ai_estimate as an RQ background job so the HTTP request can return
+    immediately with status='pending' while AI generation continues asynchronously.
+    site_brief and variant are accepted for API compatibility but run_ai_estimate
+    reads the doc directly from Frappe — they are not forwarded to avoid duplication.
+    """
+    frappe.enqueue(
+        "security_erp.tasks.ai_estimate.run_ai_estimate",
+        estimate_name=estimate_name,
+        queue="long",
+        timeout=600,
+    )

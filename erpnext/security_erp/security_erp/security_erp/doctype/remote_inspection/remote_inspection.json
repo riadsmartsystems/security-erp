@@ -1,0 +1,32 @@
+{
+    "name": "Remote Inspection",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "istable": 0,
+    "autoname": "naming_series:",
+    "naming_series": "RINSP-.######",
+    "fields": [
+        {"fieldname": "passport", "fieldtype": "Link", "label": "Object Passport", "options": "Object Passport", "in_list_view": 1, "search_index": 1},
+        {"fieldname": "lead", "fieldtype": "Link", "label": "Lead", "options": "Lead"},
+        {"fieldname": "engineer", "fieldtype": "Link", "label": "Engineer", "options": "User", "in_list_view": 1},
+        {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+        {"fieldname": "date", "fieldtype": "Datetime", "label": "Date", "in_list_view": 1},
+        {"fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "\ndraft\nawaiting_ai\ndone\nmanual", "default": "draft", "in_list_view": 1},
+        {"fieldname": "transcription_status", "fieldtype": "Select", "label": "Transcription Status", "options": "\nnone\npending\ndone\nmanual", "default": "none"},
+        {"fieldname": "section_reports", "fieldtype": "Section Break", "label": "Reports"},
+        {"fieldname": "ai_report", "fieldtype": "Text", "label": "AI Report", "read_only": 1},
+        {"fieldname": "manual_report", "fieldtype": "Text", "label": "Manual Report"},
+        {"fieldname": "section_media", "fieldtype": "Section Break", "label": "Media"},
+        {"fieldname": "inspection_media", "fieldtype": "Table", "label": "Inspection Media", "options": "Remote Inspection Media"}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+        {"role": "Service Manager", "read": 1, "write": 1, "create": 1}
+    ],
+    "title_field": "passport",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 0
+}

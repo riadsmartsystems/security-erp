@@ -1,0 +1,25 @@
+--- a/erpnext/security_erp/security_erp/tasks/transcribe.py
++++ b/erpnext/security_erp/security_erp/tasks/transcribe.py
+@@ line 63-68 @@
+     except requests.exceptions.ConnectionError:
+         frappe.log_error("Whisper service unavailable", "Transcribe")
+-        _set_status(doc, "error")
++        _set_status(doc, "manual")
+         return
+
+@@ line 82-87 @@
+     except Exception as e:
+         frappe.log_error(f"Transcription failed: {e}", "Transcribe")
+-        _set_status(doc, "error")
++        _set_status(doc, "manual")
+         return
+
+# REASON:
+# Media Asset.transcription_status is a Select field with options: none|pending|done|manual
+# "error" is NOT a valid option. db_set() bypasses validation and writes invalid data to DB.
+# "manual" is the correct fallback: means "needs manual text input", which is exactly what
+# should happen when Whisper fails. UI filters will now work correctly.
+#
+# SQL migration for existing bad records (run once):
+# UPDATE `tabMedia Asset` SET transcription_status = 'manual'
+# WHERE transcription_status = 'error';

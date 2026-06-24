@@ -243,6 +243,31 @@ jobs:
           FRAPPE_URL: http://localhost:8000
           REDIS_URL: redis://localhost:6379
 
+      - name: Verify C2 TypeScript (Next.js)
+        working-directory: riad_web
+        run: npx tsc --noEmit
+
+      - name: Run C2 Next.js tests
+        working-directory: riad_web
+        run: npm test
+
+      - name: Build C2 Next.js site
+        working-directory: riad_web
+        run: npm run build
+
+      - name: FIX-7 CI gate — durability configs present
+        run: |
+          python -c "
+          mariadb = open('configs/mariadb.cnf').read()
+          redis = open('configs/redis.conf').read()
+          assert 'log_bin' in mariadb, 'log_bin missing'
+          assert 'binlog_format' in mariadb, 'binlog_format missing'
+          assert 'ROW' in mariadb, 'binlog_format != ROW'
+          assert 'appendonly' in redis, 'appendonly missing'
+          assert 'appendfsync' in redis, 'appendfsync missing'
+          print('FIX-7 gate: OK')
+          "
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:

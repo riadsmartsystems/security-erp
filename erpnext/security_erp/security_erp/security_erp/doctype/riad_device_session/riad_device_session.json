@@ -1,0 +1,32 @@
+{
+    "name": "RIAD Device Session",
+    "module": "Security ERP",
+    "doctype": "DocType",
+    "document_type": "Document",
+    "engine": "InnoDB",
+    "istable": 0,
+    "autoname": "naming_series:",
+    "naming_series": "RDS-.######",
+    "fields": [
+        {"fieldname": "user", "fieldtype": "Link", "label": "User", "options": "User", "reqd": 1, "in_list_view": 1, "search_index": 1},
+        {"fieldname": "device_id", "fieldtype": "Data", "label": "Device ID", "reqd": 1, "in_list_view": 1},
+        {"fieldname": "platform", "fieldtype": "Select", "label": "Platform", "options": "\nandroid\nweb\nios", "in_list_view": 1},
+        {"fieldname": "column_break_1", "fieldtype": "Column Break"},
+        {"fieldname": "jwt_jti", "fieldtype": "Data", "label": "JWT JTI"},
+        {"fieldname": "ip_address", "fieldtype": "Data", "label": "IP Address"},
+        {"fieldname": "created_at", "fieldtype": "Datetime", "label": "Created At", "read_only": 1},
+        {"fieldname": "last_seen_at", "fieldtype": "Datetime", "label": "Last Seen At", "read_only": 1},
+        {"fieldname": "section_status", "fieldtype": "Section Break", "label": "Status"},
+        {"fieldname": "revoked", "fieldtype": "Check", "label": "Revoked", "default": "0", "in_list_view": 1},
+        {"fieldname": "revoke_reason", "fieldtype": "Small Text", "label": "Revoke Reason", "read_only": 1},
+        {"fieldname": "revoked_at", "fieldtype": "Datetime", "label": "Revoked At", "read_only": 1},
+        {"fieldname": "push_token", "fieldtype": "Data", "label": "Push Token (FCM)"}
+    ],
+    "permissions": [
+        {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1}
+    ],
+    "title_field": "device_id",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 0
+}

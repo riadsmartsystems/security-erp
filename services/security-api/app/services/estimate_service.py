@@ -37,7 +37,7 @@ async def build_estimate(
     brief_data = site_brief.get("data", {})
 
     estimate_doc = {
-        "doctype": "Estimate",
+        "doctype": "AI Estimate",
         "status": "Draft",
         "origin": "manual",
         "variant": variant,
@@ -46,7 +46,7 @@ async def build_estimate(
         "notes": f"AI-generated from Site Brief: {site_brief_name}",
     }
 
-    created = await frappe_post("/api/resource/Estimate", data=estimate_doc, sid=sid)
+    created = await frappe_post("/api/resource/AI Estimate", data=estimate_doc, sid=sid)
     estimate_name = created.get("data", {}).get("name", "")
 
     if not estimate_name:
@@ -81,19 +81,19 @@ async def build_estimate(
             try:
                 parsed = json.loads(content)
                 await frappe_put(
-                    f"/api/resource/Estimate/{estimate_name}",
+                    f"/api/resource/AI Estimate/{estimate_name}",
                     data={"ai_result": json.dumps(parsed, ensure_ascii=False)},
                     sid=sid,
                 )
             except (json.JSONDecodeError, TypeError):
                 await frappe_put(
-                    f"/api/resource/Estimate/{estimate_name}",
+                    f"/api/resource/AI Estimate/{estimate_name}",
                     data={"ai_result": content},
                     sid=sid,
                 )
 
         await frappe_put(
-            f"/api/resource/Estimate/{estimate_name}",
+            f"/api/resource/AI Estimate/{estimate_name}",
             data={"origin": est_origin},
             sid=sid,
         )
@@ -130,7 +130,7 @@ async def review_estimate(
 
     Validates: origin != manual AND ai_result is not empty.
     """
-    est = await frappe_get(f"/api/resource/Estimate/{name}", sid=sid)
+    est = await frappe_get(f"/api/resource/AI Estimate/{name}", sid=sid)
     data = est.get("data", {})
 
     origin = data.get("origin", "manual")
@@ -143,7 +143,7 @@ async def review_estimate(
     new_status = status_map[decision]
 
     await frappe_put(
-        f"/api/resource/Estimate/{name}",
+        f"/api/resource/AI Estimate/{name}",
         data={
             "status": new_status,
             "reviewed_by": user_id,
@@ -163,7 +163,7 @@ async def confirm_estimate(
 
     Hard boundary: status must be 'Approved' AND reviewed_by must be present.
     """
-    est = await frappe_get(f"/api/resource/Estimate/{name}", sid=sid)
+    est = await frappe_get(f"/api/resource/AI Estimate/{name}", sid=sid)
     data = est.get("data", {})
 
     status_val = data.get("status", "")

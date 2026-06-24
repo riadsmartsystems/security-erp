@@ -1,28 +1,30 @@
 """
 erpnext/security_erp/security_erp/ai/adapters/base.py
 
-FIX 2.5: Add complete_sync() to AbstractAIAdapter.
+AbstractAIAdapter + AIResult + timed_call.
 
-ROOT CAUSE: _run_orchestrator_sync() in ai_estimate.py calls provider.complete_sync()
-which doesn't exist. hasattr() always returns False → falls to asyncio.run() fallback
-→ gevent deadlock.
+Two execution paths:
+  - Async (FastAPI / orchestrator): await provider.complete(task, payload, params)
+  - Sync  (RQ / gevent):           provider.complete_sync(task, payload, params)
 
-SOLUTION: Add complete_sync() as abstract method. Each adapter implements it using
-httpx (sync HTTP client) instead of aiohttp/httpx async.
+timed_call() is sync — used by _run_orchestrator_sync() in ai_estimate.py.
+The async orchestrator calls provider.complete() directly.
 """
 
 import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 
 @dataclass
 class AIResult:
-    content: str
-    tokens_used: Optional[int] = None
-    latency_ms: Optional[int] = None
-    provider: Optional[str] = None
+    status: str = "ok"
+    content: str = ""
+    tokens: int = 0
+    latency_ms: float = 0.0
+    provider: str = ""
+    raw_meta: dict = field(default_factory=dict)
 
 
 class AbstractAIAdapter(ABC):
@@ -31,28 +33,31 @@ class AbstractAIAdapter(ABC):
     provider_name: str = "abstract"
 
     @abstractmethod
-    async def complete(self, task: str, payload: dict, params: Optional[dict]) -> AIResult:
-        """Async version — used when called from async context."""
+    def name(self) -> str:
         ...
 
     @abstractmethod
-    def complete_sync(self, task: str, payload: dict, params: Optional[dict]) -> AIResult:
-        """
-        Sync version — used in:
-        - Frappe @whitelist handlers (gevent, no event loop)
-        - RQ workers (gevent, no event loop)
-
-        Implement using httpx.post() (sync), NOT aiohttp or async httpx.
-        """
+    async def complete(self, task: str, payload: dict, params: Optional[dict] = None) -> AIResult:
+        """Async version — used by AIOrchestrator.execute() (FastAPI path)."""
         ...
 
+    def complete_sync(self, task: str, payload: dict, params: Optional[dict] = None) -> AIResult:
+        """Sync version — used in RQ/gevent context (no event loop).
+        Override in adapters that need to run in RQ workers.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__}.complete_sync() not implemented")
 
-def timed_call(adapter, task, payload, params):
-    """
-    Sync timed wrapper for complete_sync().
-    Replaces the async _timed_call() used with asyncio.run().
-    """
+    async def health_check(self) -> str:
+        return "unknown"
+
+
+def timed_call(adapter: AbstractAIAdapter, task: str, payload: dict, params: Optional[dict]) -> AIResult:
+    """Sync timed wrapper — called from _run_orchestrator_sync() (RQ path)."""
     start = time.monotonic()
     result = adapter.complete_sync(task, payload, params)
-    result.latency_ms = int((time.monotonic() - start) * 1000)
+    result.latency_ms = (time.monotonic() - start) * 1000
     return result
+
+
+TASK_PROJECT_BUILDER = "project_builder"
+TASK_INSPECTION_REPORT = "inspection_report"
