@@ -9,7 +9,7 @@ exactly like vault.py does for all vault operations.
 
 from fastapi import APIRouter, Depends, HTTPException
 from app.auth.dependencies import get_current_user
-from app.core.database import frappe_post, frappe_delete
+from app.core.database import frappe_post, frappe_put, frappe_delete
 from app.core.redis import get_redis
 from app.services.ai_orchestrator_service import (
     _anonymize_payload,
