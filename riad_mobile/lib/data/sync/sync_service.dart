@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:drift/drift.dart';
 import '../local/database.dart';
 import 'sync_client.dart';
 import 'media_upload_service.dart';

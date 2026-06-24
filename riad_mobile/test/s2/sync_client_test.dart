@@ -34,7 +34,7 @@ void main() {
 
   group('pull_creates_local_record', () {
     test('pull з новим документом створює запис у Drift', () async {
-      final deviceId = await db.getDeviceId();
+      await db.getDeviceId();
 
       when(mockClient.post(
         any,

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:drift/drift.dart' hide isNotNull, isNull;
+import 'package:drift/drift.dart' hide isNotNull, isNull, Column;
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
@@ -67,12 +67,12 @@ class _VoiceNoteScreenState extends State<VoiceNoteScreen> {
 
     await widget.db.upsertMediaAsset(MediaAssetsCompanion.insert(
       clientUuid: clientUuid,
-      mediaType: 'audio',
-      parentDoctype: widget.parentDoctype ?? '',
-      parentName: widget.parentName ?? '',
-      localPath: localPath,
+      mediaType: const Value('audio'),
+      parentDoctype: Value(widget.parentDoctype ?? ''),
+      parentName: Value(widget.parentName ?? ''),
+      localPath: Value(localPath),
       aiAllowed: const Value(false),
-      transcriptionStatus: Value('pending'),
+      transcriptionStatus: const Value('pending'),
     ));
 
     await widget.db.createPendingMediaUpload(PendingMediaUploadsCompanion.insert(

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:drift/drift.dart' hide isNotNull, isNull;
 import '../../data/local/database.dart';
 
 class VisitDetailScreen extends StatefulWidget {

@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
-import 'package:uuid/uuid.dart';
 import '../../data/local/database.dart';
 
 class ChecklistScreen extends StatelessWidget {

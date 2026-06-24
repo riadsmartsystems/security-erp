@@ -65,11 +65,11 @@ class _CameraScreenState extends State<CameraScreen> {
 
     await widget.db.upsertMediaAsset(MediaAssetsCompanion.insert(
       clientUuid: clientUuid,
-      mediaType: 'photo',
-      tag: _selectedTag,
-      parentDoctype: widget.parentDoctype ?? '',
-      parentName: widget.parentName ?? '',
-      localPath: localPath,
+      mediaType: const Value('photo'),
+      tag: Value(_selectedTag),
+      parentDoctype: Value(widget.parentDoctype ?? ''),
+      parentName: Value(widget.parentName ?? ''),
+      localPath: Value(localPath),
       aiAllowed: const Value(false),
     ));
 

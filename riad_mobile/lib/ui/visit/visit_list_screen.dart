@@ -94,7 +94,7 @@ class _VisitCard extends StatelessWidget {
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: _statusColor(visit.status).withOpacity(0.2),
+            color: _statusColor(visit.status).withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(visit.status ?? 'чернетка', style: TextStyle(color: _statusColor(visit.status), fontSize: 12)),

@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:drift/drift.dart' hide isNotNull, isNull;
+import 'package:drift/drift.dart' hide isNotNull, isNull, Column;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:uuid/uuid.dart';
 import '../../data/local/database.dart';
@@ -56,7 +56,7 @@ class _ScanScreenState extends State<ScanScreen> {
           await widget.db.upsertVisitMaterial(VisitMaterialsCompanion.insert(
             clientUuid: clientUuid,
             visitUuid: widget.visitUuid,
-            serialNo: code,
+            serialNo: Value(code),
           ));
 
           await widget.db.createPendingOp(PendingOpsCompanion.insert(
