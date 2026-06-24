@@ -9,7 +9,7 @@ exactly like vault.py does for all vault operations.
 
 from fastapi import APIRouter, Depends, HTTPException
 from app.auth.dependencies import get_current_user
-from app.core.database import frappe_post
+from app.core.database import frappe_post, frappe_delete
 from app.core.redis import get_redis
 from app.services.ai_orchestrator_service import (
     _anonymize_payload,
@@ -136,3 +136,37 @@ async def get_degradation(
         providers=result_providers,
         message=message,
     )
+
+
+@router.post("/providers")
+async def create_provider(
+    request: dict,
+    current_user=Depends(get_current_user),
+):
+    """Create AI Provider via Frappe REST API."""
+    sid = getattr(current_user, "frappe_sid", "")
+    result = await frappe_post("/api/resource/AI Provider", data=request, sid=sid)
+    return result
+
+
+@router.put("/providers/{provider_name}")
+async def update_provider(
+    provider_name: str,
+    request: dict,
+    current_user=Depends(get_current_user),
+):
+    """Update AI Provider."""
+    sid = getattr(current_user, "frappe_sid", "")
+    result = await frappe_put(f"/api/resource/AI Provider/{provider_name}", data=request, sid=sid)
+    return result
+
+
+@router.delete("/providers/{provider_name}")
+async def delete_provider(
+    provider_name: str,
+    current_user=Depends(get_current_user),
+):
+    """Delete AI Provider."""
+    sid = getattr(current_user, "frappe_sid", "")
+    await frappe_delete(f"/api/resource/AI Provider/{provider_name}", sid=sid)
+    return {"status": "deleted"}
