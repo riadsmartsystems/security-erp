@@ -12,11 +12,21 @@ venv/
 dist/
 build/
 
+# Node
+node_modules/
+.next/
+out/
+
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+
+# Dart/Flutter
+.dart_tool/
+.packages
+build/
 
 # Docker
 *.log
