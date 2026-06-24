@@ -1,11 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/drift.dart' hide isNotNull, isNull;
+import 'package:drift/native.dart';
 import 'package:riad_mobile/data/local/database.dart';
 
 void main() {
   late RiadDatabase db;
 
   setUp(() async {
-    db = RiadDatabase.forTesting();
+    db = RiadDatabase.forTesting(NativeDatabase.memory());
   });
 
   tearDown(() async {
@@ -373,6 +375,89 @@ void main() {
             ..where((t) => t.clientUuid.equals('media-to-delete')))
           .getSingle();
       expect(asset.riadDeleted, true);
+    });
+  });
+
+  group('isTombstoned', () {
+    test('повертає true для видаленого Visit', () async {
+      await db.upsertVisit(VisitsCompanion.insert(clientUuid: 'vt-1'));
+      await db.softDeleteVisit('vt-1');
+      expect(await db.isTombstoned('vt-1'), true);
+    });
+
+    test('повертає false для активного Visit', () async {
+      await db.upsertVisit(VisitsCompanion.insert(clientUuid: 'vt-2'));
+      expect(await db.isTombstoned('vt-2'), false);
+    });
+
+    test('повертає true для material видаленого Visit', () async {
+      await db.upsertVisit(VisitsCompanion.insert(clientUuid: 'vt-3'));
+      await db.upsertVisitMaterial(VisitMaterialsCompanion.insert(
+        clientUuid: 'vm-1',
+        visitUuid: 'vt-3',
+      ));
+      await db.softDeleteVisit('vt-3');
+      expect(await db.isTombstoned('vm-1'), true);
+    });
+
+    test('повертає true для photo видаленого Visit', () async {
+      await db.upsertVisit(VisitsCompanion.insert(clientUuid: 'vt-4'));
+      await db.upsertVisitPhoto(VisitPhotosCompanion.insert(
+        clientUuid: 'vp-1',
+        visitUuid: 'vt-4',
+      ));
+      await db.softDeleteVisit('vt-4');
+      expect(await db.isTombstoned('vp-1'), true);
+    });
+
+    test('повертає true для item видаленого ChecklistInstance', () async {
+      await db.upsertChecklistInstance(ChecklistInstancesCompanion.insert(
+        clientUuid: 'ci-1',
+      ));
+      await db.upsertChecklistInstanceItem(ChecklistInstanceItemsCompanion.insert(
+        itemUuid: 'cii-1',
+        instanceUuid: 'ci-1',
+      ));
+      await db.softDeleteChecklistInstance('ci-1');
+      expect(await db.isTombstoned('cii-1'), true);
+    });
+
+    test('повертає true для point видаленої InstallationMap', () async {
+      await db.upsertInstallationMap(InstallationMapsCompanion.insert(
+        clientUuid: 'im-1',
+      ));
+      await db.upsertMountPoint(MountPointsCompanion.insert(
+        pointUuid: 'mp-1',
+        mapUuid: 'im-1',
+      ));
+      await db.softDeleteInstallationMap('im-1');
+      expect(await db.isTombstoned('mp-1'), true);
+    });
+
+    test('повертає true для route видаленої InstallationMap', () async {
+      await db.upsertInstallationMap(InstallationMapsCompanion.insert(
+        clientUuid: 'im-2',
+      ));
+      await db.upsertCableRoute(CableRoutesCompanion.insert(
+        routeUuid: 'cr-1',
+        mapUuid: 'im-2',
+      ));
+      await db.softDeleteInstallationMap('im-2');
+      expect(await db.isTombstoned('cr-1'), true);
+    });
+
+    test('повертає true для видаленого MediaAsset', () async {
+      await db.upsertMediaAsset(MediaAssetsCompanion.insert(
+        clientUuid: 'ma-1',
+        mediaType: const Value('photo'),
+        aiAllowed: const Value(false),
+      ));
+      await db.softDeleteMediaAsset('ma-1');
+      expect(await db.isTombstoned('ma-1'), true);
+    });
+
+    test('повертає false для неіснуючого UUID', () async {
+      expect(await db.isTombstoned('nonexistent'), false);
     });
   });
 }

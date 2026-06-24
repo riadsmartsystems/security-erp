@@ -7,14 +7,17 @@ class SyncClient {
   final RiadDatabase _db;
   final String _baseUrl;
   final String _jwtToken;
+  final http.Client _client;
 
   SyncClient({
     required RiadDatabase db,
     required String baseUrl,
     required String jwtToken,
+    http.Client? client,
   })  : _db = db,
         _baseUrl = baseUrl,
-        _jwtToken = jwtToken;
+        _jwtToken = jwtToken,
+        _client = client ?? http.Client();
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -25,7 +28,7 @@ class SyncClient {
     final watermark = await _db.getWatermark();
     final deviceId = await _db.getDeviceId();
 
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('$_baseUrl/api/v2/sync/pull'),
       headers: _headers,
       body: jsonEncode({
@@ -56,6 +59,7 @@ class SyncClient {
     final doctype = change['doctype'] as String;
     final name = change['name'] as String;
     final riadDeleted = change['riad_deleted'] == 1;
+    final riadVersion = change['riad_version'] as int? ?? 0;
 
     if (riadDeleted) {
       await _softDelete(doctype, name);
@@ -67,16 +71,16 @@ class SyncClient {
 
     switch (doctype) {
       case 'Visit':
-        await _upsertVisit(name, fields, additive);
+        await _upsertVisit(name, fields, additive, riadVersion);
         break;
       case 'Checklist Instance':
-        await _upsertChecklistInstance(name, fields, additive);
+        await _upsertChecklistInstance(name, fields, additive, riadVersion);
         break;
       case 'Installation Map':
-        await _upsertInstallationMap(name, fields, additive);
+        await _upsertInstallationMap(name, fields, additive, riadVersion);
         break;
       case 'Media Asset':
-        await _upsertMediaAsset(name, fields);
+        await _upsertMediaAsset(name, fields, riadVersion);
         break;
     }
   }
@@ -102,10 +106,11 @@ class SyncClient {
     String name,
     Map<String, dynamic>? fields,
     Map<String, dynamic>? additive,
+    int riadVersion,
   ) async {
     final visit = VisitsCompanion.insert(
       clientUuid: name,
-      riadVersion: Value(fields?['riad_version'] ?? 0),
+      riadVersion: Value(riadVersion),
       riadDeleted: Value(fields?['riad_deleted'] == 1),
       riadDeletedAt: Value(fields?['riad_deleted_at'] != null
           ? DateTime.parse(fields!['riad_deleted_at'])
@@ -173,10 +178,11 @@ class SyncClient {
     String name,
     Map<String, dynamic>? fields,
     Map<String, dynamic>? additive,
+    int riadVersion,
   ) async {
     final instance = ChecklistInstancesCompanion.insert(
       clientUuid: name,
-      riadVersion: Value(fields?['riad_version'] ?? 0),
+      riadVersion: Value(riadVersion),
       riadDeleted: Value(fields?['riad_deleted'] == 1),
       riadDeletedAt: Value(fields?['riad_deleted_at'] != null
           ? DateTime.parse(fields!['riad_deleted_at'])
@@ -223,10 +229,11 @@ class SyncClient {
     String name,
     Map<String, dynamic>? fields,
     Map<String, dynamic>? additive,
+    int riadVersion,
   ) async {
     final map = InstallationMapsCompanion.insert(
       clientUuid: name,
-      riadVersion: Value(fields?['riad_version'] ?? 0),
+      riadVersion: Value(riadVersion),
       riadDeleted: Value(fields?['riad_deleted'] == 1),
       riadDeletedAt: Value(fields?['riad_deleted_at'] != null
           ? DateTime.parse(fields!['riad_deleted_at'])
@@ -294,10 +301,11 @@ class SyncClient {
   Future<void> _upsertMediaAsset(
     String name,
     Map<String, dynamic>? fields,
+    int riadVersion,
   ) async {
     final asset = MediaAssetsCompanion.insert(
       clientUuid: name,
-      riadVersion: Value(fields?['riad_version'] ?? 0),
+      riadVersion: Value(riadVersion),
       riadDeleted: Value(fields?['riad_deleted'] == 1),
       riadDeletedAt: Value(fields?['riad_deleted_at'] != null
           ? DateTime.parse(fields!['riad_deleted_at'])
@@ -330,14 +338,22 @@ class SyncClient {
       };
     }).toList();
 
-    final response = await http.post(
-      Uri.parse('$_baseUrl/api/v2/sync/push'),
-      headers: _headers,
-      body: jsonEncode({
-        'device_id': await _db.getDeviceId(),
-        'batch': batch,
-      }),
-    );
+    http.Response response;
+    try {
+      response = await _client.post(
+        Uri.parse('$_baseUrl/api/v2/sync/push'),
+        headers: _headers,
+        body: jsonEncode({
+          'device_id': await _db.getDeviceId(),
+          'batch': batch,
+        }),
+      );
+    } catch (_) {
+      for (final op in pendingOps) {
+        await _db.updatePendingOpStatus(op.id, 'failed');
+      }
+      rethrow;
+    }
 
     if (response.statusCode != 200) {
       for (final op in pendingOps) {

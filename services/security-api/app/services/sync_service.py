@@ -70,6 +70,9 @@ def _encode_watermark(ts: str) -> str:
     return base64.b64encode(json.dumps({"ts": ts}).encode()).decode()
 
 
+encode_watermark = _encode_watermark
+
+
 def _decode_watermark(wm: str) -> str:
     try:
         data = json.loads(base64.b64decode(wm.encode()).decode())

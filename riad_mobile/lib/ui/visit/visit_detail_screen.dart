@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import '../../data/local/database.dart';
 
 class VisitDetailScreen extends StatefulWidget {
@@ -31,8 +33,11 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> with SingleTicker
     await widget.db.createPendingOp(PendingOpsCompanion.insert(
       doctype: 'Visit',
       name: widget.visitUuid,
-      op: 'update',
-      payload: '{"status":"$newStatus"}',
+      op: 'upsert',
+      payload: jsonEncode({
+        'scalars': {'status': newStatus},
+        'additive': {},
+      }),
       createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
     ));
   }

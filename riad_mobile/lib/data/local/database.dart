@@ -22,6 +22,8 @@ class PendingOps extends Table {
   IntColumn get baseVersion => integer().nullable()();
   TextColumn get status => text().withDefault(const Constant('pending'))();
   IntColumn get createdAt => integer()();
+  IntColumn get retryCount => integer().withDefault(const Constant(0))();
+  IntColumn get nextRetryAt => integer().withDefault(const Constant(0))();
 }
 
 class Visits extends Table {
@@ -205,7 +207,7 @@ class SyncConflicts extends Table {
 class RiadDatabase extends _$RiadDatabase {
   RiadDatabase() : super(_openConnection());
 
-  RiadDatabase.forTesting([super.e]);
+  RiadDatabase.forTesting(super.e);
 
   @override
   int get schemaVersion => 1;
@@ -333,8 +335,29 @@ class RiadDatabase extends _$RiadDatabase {
     await (delete(pendingOps)..where((t) => t.id.equals(id))).go();
   }
 
+  Future<List<PendingOp>> getFailedPendingOps() async {
+    return (select(pendingOps)..where((t) => t.status.equals('failed'))).get();
+  }
+
+  Future<List<PendingOp>> getRetryablePendingOps() async {
+    final now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    return (select(pendingOps)
+          ..where((t) => t.status.equals('failed'))
+          ..where((t) => t.nextRetryAt.isSmallerOrEqualValue(now)))
+        .get();
+  }
+
+  Future<void> updatePendingOpRetry(int id, int retryCount, int nextRetryAt) async {
+    await (update(pendingOps)..where((t) => t.id.equals(id))).write(
+      PendingOpsCompanion(
+        retryCount: Value(retryCount),
+        nextRetryAt: Value(nextRetryAt),
+      ),
+    );
+  }
+
   Stream<int> watchPendingCount() {
-    final count = pendingOps.count();
+    final count = pendingOps.id.count();
     return (selectOnly(pendingOps)..addColumns([count]))
         .watchSingle()
         .map((row) => row.read(count)!);
@@ -373,7 +396,7 @@ class RiadDatabase extends _$RiadDatabase {
   }
 
   Stream<int> watchPendingMediaUploadCount() {
-    final count = pendingMediaUploads.count();
+    final count = pendingMediaUploads.id.count();
     return (selectOnly(pendingMediaUploads)..addColumns([count]))
         .watchSingle()
         .map((row) => row.read(count)!);
@@ -410,6 +433,80 @@ class RiadDatabase extends _$RiadDatabase {
     return (select(checklistInstanceItems)
       ..where((t) => t.instanceUuid.equals(instanceUuid))
       ..where((t) => t.riadDeleted.equals(false))).watch();
+  }
+
+  Future<bool> isTombstoned(String clientUuid) async {
+    final visit = await (select(visits)
+          ..where((t) => t.clientUuid.equals(clientUuid)))
+        .getSingleOrNull();
+    if (visit != null) return visit.riadDeleted;
+
+    final instance = await (select(checklistInstances)
+          ..where((t) => t.clientUuid.equals(clientUuid)))
+        .getSingleOrNull();
+    if (instance != null) return instance.riadDeleted;
+
+    final map = await (select(installationMaps)
+          ..where((t) => t.clientUuid.equals(clientUuid)))
+        .getSingleOrNull();
+    if (map != null) return map.riadDeleted;
+
+    final asset = await (select(mediaAssets)
+          ..where((t) => t.clientUuid.equals(clientUuid)))
+        .getSingleOrNull();
+    if (asset != null) return asset.riadDeleted;
+
+    final material = await (select(visitMaterials)
+          ..where((t) => t.clientUuid.equals(clientUuid)))
+        .getSingleOrNull();
+    if (material != null) {
+      final parent = await (select(visits)
+            ..where((t) => t.clientUuid.equals(material.visitUuid)))
+          .getSingleOrNull();
+      if (parent != null && parent.riadDeleted) return true;
+    }
+
+    final photo = await (select(visitPhotos)
+          ..where((t) => t.clientUuid.equals(clientUuid)))
+        .getSingleOrNull();
+    if (photo != null) {
+      final parent = await (select(visits)
+            ..where((t) => t.clientUuid.equals(photo.visitUuid)))
+          .getSingleOrNull();
+      if (parent != null && parent.riadDeleted) return true;
+    }
+
+    final item = await (select(checklistInstanceItems)
+          ..where((t) => t.itemUuid.equals(clientUuid)))
+        .getSingleOrNull();
+    if (item != null) {
+      final parent = await (select(checklistInstances)
+            ..where((t) => t.clientUuid.equals(item.instanceUuid)))
+          .getSingleOrNull();
+      if (parent != null && parent.riadDeleted) return true;
+    }
+
+    final point = await (select(mountPoints)
+          ..where((t) => t.pointUuid.equals(clientUuid)))
+        .getSingleOrNull();
+    if (point != null) {
+      final parent = await (select(installationMaps)
+            ..where((t) => t.clientUuid.equals(point.mapUuid)))
+          .getSingleOrNull();
+      if (parent != null && parent.riadDeleted) return true;
+    }
+
+    final route = await (select(cableRoutes)
+          ..where((t) => t.routeUuid.equals(clientUuid)))
+        .getSingleOrNull();
+    if (route != null) {
+      final parent = await (select(installationMaps)
+            ..where((t) => t.clientUuid.equals(route.mapUuid)))
+          .getSingleOrNull();
+      if (parent != null && parent.riadDeleted) return true;
+    }
+
+    return false;
   }
 
   Future<bool> visitMaterialExistsBySerial(String serialNo) async {

@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:uuid/uuid.dart';
 import '../../data/local/database.dart';
@@ -39,6 +41,17 @@ class _ScanScreenState extends State<ScanScreen> {
             return;
           }
 
+          final isDeleted = await widget.db.isTombstoned(widget.visitUuid);
+          if (isDeleted) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Цей серійний номер вже видалено раніше і не може бути відновлений.')),
+              );
+              Navigator.pop(context);
+            }
+            return;
+          }
+
           final clientUuid = const Uuid().v4();
           await widget.db.upsertVisitMaterial(VisitMaterialsCompanion.insert(
             clientUuid: clientUuid,
@@ -47,10 +60,22 @@ class _ScanScreenState extends State<ScanScreen> {
           ));
 
           await widget.db.createPendingOp(PendingOpsCompanion.insert(
-            doctype: 'VisitMaterial',
-            name: clientUuid,
-            op: 'create',
-            payload: '{"serial_no":"$code","visit_uuid":"${widget.visitUuid}"}',
+            doctype: 'Visit',
+            name: widget.visitUuid,
+            op: 'upsert',
+            payload: jsonEncode({
+              'scalars': {},
+              'additive': {
+                'visit_material': [
+                  {
+                    '_uuid': clientUuid,
+                    'serial_no': code,
+                    'item_name': code,
+                    'qty': 1,
+                  },
+                ],
+              },
+            }),
             createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
           ));
 

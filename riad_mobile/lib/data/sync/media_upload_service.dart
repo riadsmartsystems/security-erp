@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
@@ -52,6 +53,18 @@ class MediaUploadService {
             await db.updateMediaAssetDriveFileId(upload.clientUuid, driveFileId);
           }
           await db.updatePendingMediaUploadStatus(upload.id, 'done');
+          if (driveFileId != null) {
+            await db.createPendingOp(PendingOpsCompanion.insert(
+              doctype: 'Media Asset',
+              name: upload.clientUuid,
+              op: 'upsert',
+              payload: jsonEncode({
+                'scalars': {'drive_file_id': driveFileId},
+                'additive': {},
+              }),
+              createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
+            ));
+          }
         } else if (response.statusCode == 503) {
           final body = _parseJson(response.body);
           if (body['detail']?['code'] == 'RIAD-DRIVE-UNAVAILABLE') {

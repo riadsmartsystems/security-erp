@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:uuid/uuid.dart';
 import 'package:riad_mobile/data/local/database.dart';
@@ -8,14 +9,13 @@ void main() {
     return RiadDatabase.forTesting(NativeDatabase.memory());
   }
 
-  // --- Test 5: visit_status_change_creates_pending_op ---
   test('visit_status_change_creates_pending_op', () async {
     final db = createTestDb();
     final uuid = const Uuid().v4();
 
     await db.upsertVisit(VisitsCompanion.insert(
       clientUuid: uuid,
-      visitDate: DateTime.now(),
+      visitDate: Value(DateTime.now()),
     ));
 
     await db.updateVisitStatus(uuid, 'в_роботі');
@@ -38,17 +38,16 @@ void main() {
     await db.close();
   });
 
-  // --- Test 6: camera_creates_pending_upload_ai_allowed_false ---
   test('camera_creates_pending_upload_ai_allowed_false', () async {
     final db = createTestDb();
     final uuid = const Uuid().v4();
 
     await db.upsertMediaAsset(MediaAssetsCompanion.insert(
       clientUuid: uuid,
-      mediaType: 'photo',
-      tag: 'до',
+      mediaType: const Value('photo'),
+      tag: const Value('до'),
       aiAllowed: const Value(false),
-      localPath: '/media/test.jpg',
+      localPath: const Value('/media/test.jpg'),
     ));
 
     final assets = await (db.select(db.mediaAssets)..where((t) => t.clientUuid.equals(uuid))).get();
@@ -69,7 +68,6 @@ void main() {
     await db.close();
   });
 
-  // --- Test 7: camera_saves_file_locally_before_upload ---
   test('camera_saves_file_locally_before_upload', () async {
     final db = createTestDb();
     final uuid = const Uuid().v4();
@@ -77,8 +75,8 @@ void main() {
 
     await db.upsertMediaAsset(MediaAssetsCompanion.insert(
       clientUuid: uuid,
-      mediaType: 'photo',
-      localPath: localPath,
+      mediaType: const Value('photo'),
+      localPath: Value(localPath),
       aiAllowed: const Value(false),
     ));
 
@@ -88,7 +86,6 @@ void main() {
     await db.close();
   });
 
-  // --- Test 8: scan_duplicate_shows_toast ---
   test('scan_duplicate_shows_toast', () async {
     final db = createTestDb();
     final uuid = const Uuid().v4();
@@ -96,7 +93,7 @@ void main() {
     await db.upsertVisitMaterial(VisitMaterialsCompanion.insert(
       clientUuid: uuid,
       visitUuid: 'visit-1',
-      serialNo: 'SN-001',
+      serialNo: const Value('SN-001'),
     ));
 
     final exists = await db.visitMaterialExistsBySerial('SN-001');
@@ -108,7 +105,6 @@ void main() {
     await db.close();
   });
 
-  // --- Test 9: scan_new_creates_visit_material ---
   test('scan_new_creates_visit_material', () async {
     final db = createTestDb();
     final uuid = const Uuid().v4();
@@ -116,7 +112,7 @@ void main() {
     await db.upsertVisitMaterial(VisitMaterialsCompanion.insert(
       clientUuid: uuid,
       visitUuid: 'visit-1',
-      serialNo: 'SN-NEW',
+      serialNo: const Value('SN-NEW'),
     ));
 
     final materials = await (db.select(db.visitMaterials)
@@ -138,14 +134,13 @@ void main() {
     await db.close();
   });
 
-  // --- Test 10: upload_service_sets_drive_id_on_success ---
   test('upload_service_sets_drive_id_on_success', () async {
     final db = createTestDb();
     final uuid = const Uuid().v4();
 
     await db.upsertMediaAsset(MediaAssetsCompanion.insert(
       clientUuid: uuid,
-      mediaType: 'photo',
+      mediaType: const Value('photo'),
       aiAllowed: const Value(false),
     ));
 
@@ -157,16 +152,15 @@ void main() {
     await db.close();
   });
 
-  // --- Test 11: voice_note_triggers_transcribe_after_upload ---
   test('voice_note_triggers_transcribe_after_upload', () async {
     final db = createTestDb();
     final uuid = const Uuid().v4();
 
     await db.upsertMediaAsset(MediaAssetsCompanion.insert(
       clientUuid: uuid,
-      mediaType: 'audio',
+      mediaType: const Value('audio'),
       aiAllowed: const Value(false),
-      transcriptionStatus: Value('pending'),
+      transcriptionStatus: const Value('pending'),
     ));
 
     await db.updateMediaAssetDriveFileId(uuid, 'drive-audio-1');
@@ -185,16 +179,15 @@ void main() {
     await db.close();
   });
 
-  // --- Test 12: transcription_status_updated_via_pull ---
   test('transcription_status_updated_via_pull', () async {
     final db = createTestDb();
     final uuid = const Uuid().v4();
 
     await db.upsertMediaAsset(MediaAssetsCompanion.insert(
       clientUuid: uuid,
-      mediaType: 'audio',
+      mediaType: const Value('audio'),
       aiAllowed: const Value(false),
-      transcriptionStatus: Value('очікує'),
+      transcriptionStatus: const Value('очікує'),
     ));
 
     await db.updateMediaAssetTranscription(uuid, 'Текст транскрипції', 'готово');

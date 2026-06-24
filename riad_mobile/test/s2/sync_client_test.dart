@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
 import 'package:http/http.dart' as http;
+import 'package:drift/drift.dart' hide isNotNull, isNull;
+import 'package:drift/native.dart';
 import 'dart:convert';
 
 import 'package:riad_mobile/data/local/database.dart';
@@ -16,12 +18,13 @@ void main() {
   late SyncClient syncClient;
 
   setUp(() async {
-    db = RiadDatabase.forTesting();
+    db = RiadDatabase.forTesting(NativeDatabase.memory());
     mockClient = MockClient();
     syncClient = SyncClient(
       db: db,
       baseUrl: 'http://localhost:8000',
       jwtToken: 'test-token',
+      client: mockClient,
     );
   });
 
@@ -586,7 +589,7 @@ void main() {
             200,
           ));
 
-      await syncClient._handleConflict('visit-server-resolve', [
+      await syncClient.handleConflict('visit-server-resolve', [
         {
           'field': 'summary',
           'server_value': 'Server value',

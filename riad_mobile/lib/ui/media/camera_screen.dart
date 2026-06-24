@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
@@ -82,10 +84,18 @@ class _CameraScreenState extends State<CameraScreen> {
     ));
 
     await widget.db.createPendingOp(PendingOpsCompanion.insert(
-      doctype: 'MediaAsset',
+      doctype: 'Media Asset',
       name: clientUuid,
-      op: 'create',
-      payload: '{"media_type":"photo","tag":"$_selectedTag"}',
+      op: 'upsert',
+      payload: jsonEncode({
+        'scalars': {
+          'media_type': 'photo',
+          'tag': _selectedTag,
+          'parent_doctype': widget.parentDoctype ?? '',
+          'parent_name': widget.parentName ?? '',
+        },
+        'additive': {},
+      }),
       createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
     ));
 

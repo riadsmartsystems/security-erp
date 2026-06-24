@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
@@ -83,10 +85,17 @@ class _VoiceNoteScreenState extends State<VoiceNoteScreen> {
     ));
 
     await widget.db.createPendingOp(PendingOpsCompanion.insert(
-      doctype: 'MediaAsset',
+      doctype: 'Media Asset',
       name: clientUuid,
-      op: 'create',
-      payload: '{"media_type":"audio"}',
+      op: 'upsert',
+      payload: jsonEncode({
+        'scalars': {
+          'media_type': 'audio',
+          'parent_doctype': widget.parentDoctype ?? '',
+          'parent_name': widget.parentName ?? '',
+        },
+        'additive': {},
+      }),
       createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
     ));
   }

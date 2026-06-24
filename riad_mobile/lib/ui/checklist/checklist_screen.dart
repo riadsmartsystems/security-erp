@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:uuid/uuid.dart';
 import '../../data/local/database.dart';
 
@@ -37,18 +39,20 @@ class ChecklistScreen extends StatelessWidget {
         ));
 
     await db.createPendingOp(PendingOpsCompanion.insert(
-      doctype: 'ChecklistInstanceItem',
-      name: item.itemUuid,
-      op: 'update',
-      payload: '{"checked_by":"${checked ? 'current_user' : ''}"}',
-      createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
-    ));
-
-    await db.createPendingOp(PendingOpsCompanion.insert(
-      doctype: 'ChecklistInstance',
+      doctype: 'Checklist Instance',
       name: item.instanceUuid,
-      op: 'update',
-      payload: '{}',
+      op: 'upsert',
+      payload: jsonEncode({
+        'scalars': {'status': 'in_progress'},
+        'additive': {
+          'checklist_instance_item': [
+            {
+              '_uuid': item.itemUuid,
+              'checked_by': checked ? 'current_user' : null,
+            },
+          ],
+        },
+      }),
       createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
     ));
   }
