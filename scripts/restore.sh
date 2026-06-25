@@ -40,13 +40,34 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 # 1. Restore MariaDB
-if [ -f "$BACKUP_DIR/mariadb_full.sql.gz" ]; then
-    echo "[1/2] Restoring MariaDB from compressed backup..."
-    gunzip -c "$BACKUP_DIR/mariadb_full.sql.gz" | docker exec -i "$MARIADB_CONTAINER" mysql -u root -p"${MARIADB_ROOT_PASSWORD}" 2>/dev/null
+# Шукаємо найновіший backup: GPG-зашифрований > plain .gz > plain .sql.
+# Підтримує і timestamped імена від backup-mariadb.sh (mariadb_daily_*),
+# і legacy повні backup'и (mariadb_full.*).
+GPG_CANDIDATE=$(ls -t "$BACKUP_DIR"/mariadb_*.sql.gz.gpg 2>/dev/null | head -1)
+GZ_CANDIDATE=$(ls -t "$BACKUP_DIR"/mariadb_full.sql.gz "$BACKUP_DIR"/mariadb_*.sql.gz 2>/dev/null | head -1)
+SQL_CANDIDATE=$(ls -t "$BACKUP_DIR"/mariadb_full.sql "$BACKUP_DIR"/mariadb_*.sql 2>/dev/null | head -1)
+
+if [ -n "$GPG_CANDIDATE" ]; then
+    GPG_RESTORE_KEY="/home/joker/RIAD CRM/configs/backup_secret.gpg"
+    if [ ! -f "$GPG_RESTORE_KEY" ]; then
+        echo "ERROR: GPG secret key not found at $GPG_RESTORE_KEY"
+        echo "       Якщо це відновлення на НОВОМУ сервері — спочатку відновіть"
+        echo "       приватний ключ із захищеного офлайн-сховища (див. DR_runbook.md)."
+        exit 1
+    fi
+    echo "[1/2] Restoring MariaDB from GPG backup: $(basename "$GPG_CANDIDATE")..."
+    GPG_HOMEDIR=$(mktemp -d)
+    gpg --batch --yes --homedir "$GPG_HOMEDIR" --import "$GPG_RESTORE_KEY" 2>/dev/null
+    gpg --batch --yes --homedir "$GPG_HOMEDIR" --decrypt "$GPG_CANDIDATE" 2>/dev/null | gunzip | docker exec -i "$MARIADB_CONTAINER" mysql -u root -p"${MARIADB_ROOT_PASSWORD}" 2>/dev/null
+    rm -rf "$GPG_HOMEDIR"
     echo "  OK"
-elif [ -f "$BACKUP_DIR/mariadb_full.sql" ]; then
-    echo "[1/2] Restoring MariaDB..."
-    docker exec -i "$MARIADB_CONTAINER" mysql -u root -p"${MARIADB_ROOT_PASSWORD}" < "$BACKUP_DIR/mariadb_full.sql" 2>/dev/null
+elif [ -n "$GZ_CANDIDATE" ]; then
+    echo "[1/2] Restoring MariaDB from compressed backup: $(basename "$GZ_CANDIDATE")..."
+    gunzip -c "$GZ_CANDIDATE" | docker exec -i "$MARIADB_CONTAINER" mysql -u root -p"${MARIADB_ROOT_PASSWORD}" 2>/dev/null
+    echo "  OK"
+elif [ -n "$SQL_CANDIDATE" ]; then
+    echo "[1/2] Restoring MariaDB from: $(basename "$SQL_CANDIDATE")..."
+    docker exec -i "$MARIADB_CONTAINER" mysql -u root -p"${MARIADB_ROOT_PASSWORD}" < "$SQL_CANDIDATE" 2>/dev/null
     echo "  OK"
 else
     echo "[1/2] MariaDB backup not found, skipping"

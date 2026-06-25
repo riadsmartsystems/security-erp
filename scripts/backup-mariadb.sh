@@ -44,8 +44,30 @@ fi
 SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
 echo "[$(date)] Backup completed: $BACKUP_FILE ($SIZE)"
 
-# Cleanup old backups
+# GPG encryption (if available)
+GPG_RECIPIENT="backup@riad.local"
+GPG_KEYRING="/home/joker/RIAD CRM/configs/backup_public.gpg"
+
+if command -v gpg &>/dev/null && [ -f "$GPG_KEYRING" ]; then
+    echo "[$(date)] Encrypting backup with GPG..."
+    GPG_HOMEDIR=$(mktemp -d)
+    gpg --batch --yes --trust-model always --homedir "$GPG_HOMEDIR" --import "$GPG_KEYRING" 2>/dev/null
+
+    if gpg --batch --yes --trust-model always --homedir "$GPG_HOMEDIR" --recipient "$GPG_RECIPIENT" --encrypt "$BACKUP_FILE" 2>/dev/null; then
+        rm -f "$BACKUP_FILE"
+        BACKUP_FILE="${BACKUP_FILE}.gpg"
+        SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
+        echo "[$(date)] Encrypted: $BACKUP_FILE ($SIZE)"
+    else
+        echo "[$(date)] WARNING: GPG encryption failed, keeping unencrypted"
+    fi
+    rm -rf "$GPG_HOMEDIR"
+else
+    echo "[$(date)] WARNING: GPG not available or key not found, keeping unencrypted"
+fi
+
+# Cleanup old backups (matches both plain .sql.gz and GPG-encrypted .sql.gz.gpg)
 echo "[$(date)] Cleaning backups older than ${RETENTION_DAYS} days..."
-find "$BACKUP_DIR" -name "mariadb_*.sql.gz" -mtime +${RETENTION_DAYS} -delete
+find "$BACKUP_DIR" -name "mariadb_*.sql.gz*" -mtime +${RETENTION_DAYS} -delete
 
 echo "[$(date)] Done."

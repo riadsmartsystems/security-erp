@@ -67,3 +67,4 @@ docs/.~lock.*
 
 # Whisper (deferred)
 services/whisper/
+configs/backup_secret.gpg
