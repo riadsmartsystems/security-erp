@@ -2018,37 +2018,45 @@ class AIExecuteResponse(BaseModel):
 
 | Клас | Тест | Що перевіряє |
 |------|------|--------------|
-| `TestEstimateConfirm` | `test_confirm_with_reviewed_by_creates_quotation` | confirm_estimate() викликає frappe_post create_quotation при status=Approved + reviewed_by |
-| `TestEstimateConfirm` | `test_confirm_without_reviewed_by_raises` | ValueError коли reviewed_by порожній (навіть при status=Approved) |
-| `TestEstimateConfirm` | `test_confirm_draft_estimate_raises` | ValueError коли status=Draft (навіть при наявності reviewed_by) |
-| `TestEstimateConfirm` | `test_confirm_neither_approved_nor_reviewed_raises` | ValueError при status=Rejected + reviewed_by="" |
-| `TestEstimateReview` | `test_review_sets_reviewed_by_and_status` | review_estimate() встановлює reviewed_by та status=Approved |
-| `TestEstimateReview` | `test_review_rejected_sets_status` | review_estimate() з decision=rejected → status=Rejected |
-| `TestEstimateReview` | `test_review_manual_origin_raises` | ValueError при origin=manual (estimate must be AI-generated) |
-| `TestEstimateReview` | `test_review_empty_ai_result_raises` | ValueError при ai_result="" (estimate must have ai_result) |
-| `TestEstimateLifecycle` | `test_review_then_confirm_creates_quotation` | E2E: review → confirm → quotation (shared mutable state) |
-| `TestEstimateLifecycle` | `test_manual_origin_cannot_be_reviewed` | origin=manual неможливо пройти review |
+| `TestConfirmEstimate` | `test_approved_with_reviewed_by_creates_quotation` | confirm_estimate() викликає frappe_post create_quotation при status=Approved + reviewed_by; перевіряє шлях виклику та sid |
+| `TestConfirmEstimate` | `test_missing_reviewed_by_raises_value_error` | ValueError з "RIAD-VALIDATION" + "approved and reviewed" при reviewed_by="" |
+| `TestConfirmEstimate` | `test_draft_status_raises_value_error` | ValueError при status=Draft (навіть з reviewed_by) |
+| `TestConfirmEstimate` | `test_rejected_status_raises_value_error` | ValueError при status=Rejected + reviewed_by="" |
+| `TestConfirmEstimate` | `test_empty_string_status_raises_value_error` | ValueError при пустому status (edge case) |
+| `TestReviewEstimate` | `test_approved_sets_reviewed_by_and_status` | review_estimate() повертає status=Approved + reviewed_by |
+| `TestReviewEstimate` | `test_rejected_sets_status_rejected` | decision=rejected → status=Rejected |
+| `TestReviewEstimate` | `test_manual_origin_raises_value_error` | ValueError з "RIAD-VALIDATION" + "AI-generated" при origin=manual |
+| `TestReviewEstimate` | `test_empty_ai_result_raises_value_error` | ValueError з "ai_result" при ai_result="" |
+| `TestReviewEstimate` | `test_both_manual_and_empty_raises_value_error` | origin=manual + ai_result="" → ValueError (OR-умова) |
+| `TestReviewEstimate` | `test_frappe_put_called_with_correct_data` | frappe_put викликається з правильним path/data/sid |
+| `TestEstimateLifecycle` | `test_full_review_confirm_cycle` | E2E: review() → confirm() з shared mutable state → quotation |
+| `TestEstimateLifecycle` | `test_reject_then_confirm_fails` | Rejected estimate → confirm_estimate() падає (status!=Approved) |
+| `TestEstimateLifecycle` | `test_manual_estimate_blocks_review` | origin=manual не може пройти review → ніколи не стає Approved |
+| `TestRouteLayerErrorMapping` | `test_confirm_value_error_returns_422` | Route: ValueError → HTTP 422 + RIAD-VALIDATION code (FastAPI dependency_overrides) |
+| `TestRouteLayerErrorMapping` | `test_review_value_error_returns_422` | Route: ValueError → HTTP 422 + RIAD-VALIDATION code (FastAPI dependency_overrides) |
 
-**Ключові знахідки:**
-- `confirm_estimate()` ValueError: `"RIAD-VALIDATION: estimate must be approved and reviewed before confirmation"`
-- `review_estimate()` ValueError: `"RIAD-VALIDATION: estimate must be AI-generated with ai_result"`
-- Параметр reviewer у review_estimate() = `user_id` (keyword-only)
-- `origin="manual"` ніколи не може пройти review_estimate() → ніколи не стає Approved → confirm_estimate() для нього завжди падає
+**Ключові знахідки (Крок 0):**
+- `confirm_estimate()` ValueError (рядок 173): `"RIAD-VALIDATION: estimate must be approved and reviewed before confirmation"`
+- `review_estimate()` ValueError (рядок 140): `"RIAD-VALIDATION: estimate must be AI-generated with ai_result"`
+- Параметр reviewer у `review_estimate()` = `user_id` (keyword-only, рядок 127)
+- Route handler (`routes/estimates.py:67-70`) перехоплює ValueError з "RIAD-VALIDATION" → HTTP 422
+- `origin="manual"` ніколи не може пройти `review_estimate()` → ніколи не стає Approved → `confirm_estimate()` для нього завжди падає
 
 #### Змінені/створені файли
 
 | Файл | Дія |
 |------|-----|
 | `tests/e5/__init__.py` | Вже існував (порожній) |
-| `tests/e5/test_e5_estimate_confirm.py` | НОВИЙ — 10 інтеграційних тестів (3 класи) |
+| `tests/e5/test_e5_estimate_confirm.py` | НОВИЙ — 16 інтеграційних тестів (4 класи) |
 
 #### DoD перевірка
 
-1. ✅ **10/10 тестів зелені** — `python3 -m pytest tests/e5/test_e5_estimate_confirm.py -v` → `10 passed`
-2. ✅ **Повний suite без регресій** — `python3 -m pytest tests/ --tb=short -q` → `294 passed, 0 failed`
+1. ✅ **16/16 тестів зелені** — `python3 -m pytest tests/e5/test_e5_estimate_confirm.py -v` → `16 passed`
+2. ✅ **Повний suite без регресій** — `python3 -m pytest tests/ --tb=short -q` → `300 passed, 0 failed`
 3. ✅ **Тести засновані на реальному коді** — ValueError тексти звірялися з estimate_service.py:140,173
-4. ✅ **TDD патерн дотримано** — тести написані за реальними контрактами estimate_service.py
-5. ✅ **BUILD_LOG оновлено**
+4. ✅ **Route-layer тести** — використовують `app.dependency_overrides` (не `patch`) для FastAPI DI
+5. ✅ **TDD патерн дотримано** — тести написані за реальними контрактами estimate_service.py
+6. ✅ **BUILD_LOG оновлено**
 
 ---
 
