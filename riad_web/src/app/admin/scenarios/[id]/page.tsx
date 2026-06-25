@@ -186,15 +186,15 @@ export default function ScenarioEditPage() {
                       className="w-full p-2 rounded bg-gray-800 border border-gray-600 text-sm"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs mb-1">Кількість</label>
-                    <input
-                      type="number"
-                      value={editingItem.qty ?? ""}
-                      onChange={(e) => setEditingItem({ ...editingItem, qty: parseFloat(e.target.value) })}
-                      className="w-full p-2 rounded bg-gray-800 border border-gray-600 text-sm"
-                    />
-                  </div>
+                      <div>
+                        <label className="block text-xs mb-1">Кількість</label>
+                        <input
+                          type="number"
+                          value={editingItem.qty ?? ""}
+                          onChange={(e) => setEditingItem({ ...editingItem, qty: e.target.value === "" ? undefined : parseFloat(e.target.value) })}
+                          className="w-full p-2 rounded bg-gray-800 border border-gray-600 text-sm"
+                        />
+                      </div>
                   <div>
                     <label className="block text-xs mb-1">Правило</label>
                     <select
@@ -249,7 +249,7 @@ export default function ScenarioEditPage() {
                           onClick={() => setEditingItem({
                             item_code: item.item_code,
                             item_name: item.item_name || "",
-                            qty: item.qty,
+                            qty: item.qty ?? undefined,
                             qty_rule: item.qty_rule || "fixed",
                           })}
                           className="text-blue-400 hover:underline text-xs"

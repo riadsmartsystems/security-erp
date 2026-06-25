@@ -5,6 +5,7 @@ export default function Home() {
       <nav className="space-y-2">
         <a href="/calculator" className="block text-blue-400 hover:underline">Калькулятор</a>
         <a href="/estimates/new" className="block text-blue-400 hover:underline">Кошториси</a>
+        <a href="/admin/scenarios" className="block text-blue-400 hover:underline">Сценарії</a>
         <a href="/warehouse" className="block text-blue-400 hover:underline">Склад</a>
       </nav>
     </main>

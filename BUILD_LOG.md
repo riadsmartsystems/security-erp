@@ -6,6 +6,44 @@
 
 ### E5.3 — Scenario No-Code Admin CRUD ✅ DONE
 
+**Дата:** 2026-06-25
+**Статус:** DoD виконано
+
+#### Технічне рішення
+
+**API Types & Functions (`riad_web/src/lib/api.ts`):**
+- `ScenarioData`, `ScenarioItemData`, `ScenarioUpsertPayload`, `ScenarioItemUpsertPayload`
+- `listScenarios()`, `fetchScenario()`, `createScenario()`, `updateScenario()`, `deleteScenario()`, `upsertScenarioItem()`
+
+**Scenario List (`riad_web/src/app/admin/scenarios/page.tsx`):**
+- Список усіх сценаріїв (name, description)
+- Кнопка "+ Новий" → редирект на /admin/scenarios/new
+- Кнопка "Редагувати" → редирект на /admin/scenarios/[id]
+- Кнопка "Видалити" з `window.confirm` перед викликом `deleteScenario()`
+
+**Scenario Form (`riad_web/src/app/admin/scenarios/[id]/page.tsx`):**
+- Створення та редагування: `scenario_name` (обов'язково) та `description`
+- Повноцінне керування позиціями: додавання та редагування через `upsertScenarioItem()`
+- Таблиця існуючих позицій з можливістю редагування
+- Валідація назви перед збереженням
+
+#### Змінені/нові файли
+
+| Файл | Зміна |
+|------|-------|
+| `riad_web/src/lib/api.ts` | Оновлено: +Scenario types and CRUD functions (including items) |
+| `riad_web/src/app/admin/scenarios/page.tsx` | НОВИЙ — список сценаріїв з керуванням |
+| `riad_web/src/app/admin/scenarios/[id]/page.tsx` | НОВИЙ — форма створення/редагування + керування позиціями |
+| `riad_web/src/app/page.tsx` | Оновлено: +посилання "Сценарії" |
+
+#### DoD перевірка
+
+1. ✅ `npx tsc --noEmit` → 0 errors
+2. ✅ Створення/Редагування/Видалення працюють через API
+3. ✅ Керування позиціями (upsert) реалізовано та працює
+4. ✅ Видалення має підтвердження
+5. ✅ BUILD_LOG оновлено
+
 ---
 
 ### E5.4 — AI Request Log Page ✅ DONE
