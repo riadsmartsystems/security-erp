@@ -70,31 +70,7 @@ class _SyncConflictCardState extends State<SyncConflictCard> {
   }
 
   Future<void> _applyClientValue(String conflictId) async {
-    final conflicts = await widget.db.select(widget.db.syncConflicts)
-      ..where((t) => t.conflictId.equals(conflictId));
-    final conflict = await conflicts.getSingleOrNull();
-
-    if (conflict == null) return;
-
-    final clientValue = conflict.clientValue;
-    if (clientValue == null) return;
-
-    switch (conflict.doctype) {
-      case 'Visit':
-        await (widget.db.update(widget.db.visits)
-              ..where((t) => t.clientUuid.equals(conflict.docname)))
-            .write(VisitsCompanion(
-              summary: Value(clientValue),
-            ));
-        break;
-      case 'Checklist Instance':
-        await (widget.db.update(widget.db.checklistInstances)
-              ..where((t) => t.clientUuid.equals(conflict.docname)))
-            .write(ChecklistInstancesCompanion(
-              status: Value(clientValue),
-            ));
-        break;
-    }
+    await widget.db.resolveConflictFieldValue(conflictId);
   }
 
   @override

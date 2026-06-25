@@ -460,4 +460,96 @@ void main() {
       expect(await db.isTombstoned('nonexistent'), false);
     });
   });
+
+  group('resolveConflictFieldValue', () {
+    test('оновлює поле status для Visit за conflict.fieldName', () async {
+      await db.upsertVisit(VisitsCompanion.insert(
+        clientUuid: 'visit-field-resolve',
+        status: const Value('old_status'),
+      ));
+
+      await db.insertConflict(SyncConflictsCompanion.insert(
+        conflictId: 'SC-FIELD-001',
+        doctype: 'Visit',
+        docname: 'visit-field-resolve',
+        fieldName: 'status',
+        serverValue: const Value('server_status'),
+        clientValue: const Value('client_status'),
+      ));
+
+      await db.resolveConflictFieldValue('SC-FIELD-001');
+
+      final visit = await (db.select(db.visits)
+            ..where((t) => t.clientUuid.equals('visit-field-resolve')))
+          .getSingle();
+      expect(visit.status, 'client_status');
+    });
+
+    test('оновлює поле summary для Visit за conflict.fieldName', () async {
+      await db.upsertVisit(VisitsCompanion.insert(
+        clientUuid: 'visit-summary-resolve',
+        summary: const Value('old_summary'),
+      ));
+
+      await db.insertConflict(SyncConflictsCompanion.insert(
+        conflictId: 'SC-FIELD-002',
+        doctype: 'Visit',
+        docname: 'visit-summary-resolve',
+        fieldName: 'summary',
+        serverValue: const Value('server_summary'),
+        clientValue: const Value('client_summary'),
+      ));
+
+      await db.resolveConflictFieldValue('SC-FIELD-002');
+
+      final visit = await (db.select(db.visits)
+            ..where((t) => t.clientUuid.equals('visit-summary-resolve')))
+          .getSingle();
+      expect(visit.summary, 'client_summary');
+    });
+
+    test('позначає conflict як resolved', () async {
+      await db.upsertVisit(VisitsCompanion.insert(
+        clientUuid: 'visit-resolved-mark',
+        status: const Value('x'),
+      ));
+
+      await db.insertConflict(SyncConflictsCompanion.insert(
+        conflictId: 'SC-FIELD-003',
+        doctype: 'Visit',
+        docname: 'visit-resolved-mark',
+        fieldName: 'status',
+        clientValue: const Value('y'),
+      ));
+
+      await db.resolveConflictFieldValue('SC-FIELD-003');
+
+      final conflict = await (db.select(db.syncConflicts)
+            ..where((t) => t.conflictId.equals('SC-FIELD-003')))
+          .getSingle();
+      expect(conflict.resolved, true);
+    });
+
+    test('для Checklist Instance оновлює вказане поле', () async {
+      await db.upsertChecklistInstance(ChecklistInstancesCompanion.insert(
+        clientUuid: 'ci-field-resolve',
+        status: const Value('old'),
+      ));
+
+      await db.insertConflict(SyncConflictsCompanion.insert(
+        conflictId: 'SC-FIELD-004',
+        doctype: 'Checklist Instance',
+        docname: 'ci-field-resolve',
+        fieldName: 'status',
+        clientValue: const Value('new_status'),
+      ));
+
+      await db.resolveConflictFieldValue('SC-FIELD-004');
+
+      final ci = await (db.select(db.checklistInstances)
+            ..where((t) => t.clientUuid.equals('ci-field-resolve')))
+          .getSingle();
+      expect(ci.status, 'new_status');
+    });
+  });
 }

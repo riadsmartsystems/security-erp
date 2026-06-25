@@ -5,6 +5,8 @@ import 'package:path/path.dart' as p;
 import '../local/database.dart';
 
 class MediaUploadService {
+  static const int _maxRetries = 5;
+
   final RiadDatabase db;
   final String baseUrl;
   final String jwtToken;
@@ -16,6 +18,7 @@ class MediaUploadService {
   });
 
   Future<void> uploadPending() async {
+    await _retryFailedUploads();
     final pending = await db.getPendingMediaUploads();
 
     for (final upload in pending) {
@@ -65,19 +68,19 @@ class MediaUploadService {
               createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
             ));
           }
-        } else if (response.statusCode == 503) {
-          final body = _parseJson(response.body);
-          if (body['detail']?['code'] == 'RIAD-DRIVE-UNAVAILABLE') {
-            await db.updatePendingMediaUploadStatus(upload.id, 'failed');
-          } else {
-            await db.updatePendingMediaUploadStatus(upload.id, 'failed');
-          }
         } else {
-          await db.updatePendingMediaUploadStatus(upload.id, 'pending');
+          await db.updatePendingMediaUploadStatus(upload.id, 'failed');
         }
       } catch (e) {
-        await db.updatePendingMediaUploadStatus(upload.id, 'pending');
+        await db.updatePendingMediaUploadStatus(upload.id, 'failed');
       }
+    }
+  }
+
+  Future<void> _retryFailedUploads() async {
+    final failed = await db.getPendingMediaUploadsByStatus('failed');
+    for (final upload in failed) {
+      await db.updatePendingMediaUploadStatus(upload.id, 'pending');
     }
   }
 

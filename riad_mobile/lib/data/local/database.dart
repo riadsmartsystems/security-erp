@@ -386,6 +386,10 @@ class RiadDatabase extends _$RiadDatabase {
     return (select(pendingMediaUploads)..where((t) => t.status.equals('pending'))).get();
   }
 
+  Future<List<PendingMediaUpload>> getPendingMediaUploadsByStatus(String status) async {
+    return (select(pendingMediaUploads)..where((t) => t.status.equals(status))).get();
+  }
+
   Future<void> updatePendingMediaUploadStatus(int id, String status) async {
     await (update(pendingMediaUploads)..where((t) => t.id.equals(id)))
         .write(PendingMediaUploadsCompanion(status: Value(status)));
@@ -507,6 +511,45 @@ class RiadDatabase extends _$RiadDatabase {
     }
 
     return false;
+  }
+
+  Future<void> resolveConflictFieldValue(String conflictId) async {
+    final conflict = await (select(syncConflicts)
+          ..where((t) => t.conflictId.equals(conflictId)))
+        .getSingleOrNull();
+    if (conflict == null) return;
+
+    final clientValue = conflict.clientValue;
+    if (clientValue == null) return;
+
+    final field = conflict.fieldName;
+
+    switch (conflict.doctype) {
+      case 'Visit':
+        await (update(visits)..where((t) => t.clientUuid.equals(conflict.docname)))
+            .write(VisitsCompanion(
+              status: field == 'status' ? Value(clientValue) : const Value.absent(),
+              summary: field == 'summary' ? Value(clientValue) : const Value.absent(),
+            ));
+        break;
+      case 'Checklist Instance':
+        await (update(checklistInstances)..where((t) => t.clientUuid.equals(conflict.docname)))
+            .write(ChecklistInstancesCompanion(
+              status: field == 'status' ? Value(clientValue) : const Value.absent(),
+            ));
+        break;
+      case 'Media Asset':
+        await (update(mediaAssets)..where((t) => t.clientUuid.equals(conflict.docname)))
+            .write(MediaAssetsCompanion(
+              mediaType: field == 'media_type' ? Value(clientValue) : const Value.absent(),
+              tag: field == 'tag' ? Value(clientValue) : const Value.absent(),
+              transcription: field == 'transcription' ? Value(clientValue) : const Value.absent(),
+            ));
+        break;
+    }
+
+    await (update(syncConflicts)..where((t) => t.conflictId.equals(conflictId)))
+        .write(SyncConflictsCompanion(resolved: const Value(true)));
   }
 
   Future<bool> visitMaterialExistsBySerial(String serialNo) async {
