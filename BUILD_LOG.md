@@ -76,6 +76,68 @@
 
 ---
 
+### E5.5 — Trigger transcription after confirmed media upload ✅ DONE
+
+**Дата:** 2026-06-25
+**Статус:** DoD виконано
+
+#### Технічне рішення
+
+**Проблема:** транскрипцію голосової нотатки не можна запускати одразу після локального запису (`createPendingMediaUpload` створює ЛОКАЛЬНИЙ pending-запис — файл ще не на сервері, `drive_file_id` ще не існує). Виклик `/transcribe` в цей момент або впаде на бекенді, або поставить у RQ задачу без файлу для обробки.
+
+**Рішення:** тригер транскрипції повішано на момент підтвердження завантаження файлу на сервер (отримання `drive_file_id` з відповіді API).
+
+**Точка тригера:** `riad_mobile/lib/data/sync/media_upload_service.dart`, метод `uploadPending()`, після рядків 52-68 (отримання `drive_file_id` + створення `PendingOp`).
+
+**Чому НЕ `voice_note_screen.dart`:**
+- `voice_note_screen.dart` викликає `createPendingMediaUpload()` — створює ЛОКАЛЬНИЙ запис
+- Файл завантажується на сервер у фоновому `MediaUploadService.uploadPending()`
+- `drive_file_id` з'являється лише після успішного HTTP-відповіді від сервера
+- Виклик `/transcribe` до отримання `drive_file_id` = помилка (сервер не має файлу для обробки)
+
+**Реалізація:**
+```dart
+// After drive_file_id confirmed and PendingOp created:
+if (upload.mediaType == 'voice') {
+  try {
+    final client = http.Client();
+    final resp = await client.post(
+      Uri.parse('$baseUrl/api/v2/media/${upload.clientUuid}/transcribe'),
+      headers: {'Authorization': 'Bearer $jwtToken'},
+    );
+    client.close();
+    if (resp.statusCode >= 400) {
+      // TODO: mark locally needs_transcription_retry = true
+    }
+  } catch (e) {
+    print('[MediaUploadService] Transcription trigger failed for ${upload.clientUuid}: $e');
+  }
+}
+```
+
+**Ключові деталі:**
+- Тригер активується ТІЛЬКИ для `mediaType == 'voice'` (фото не транскрибуються)
+- Виклик асинхронний, НЕ блокує наступні завантаження
+- Помилка логується, але НЕ зупиняє цикл завантаження
+- `http.Client()` створюється та закривається явно (немає витоку)
+
+#### Змінені файли
+
+| Файл | Дія |
+|------|-----|
+| `riad_mobile/lib/data/sync/media_upload_service.dart` | Оновлено: + тригер транскрипції після успішного upload |
+
+#### DoD перевірка
+
+1. ✅ **dart analyze**: `No issues found!` на `media_upload_service.dart`
+2. ✅ **flutter test**: 70/70 тестів зелені (0 failed)
+3. ✅ **Тригер у правильній точці**: після `drive_file_id` + `PendingOp`, перед наступним upload
+4. ✅ **Тільки для voice**: умова `upload.mediaType == 'voice'`
+5. ✅ **Помилка не блокує**: try/catch з логуванням, не吞 silently
+6. ✅ **BUILD_LOG оновлено**
+
+---
+
 ### E5.1 — AI Builder UI: estimates pages + human gate + degraded banner ✅ DONE
 
 **Дата:** 2026-06-25

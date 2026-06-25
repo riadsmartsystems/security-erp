@@ -66,6 +66,26 @@ class MediaUploadService {
               createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
             ));
           }
+
+          // Trigger transcription for voice notes after confirmed upload
+          if (upload.mediaType == 'voice') {
+            try {
+              final client = http.Client();
+              final resp = await client.post(
+                Uri.parse('$baseUrl/api/v2/media/${upload.clientUuid}/transcribe'),
+                headers: {'Authorization': 'Bearer $jwtToken'},
+              );
+              client.close();
+              if (resp.statusCode >= 400) {
+                // TODO: mark locally needs_transcription_retry = true,
+                // so next sync cycle retries
+              }
+            } catch (e) {
+              // Log error — do not silently swallow, otherwise
+              // transcription failures are undiagnosable
+              print('[MediaUploadService] Transcription trigger failed for ${upload.clientUuid}: $e');
+            }
+          }
         } else {
           await db.updatePendingMediaUploadStatus(upload.id, 'failed');
         }
