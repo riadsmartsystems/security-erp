@@ -4,6 +4,84 @@
 
 ---
 
+### E5.1 — AI Builder UI: estimates pages + human gate + degraded banner ✅ DONE
+
+**Дата:** 2026-06-25
+**Статус:** DoD виконано
+
+#### Технічне рішення
+
+**API types + functions (`riad_web/src/lib/api.ts`):**
+- `EstimateBuildPayload`, `EstimateBuildResponse`, `EstimateData`, `EstimateItemData`
+- `EstimateReviewPayload`, `EstimateConfirmResponse`
+- `SiteBriefData`, `listSiteBriefs()`, `fetchSiteBrief()`
+- `buildEstimate()`, `fetchEstimate()`, `reviewEstimate()`, `confirmEstimate()`, `fetchAiDegradation()`
+
+**HumanGateDialog (`riad_web/src/components/HumanGateDialog.tsx`):**
+- Модальний діалог підтвердження AI-запиту
+- Показує JSON payload даних, що відправляються у зовнішній AI-провайдер
+- Checkbox-підтвердження перед активацією кнопки «Запустити AI»
+
+**AiDegradedBanner (`riad_web/src/components/AiDegradedBanner.tsx`):**
+- Банер деградації AI: fallback (жовтий) / manual (червоний)
+- При primary рівні — нічого не показує
+
+**New Estimate page (`riad_web/src/app/estimates/new/page.tsx`):**
+- Select Site Brief з підвантаженим списком (лише існуючі документи)
+- Відображення даних Brief (тип, площа, камери, архів, опції)
+- 3 варіанти (budget/optimal/premium) як radio/cards
+- HumanGateDialog з ФАКТИЧНИМИ даними Brief (не просто name)
+- AiDegradedBanner при завантаженні
+- Error handling 4xx/5xx → inline alert
+
+**Estimate Detail page (`riad_web/src/app/estimates/[id]/page.tsx`):**
+- Показ статусу/варіанту/походження/дати перегляду
+- Таблиця позицій кошторису
+- Кнопки залежно від стану:
+  - «Затвердити»/«Відхилити»: `status` не Approved/Rejected/Draft + `origin` != manual
+  - «Підтвердити → Quotation»: `status === "Approved"` + `reviewed_by` не порожній
+- Обробка помилок review/confirm → inline повідомлення
+
+**Home page update (`riad_web/src/app/page.tsx`):**
+- Додано посилання «Кошториси» → /estimates/new
+
+#### Стани估計 lifecycle (verified from code)
+
+Статуси після `build_estimate()`:
+- `"Draft"` — одразу після створення
+- `"ai_primary"` / `"ai_fallback"` / `"manual"` — після sync orchestrator
+- `"pending"` — якщо RQ enqueue (timeout)
+
+Статуси після `review_estimate()`:
+- `"Approved"` / `"Rejected"` + `reviewed_by`
+
+Confirm: `status === "Approved"` + `reviewed_by` present
+
+#### Змінені/нові файли
+
+| Файл | Зміна |
+|------|-------|
+| `riad_web/src/lib/api.ts` | Оновлено: +estimate types/functions + Site Brief helpers |
+| `riad_web/src/components/HumanGateDialog.tsx` | НОВИЙ — модальний діалог підтвердження |
+| `riad_web/src/components/AiDegradedBanner.tsx` | НОВИЙ — банер деградації AI |
+| `riad_web/src/app/estimates/new/page.tsx` | НОВИЙ — сторінка створення кошторису |
+| `riad_web/src/app/estimates/[id]/page.tsx` | НОВИЙ — сторінка перегляду кошторису |
+| `riad_web/src/app/page.tsx` | Оновлено: +посилання "Кошториси" |
+| `riad_web/__tests__/e5/estimates.test.tsx` | НОВИЙ — тести компонентів (8 тестів) |
+| `riad_web/__tests__/e5/estimates-pages.test.tsx` | НОВИЙ — тести сторінок (14 тестів) |
+
+#### DoD перевірка
+
+1. ✅ `npx tsc --noEmit` → 0 errors
+2. ✅ `npm test` → all pass (33/33)
+3. ✅ `npm run build` → success (7 pages generated)
+4. ✅ HumanGateDialog показує фактичні дані Site Brief
+5. ✅ AiDegradedBanner не показує при primary
+6. ✅ Кнопки review/confirm залежать від status/origin/reviewed_by
+7. ✅ Error handling 4xx/5xx → inline повідомлення
+
+---
+
 ### C2 — Публічний сайт Next.js: воронка калькулятора ✅ DONE
 
 **Дата:** 2026-06-24

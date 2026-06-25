@@ -137,4 +137,110 @@ export async function submitCalculator(payload: CalcSubmitPayload): Promise<Calc
   return data
 }
 
+export interface EstimateBuildPayload {
+  site_brief_name: string
+  variant: "budget" | "optimal" | "premium"
+}
+
+export interface EstimateBuildResponse {
+  name: string
+  status: string
+  origin: string
+}
+
+export interface EstimateData {
+  name: string
+  site_brief: string | null
+  variant: string | null
+  origin: string | null
+  status: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
+  ai_result: string | null
+  total_cost: number | null
+  total_margin: number | null
+  items: EstimateItemData[]
+}
+
+export interface EstimateItemData {
+  name: string
+  item_code: string
+  item_name: string | null
+  qty: number
+  unit_price: number | null
+  purchase_rate: number | null
+  profit: number | null
+  margin_pct: number | null
+  line_source: string | null
+}
+
+export interface EstimateReviewPayload {
+  decision: "approved" | "rejected"
+}
+
+export interface EstimateConfirmResponse {
+  quotation_name: string
+}
+
+export async function buildEstimate(payload: EstimateBuildPayload): Promise<EstimateBuildResponse> {
+  const { data } = await api.post("/api/v2/estimates/build", payload)
+  return data
+}
+
+export async function fetchEstimate(name: string): Promise<EstimateData> {
+  const { data } = await api.get(`/api/v2/estimates/${name}`)
+  return data
+}
+
+export async function reviewEstimate(
+  name: string,
+  payload: EstimateReviewPayload
+): Promise<{ name: string; status: string; reviewed_by: string }> {
+  const { data } = await api.post(`/api/v2/estimates/${name}/review`, payload)
+  return data
+}
+
+export async function confirmEstimate(name: string): Promise<EstimateConfirmResponse> {
+  const { data } = await api.post(`/api/v2/estimates/${name}/confirm`)
+  return data
+}
+
+export async function fetchAiDegradation(): Promise<{
+  level: string
+  providers: string[]
+  message: string
+}> {
+  const { data } = await api.get("/api/v2/ai/degradation")
+  return data
+}
+
+export interface SiteBriefData {
+  name: string
+  brief_name: string | null
+  object_type: string | null
+  area_m2: number | null
+  cameras_count: number | null
+  camera_type: string | null
+  archive_days: number | null
+  access_control: number | null
+  intercom: number | null
+  alarm: number | null
+  network_needed: number | null
+  power_backup: number | null
+  tech_notes: string | null
+  source: string | null
+}
+
+export async function fetchSiteBrief(name: string): Promise<SiteBriefData> {
+  const { data } = await api.get(`/api/resource/Site Brief/${name}`)
+  return data.data ?? data
+}
+
+export async function listSiteBriefs(): Promise<{ name: string; brief_name: string | null }[]> {
+  const { data } = await api.get("/api/resource/Site Brief", {
+    params: { fields: '["name","brief_name"]', limit_page_length: 100 },
+  })
+  return data.data ?? []
+}
+
 export default api
