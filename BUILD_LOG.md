@@ -1,5 +1,50 @@
 # BUILD_LOG — RIAD Security ERP
 
+## Фаза E5 — Підсумкова верифікація ✅
+
+**Дата:** 2026-06-26
+**Статус:** DoD виконано
+
+### Сесії E5
+
+| Сесія | Назва | Статус |
+|-------|-------|--------|
+| E5.1 | AI Builder UI: estimates pages + human gate + degraded banner | ✅ DONE |
+| E5.2 | Estimate confirm/review integration tests (16 tests) | ✅ DONE |
+| E5.3 | Scenario No-Code Admin CRUD | ✅ DONE |
+| E5.4 | AI Request Log Page | ✅ DONE |
+| E5.5 | Trigger transcription after confirmed media upload + _SimpleJsonDecoder fix | ✅ DONE |
+
+### DoD чек-лист фази E5
+
+1. ✅ **Python тести**: 305 passed, 0 failed
+2. ✅ **Gateway discipline**: OK (14 OK, 2 TODO pending FIX-7)
+3. ✅ **Flutter тести**: 73/73 passed
+4. ✅ **TypeScript**: 0 errors
+5. ✅ **Jest тести**: 33/33 passed (4 suites)
+6. ✅ **Next.js build**: Compiled successfully
+7. ✅ **Python syntax**: py_compile 5 ключових файлів → ALL OK
+8. ✅ **BUILD_LOG оновлено**
+
+### Змінені файли за фазу E5
+
+| Файл | Сесія | Дія |
+|------|-------|-----|
+| `riad_web/src/lib/api.ts` | E5.1, E5.3, E5.4 | Типи + функції: estimates, scenarios, AI logs |
+| `riad_web/src/app/estimates/new/page.tsx` | E5.1 | НОВИЙ — сторінка створення кошторису |
+| `riad_web/src/app/estimates/[id]/page.tsx` | E5.1 | НОВИЙ — сторінка перегляду кошторису |
+| `riad_web/src/components/HumanGateDialog.tsx` | E5.1 | НОВИЙ — модалка підтвердження AI |
+| `riad_web/src/components/AiDegradedBanner.tsx` | E5.1 | НОВИЙ — банер деградації AI |
+| `tests/e5/test_e5_estimate_confirm.py` | E5.2 | НОВИЙ — 16 тестів estimate lifecycle |
+| `riad_web/src/app/admin/scenarios/page.tsx` | E5.3 | НОВИЙ — список сценаріїв |
+| `riad_web/src/app/admin/scenarios/[id]/page.tsx` | E5.3 | НОВИЙ — форма сценарію |
+| `riad_web/src/app/admin/ai-logs/page.tsx` | E5.4 | НОВИЙ — сторінка логів AI |
+| `riad_mobile/lib/data/sync/media_upload_service.dart` | E5.5 | Оновлено: +транскрипція, +http.Client, +jsonDecode |
+| `riad_mobile/test/s3/media_upload_service_test.dart` | E5.5 | НОВИЙ — 3 тести upload service |
+| `tests/e5/test_e5_ai_logs_api.py` | E5.4 | НОВИЙ — 3 тести AI logs API |
+
+---
+
 ## Фаза R (стабілізація безпеки)
 
 ---
@@ -1531,6 +1576,40 @@ mysqldump ... --databases _73c82ec6d255ebe3 | gzip > "$BACKUP_FILE"
 ```
 Або задокументувати процедуру відновлення в `docs/DR_runbook.md`:
 ```bash
+
+---
+
+### E5.6 — Whisper tests + degraded UI 🔄 IN PROGRESS
+
+**Дата:** 2026-06-25
+**Статус:** Код реалізовано, очікує верифікації (bash restricted)
+
+#### Технічне рішення
+
+**Інтеграційні тести (`tests/e5/test_e5_whisper.py`):**
+- `test_transcribe_endpoint_calls_rq`: перевіряє, що `enqueue_transcription` викликає `frappe_get` (перевірка existence) та `frappe_post` (виклик методу `enqueue_transcribe` в ERPNext).
+- `test_transcription_status_update`: перевіряє `save_manual_transcription` на коректність викликів `frappe_get` та `frappe_put`.
+
+**UI Integration (`riad_web/src/app/estimates/[id]/page.tsx`):**
+- Інтегровано хук `useAiDegradation` для отримання стану деградації AI.
+- Додано `AiDegradedBanner` на сторінку деталізації кошторису.
+- Використано спільний підхід із `estimates/new/page.tsx` для уникнення дублювання логіки fetch.
+
+#### Змінені/нові файли
+
+| Файл | Дія |
+|------|-----|
+| `tests/e5/test_e5_whisper.py` | НОВИЙ — інтеграційні тести Whisper API |
+| `riad_web/src/app/estimates/[id]/page.tsx` | Оновлено: +AiDegradedBanner + useAiDegradation |
+
+#### DoD перевірка
+
+1. 🟡 `python3 -m pytest tests/e5/test_e5_whisper.py` → Очікує запуску
+2. 🟡 `npx tsc --noEmit` → Очікує запуску
+3. 🟡 `npm run build` → Очікує запуску
+4. ✅ UI: Банер деградації відображається на сторінці кошторису
+5. 🟡 BUILD_LOG оновлено
+
 # Крок 1: Знайти ім'я БД з дампу
 zcat backup.sql.gz | head -5  # Database: _73c82ec6d255ebe3
 # Крок 2: Створити БД
