@@ -585,11 +585,11 @@ class TestAIDegradation(unittest.IsolatedAsyncioTestCase):
         app.dependency_overrides[get_current_user] = _mock_current_user
 
         with patch("app.core.redis.get_redis", side_effect=_mock_redis), \
-             patch("app.core.database.frappe_get", new_callable=AsyncMock) as mock_frappe_get:
-            mock_frappe_get.return_value = {"data": [
+             patch("app.routes.ai.get_provider_degradation", new_callable=AsyncMock) as mock_get_degradation:
+            mock_get_degradation.return_value = [
                 {"name": "AI Provider-gemini", "provider_name": "gemini", "health_status": "healthy", "priority": 1},
                 {"name": "AI Provider-stub", "provider_name": "stub", "health_status": "healthy", "priority": 2},
-            ]}
+            ]
             client = TestClient(app, raise_server_exceptions=False)
             resp = client.get("/api/v2/ai/degradation")
 
@@ -621,11 +621,11 @@ class TestAIDegradation(unittest.IsolatedAsyncioTestCase):
         app.dependency_overrides[get_current_user] = _mock_current_user
 
         with patch("app.core.redis.get_redis", side_effect=_mock_redis), \
-             patch("app.core.database.frappe_get", new_callable=AsyncMock) as mock_frappe_get:
-            mock_frappe_get.return_value = {"data": [
+             patch("app.routes.ai.get_provider_degradation", new_callable=AsyncMock) as mock_get_degradation:
+            mock_get_degradation.return_value = [
                 {"name": "AI Provider-gemini", "provider_name": "gemini", "health_status": "healthy", "priority": 1},
                 {"name": "AI Provider-stub", "provider_name": "stub", "health_status": "healthy", "priority": 2},
-            ]}
+            ]
             client = TestClient(app, raise_server_exceptions=False)
             resp = client.get("/api/v2/ai/degradation")
 
