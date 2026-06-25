@@ -243,6 +243,48 @@ export async function listSiteBriefs(): Promise<{ name: string; brief_name: stri
   return data.data ?? []
 }
 
+export interface ScenarioData {
+  name: string
+  scenario_name: string
+  description: string
+  items: ScenarioItemData[]
+}
+
+export interface ScenarioItemData {
+  item_code: string
+  item_name: string
+  qty: number
+  qty_rule: string
+  qty_factor: number
+  rate: number
+  description: string
+}
+
+export async function listScenarios(): Promise<ScenarioData[]> {
+  const { data } = await api.get("/api/v2/scenarios")
+  return data.scenarios || []
+}
+
+export async function fetchScenario(name: string): Promise<ScenarioData> {
+  const { data } = await api.get(`/api/v2/scenarios/${name}`)
+  return data
+}
+
+export async function createScenario(payload: Partial<ScenarioData>): Promise<{ name: string }> {
+  const { data } = await api.post("/api/v2/scenarios", payload)
+  return data
+}
+
+export async function updateScenario(name: string, payload: Partial<ScenarioData>): Promise<{ name: string }> {
+  const { data } = await api.post("/api/v2/scenarios", { ...payload, name })
+  return data
+}
+
+export async function deleteScenario(name: string): Promise<{ success: boolean }> {
+  const { data } = await api.delete(`/api/v2/scenarios/${name}`)
+  return data
+}
+
 export interface AIRequestLogEntry {
   name: string
   creation: string
@@ -266,72 +308,6 @@ export async function fetchAIRequestLogs(
   const { data } = await api.get("/api/v2/ai-admin/request-logs", {
     params: { page, page_size: pageSize },
   })
-  return data
-}
-
-export interface ScenarioData {
-  name: string
-  scenario_name: string
-  description: string
-  items: ScenarioItemData[]
-}
-
-export interface ScenarioItemData {
-  name: string
-  item_code: string
-  item_name: string | null
-  qty: number | null
-  qty_rule: string | null
-  qty_factor: number | null
-  rate: number | null
-  description: string | null
-}
-
-export interface ScenarioUpsertPayload {
-  name?: string
-  scenario_name: string
-  description?: string
-}
-
-export interface ScenarioItemUpsertPayload {
-  item_code: string
-  item_name?: string
-  qty?: number
-  qty_rule?: string
-  qty_factor?: number
-  rate?: number
-  description?: string
-}
-
-export async function listScenarios(): Promise<ScenarioData[]> {
-  const { data } = await api.get("/api/v2/scenarios")
-  return data.scenarios || []
-}
-
-export async function fetchScenario(name: string): Promise<ScenarioData> {
-  const { data } = await api.get(`/api/v2/scenarios/${name}`)
-  return data
-}
-
-export async function createScenario(payload: ScenarioUpsertPayload): Promise<{ name: string }> {
-  const { data } = await api.post("/api/v2/scenarios", payload)
-  return data
-}
-
-export async function updateScenario(name: string, payload: ScenarioUpsertPayload): Promise<{ name: string }> {
-  const { data } = await api.post("/api/v2/scenarios", { ...payload, name })
-  return data
-}
-
-export async function deleteScenario(name: string): Promise<void> {
-  await api.delete(`/api/v2/scenarios/${name}`)
-}
-
-export async function upsertScenarioItem(
-  scenarioName: string,
-  payload: ScenarioItemUpsertPayload
-): Promise<{ success: boolean }> {
-  const { data } = await api.post(`/api/v2/scenarios/${scenarioName}/items`, payload)
   return data
 }
 
