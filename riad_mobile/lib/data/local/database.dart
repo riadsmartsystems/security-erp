@@ -406,6 +406,19 @@ class RiadDatabase extends _$RiadDatabase {
         .map((row) => row.read(count)!);
   }
 
+  Stream<int> watchTotalPendingCount() {
+    final opCount = pendingOps.id.count();
+    final uploadCount = pendingMediaUploads.id.count();
+    return (selectOnly(pendingOps)..addColumns([opCount]))
+        .watchSingle()
+        .map((row) => row.read(opCount)!)
+        .asyncExpand((opTotal) {
+      return (selectOnly(pendingMediaUploads)..addColumns([uploadCount]))
+          .watchSingle()
+          .map((row) => row.read(uploadCount)! + opTotal);
+    });
+  }
+
   // --- Extended MediaAsset methods ---
 
   Future<void> updateMediaAssetDriveFileId(String clientUuid, String driveFileId) async {

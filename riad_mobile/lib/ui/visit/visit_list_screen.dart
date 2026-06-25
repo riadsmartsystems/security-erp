@@ -25,7 +25,7 @@ class VisitListScreen extends StatelessWidget {
               ),
             ),
           StreamBuilder<int>(
-            stream: db.watchPendingCount(),
+            stream: db.watchTotalPendingCount(),
             builder: (context, snap) {
               final count = snap.data ?? 0;
               if (count == 0) return const SizedBox.shrink();

@@ -552,4 +552,24 @@ void main() {
       expect(ci.status, 'new_status');
     });
   });
+
+  group('watchTotalPendingCount', () {
+    test('рахує PendingOps + PendingMediaUploads разом', () async {
+      await db.createPendingOp(PendingOpsCompanion.insert(
+        doctype: 'Visit', name: 'v1', op: 'upsert',
+        payload: '{}', createdAt: DateTime.now().millisecondsSinceEpoch,
+      ));
+      await db.createPendingMediaUpload(PendingMediaUploadsCompanion.insert(
+        clientUuid: 'm1', localPath: '/tmp/test.jpg', mediaType: 'photo',
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+      ));
+      final count = await db.watchTotalPendingCount().first;
+      expect(count, 2);
+    });
+
+    test('повертає 0 коли немає нічого', () async {
+      final count = await db.watchTotalPendingCount().first;
+      expect(count, 0);
+    });
+  });
 }
