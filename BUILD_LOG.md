@@ -157,22 +157,31 @@ if (upload.mediaType == 'voice') {
 - Тригер активується ТІЛЬКИ для `mediaType == 'voice'` (фото не транскрибуються)
 - Виклик асинхронний, НЕ блокує наступні завантаження
 - Помилка логується, але НЕ зупиняє цикл завантаження
-- `http.Client()` створюється та закривається явно (немає витоку)
+- `http.Client` приймається як параметр конструктора (для тестованості)
+
+**ВИПРАВЛЕНО ПОПУТНИЙ БАГ:**
+- `_SimpleJsonDecoder` (кастомний JSON-парсер) повертав `{}` для валідного JSON
+- Наслідок: `drive_file_id` НІКОЛИ не зберігався локально після завантаження
+- Замінено на стандартний `jsonDecode` з `dart:convert`
+- Видалено невикористаний `_SimpleJsonDecoder` (90+ рядків мертвого коду)
 
 #### Змінені файли
 
 | Файл | Дія |
 |------|-----|
-| `riad_mobile/lib/data/sync/media_upload_service.dart` | Оновлено: + тригер транскрипції після успішного upload |
+| `riad_mobile/lib/data/sync/media_upload_service.dart` | Оновлено: + тригер транскрипції, + http.Client як параметр, ВИПРАВЛЕНО _parseJson (jsonDecode замість битого _SimpleJsonDecoder) |
+| `riad_mobile/test/s3/media_upload_service_test.dart` | НОВИЙ — 3 тести: upload+transcribe, photo без transcribe, помилка transcribe не блокує |
 
 #### DoD перевірка
 
 1. ✅ **dart analyze**: `No issues found!` на `media_upload_service.dart`
-2. ✅ **flutter test**: 70/70 тестів зелені (0 failed)
+2. ✅ **flutter test**: 73/73 тестів зелені (0 failed)
 3. ✅ **Тригер у правильній точці**: після `drive_file_id` + `PendingOp`, перед наступним upload
 4. ✅ **Тільки для voice**: умова `upload.mediaType == 'voice'`
 5. ✅ **Помилка не блокує**: try/catch з логуванням, не吞 silently
-6. ✅ **BUILD_LOG оновлено**
+6. ✅ **Реальні тести**: `media_upload_service_test.dart` — 3 тести з mock HTTP, перевіряють реальну поведінку
+7. ✅ **Баг виправлено**: `_SimpleJsonDecoder` → `jsonDecode` (drive_file_id тепер зберігається)
+8. ✅ **BUILD_LOG оновлено**
 
 ---
 
