@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../data/local/database.dart';
+import '../ai/degradation_badge.dart';
 
 class VisitListScreen extends StatelessWidget {
   final RiadDatabase db;
+  final String? baseUrl;
+  final String? jwtToken;
 
-  const VisitListScreen({super.key, required this.db});
+  const VisitListScreen({super.key, required this.db, this.baseUrl, this.jwtToken});
 
   @override
   Widget build(BuildContext context) {
@@ -13,6 +16,14 @@ class VisitListScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Мої виїзди'),
         actions: [
+          if (baseUrl != null && jwtToken != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: DegradationBadge(
+                baseUrl: baseUrl!,
+                jwtToken: jwtToken!,
+              ),
+            ),
           StreamBuilder<int>(
             stream: db.watchPendingCount(),
             builder: (context, snap) {
