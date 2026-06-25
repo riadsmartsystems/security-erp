@@ -1927,6 +1927,53 @@ class AIExecuteResponse(BaseModel):
 
 ---
 
+### E5.2 — Estimate confirm/review integration tests ✅ DONE
+
+**Дата:** 2026-06-25
+**Статус:** DoD виконано
+
+#### Технічне рішення
+
+Інтеграційні тести для estimate lifecycle: `review_estimate()` → `confirm_estimate()` → Quotation creation. Тести перевіряють бізнес-логіку estimate_service.py з mock Frappe REST API викликами.
+
+**Тести:**
+
+| Клас | Тест | Що перевіряє |
+|------|------|--------------|
+| `TestEstimateConfirm` | `test_confirm_with_reviewed_by_creates_quotation` | confirm_estimate() викликає frappe_post create_quotation при status=Approved + reviewed_by |
+| `TestEstimateConfirm` | `test_confirm_without_reviewed_by_raises` | ValueError коли reviewed_by порожній (навіть при status=Approved) |
+| `TestEstimateConfirm` | `test_confirm_draft_estimate_raises` | ValueError коли status=Draft (навіть при наявності reviewed_by) |
+| `TestEstimateConfirm` | `test_confirm_neither_approved_nor_reviewed_raises` | ValueError при status=Rejected + reviewed_by="" |
+| `TestEstimateReview` | `test_review_sets_reviewed_by_and_status` | review_estimate() встановлює reviewed_by та status=Approved |
+| `TestEstimateReview` | `test_review_rejected_sets_status` | review_estimate() з decision=rejected → status=Rejected |
+| `TestEstimateReview` | `test_review_manual_origin_raises` | ValueError при origin=manual (estimate must be AI-generated) |
+| `TestEstimateReview` | `test_review_empty_ai_result_raises` | ValueError при ai_result="" (estimate must have ai_result) |
+| `TestEstimateLifecycle` | `test_review_then_confirm_creates_quotation` | E2E: review → confirm → quotation (shared mutable state) |
+| `TestEstimateLifecycle` | `test_manual_origin_cannot_be_reviewed` | origin=manual неможливо пройти review |
+
+**Ключові знахідки:**
+- `confirm_estimate()` ValueError: `"RIAD-VALIDATION: estimate must be approved and reviewed before confirmation"`
+- `review_estimate()` ValueError: `"RIAD-VALIDATION: estimate must be AI-generated with ai_result"`
+- Параметр reviewer у review_estimate() = `user_id` (keyword-only)
+- `origin="manual"` ніколи не може пройти review_estimate() → ніколи не стає Approved → confirm_estimate() для нього завжди падає
+
+#### Змінені/створені файли
+
+| Файл | Дія |
+|------|-----|
+| `tests/e5/__init__.py` | Вже існував (порожній) |
+| `tests/e5/test_e5_estimate_confirm.py` | НОВИЙ — 10 інтеграційних тестів (3 класи) |
+
+#### DoD перевірка
+
+1. ✅ **10/10 тестів зелені** — `python3 -m pytest tests/e5/test_e5_estimate_confirm.py -v` → `10 passed`
+2. ✅ **Повний suite без регресій** — `python3 -m pytest tests/ --tb=short -q` → `294 passed, 0 failed`
+3. ✅ **Тести засновані на реальному коді** — ValueError тексти звірялися з estimate_service.py:140,173
+4. ✅ **TDD патерн дотримано** — тести написані за реальними контрактами estimate_service.py
+5. ✅ **BUILD_LOG оновлено**
+
+---
+
 ### S1 — Sync backend (v2): push/pull/resolve ✅ DONE
 
 **Дата:** 2026-06-23
