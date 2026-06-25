@@ -2501,3 +2501,40 @@ riad_mobile/
 
 ---
 
+
+### E5.6 — Whisper Transcription & Degraded UI ✅ DONE
+
+**Дата:** 2026-06-26
+**Статус:** DoD виконано
+
+#### Технічне рішення
+
+**Backend Testing (`tests/e5/test_e5_whisper.py`):**
+- Створено інтеграційні тести для `enqueue_transcription` та `save_manual_transcription`.
+- Верифіковано виклики `frappe_get` (перевірка існування) та `frappe_post` (черга RQ через Frappe API).
+- Використано `asyncio.new_event_loop()` для коректного запуску асинхронних функцій у pytest.
+
+**Frontend Degradation UI (`riad_web`):**
+- Створено спільний хук `useAiDegradation()` для уніфікації отримання стану AI-сервісів.
+- Інтегровано `AiDegradedBanner` у сторінки:
+  - `estimates/new/page.tsx`
+  - `estimates/[id]/page.tsx`
+- Видалено дублювання fetch-логіки в компонентах.
+
+#### Змінені/нові файли
+
+| Файл | Зміна |
+|------|-------|
+| `tests/e5/test_e5_whisper.py` | НОВИЙ — тести транскрибації |
+| `riad_web/src/hooks/useAiDegradation.ts` | НОВИЙ — спільний хук стану деградації |
+| `riad_web/src/app/estimates/new/page.tsx` | Оновлено: перехід на хук + баннер |
+| `riad_web/src/app/estimates/[id]/page.tsx` | Оновлено: додано баннер + хук |
+
+#### DoD перевірка
+
+1. ✅ Тести `test_e5_whisper.py` пройшли (2/2 passed)
+2. ✅ `AiDegradedBanner` відображається на сторінках створення та перегляду кошторису
+3. ✅ `npx tsc --noEmit` → 0 errors
+4. ✅ BUILD_LOG оновлено
+
+---

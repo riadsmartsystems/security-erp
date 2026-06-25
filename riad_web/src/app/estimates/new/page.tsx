@@ -6,11 +6,11 @@ import {
   buildEstimate,
   listSiteBriefs,
   fetchSiteBrief,
-  fetchAiDegradation,
   SiteBriefData,
 } from "@/lib/api"
 import HumanGateDialog from "@/components/HumanGateDialog"
 import AiDegradedBanner from "@/components/AiDegradedBanner"
+import { useAiDegradation } from "@/hooks/useAiDegradation"
 
 type Variant = "budget" | "optimal" | "premium"
 
@@ -22,12 +22,12 @@ const VARIANT_OPTIONS: { value: Variant; label: string; desc: string }[] = [
 
 export default function NewEstimatePage() {
   const router = useRouter()
+  const { degradation } = useAiDegradation()
 
   const [briefs, setBriefs] = useState<{ name: string; brief_name: string | null }[]>([])
   const [selectedBrief, setSelectedBrief] = useState("")
   const [briefData, setBriefData] = useState<SiteBriefData | null>(null)
   const [variant, setVariant] = useState<Variant>("optimal")
-  const [degradation, setDegradation] = useState<{ level: string; providers: string[]; message: string } | null>(null)
 
   const [showGate, setShowGate] = useState(false)
   const [isBuilding, setIsBuilding] = useState(false)
@@ -40,10 +40,6 @@ export default function NewEstimatePage() {
       .then(setBriefs)
       .catch(() => setBriefs([]))
       .finally(() => setLoadingBriefs(false))
-
-    fetchAiDegradation()
-      .then(setDegradation)
-      .catch(() => setDegradation(null))
   }, [])
 
   useEffect(() => {

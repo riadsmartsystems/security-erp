@@ -8,6 +8,8 @@ import {
   confirmEstimate,
   EstimateData,
 } from "@/lib/api"
+import AiDegradedBanner from "@/components/AiDegradedBanner"
+import { useAiDegradation } from "@/hooks/useAiDegradation"
 
 const STATUS_LABELS: Record<string, string> = {
   Draft: "Чернетка",
@@ -35,6 +37,7 @@ const VARIANT_LABELS: Record<string, string> = {
 export default function EstimateDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const { degradation } = useAiDegradation()
 
   const [estimate, setEstimate] = useState<EstimateData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -137,6 +140,7 @@ export default function EstimateDetailPage() {
 
   return (
     <main className="min-h-screen p-4 sm:p-8 max-w-2xl mx-auto">
+      <AiDegradedBanner level={degradation?.level || "primary"} />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">{estimate.name}</h1>
         <button onClick={() => router.back()} className="px-3 py-1 text-sm border rounded hover:bg-gray-50">
