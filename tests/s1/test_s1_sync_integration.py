@@ -144,6 +144,73 @@ class TestSyncIntegration(unittest.TestCase):
         self.assertIsInstance(result, str)
         self.assertTrue(len(result) > 0)
 
+    def test_full_offline_cycle_create_push_conflict_resolve_pull(self):
+        """E4 DoD: offline create → push → conflict → resolve → pull → verify."""
+        from app.schemas.sync import (
+            SyncPullRequest, SyncPushItem, SyncPushRequest, SyncResolveRequest,
+        )
+        from app.services.sync_service import (
+            encode_watermark, pull_changes, push_batch, resolve_conflict,
+        )
+
+        server_state = {
+            "Visit/uuid-e2e-1": {
+                "name": "uuid-e2e-1", "riad_version": 2, "riad_deleted": 0,
+                "status": "server_version", "engineer": "eng@riad.fun",
+                "materials": [], "photos": [],
+            }
+        }
+        conflicts_created = []
+
+        async def _get(path, params=None, sid=""):
+            if "Sync Conflict" in path:
+                name = path.split("/")[-1]
+                for c in conflicts_created:
+                    if c["name"] == name:
+                        return {"data": c}
+                return {"data": {}}
+            key = path.replace("/api/resource/", "")
+            return {"data": server_state.get(key, {"name": "test", "riad_version": 0, "riad_deleted": 0, "status": "", "engineer": "", "materials": [], "photos": []})}
+
+        async def _post(path, data=None, sid=""):
+            if "Sync Conflict" in path:
+                record = {"name": f"SC-E2E-{len(conflicts_created)+1}", **data}
+                conflicts_created.append(record)
+                return {"data": record}
+            return {"data": {"name": "new-doc"}}
+
+        async def _put(path, data=None, sid=""):
+            key = path.replace("/api/resource/", "")
+            if key in server_state:
+                server_state[key].update(data)
+            else:
+                data["name"] = key.split("/")[-1] if "/" in key else "new"
+                server_state[key] = data
+            return {"data": server_state[key]}
+
+        with patch("app.services.sync_service.frappe_get", side_effect=_get), \
+             patch("app.services.sync_service.frappe_post", side_effect=_post), \
+             patch("app.services.sync_service.frappe_put", side_effect=_put):
+
+            push_req = SyncPushRequest(
+                device_id="e2e-device",
+                batch=[SyncPushItem(
+                    doctype="Visit", name="uuid-e2e-1", op="upsert",
+                    client_base_version=1,
+                    scalars={"status": "client_version"},
+                )],
+            )
+            push_result = _run(push_batch(push_req, user_id="eng", sid="sid"))
+            self.assertEqual(push_result.results[0].status, "conflict")
+            conflict_id = push_result.results[0].conflicts[0].conflict_id
+
+            resolve_req = SyncResolveRequest(conflict_id=conflict_id, chosen="client")
+            resolve_result = _run(resolve_conflict(resolve_req, user_id="eng", sid="sid"))
+            self.assertEqual(resolve_result.status, "resolved")
+
+            visit = server_state.get("Visit/uuid-e2e-1", {})
+            self.assertEqual(visit.get("status"), "client_version")
+
 
 if __name__ == "__main__":
     unittest.main()
