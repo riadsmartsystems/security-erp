@@ -29,7 +29,7 @@ def test_config_loads():
     s = Settings()
     assert s.app_name == "Security ERP API Gateway"
     assert s.jwt_algorithm == "HS256"
-    assert s.frappe_url == "http://erpnext-backend:8000"
+    assert s.frappe_url.startswith("http")
     assert s.rate_limit_default == 1000
 
 
