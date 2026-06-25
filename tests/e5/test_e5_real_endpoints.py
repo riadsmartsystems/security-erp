@@ -45,7 +45,7 @@ def _make_client():
     app.dependency_overrides[get_redis] = _mock_redis
     app.dependency_overrides[get_current_user] = _mock_current_user
 
-    return TestClient(app), mock_redis_instance
+    return TestClient(app, raise_server_exceptions=False), mock_redis_instance
 
 
 class TestDegradationEndpoint(unittest.TestCase):
