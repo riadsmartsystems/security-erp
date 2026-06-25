@@ -114,3 +114,17 @@ async def sync_provider_health(r: Any, sid: str) -> list[dict]:
         })
 
     return result
+
+
+async def get_provider_degradation(sid: str) -> list[dict]:
+    """Read AI Provider health status from Frappe."""
+    providers_resp = await frappe_get(
+        "/api/resource/AI Provider",
+        params={
+            "fields": '["name", "provider_name", "health_status", "priority"]',
+            "filters": '[["is_enabled", "=", 1]]',
+            "limit_page_length": 50,
+        },
+        sid=sid,
+    )
+    return providers_resp.get("data", [])

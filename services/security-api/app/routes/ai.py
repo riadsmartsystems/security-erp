@@ -13,6 +13,7 @@ from app.core.database import frappe_post
 from app.core.redis import get_redis
 from app.services.ai_orchestrator_service import (
     _anonymize_payload,
+    get_provider_degradation,
     sync_provider_health,
     write_ai_request_log,
 )
@@ -74,28 +75,16 @@ async def get_degradation(
     r=Depends(get_redis),
 ):
     """AI degradation level for UI badges."""
-    from app.core.database import frappe_get
-
     sid = getattr(current_user, "frappe_sid", "")
 
     try:
-        providers_resp = await frappe_get(
-            "/api/resource/AI Provider",
-            params={
-                "fields": '["name", "provider_name", "health_status", "priority"]',
-                "filters": '[["is_enabled", "=", 1]]',
-                "limit_page_length": 50,
-            },
-            sid=sid,
-        )
+        providers = await get_provider_degradation(sid=sid)
     except Exception:
         return AIDegradationResponse(
             level="manual",
             providers=[],
             message="Неможливо отримати стан провайдерів. Ручний режим.",
         )
-
-    providers = providers_resp.get("data", [])
     open_count = 0
     half_open_count = 0
     result_providers = []
