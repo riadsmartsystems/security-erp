@@ -132,7 +132,7 @@ def test_syntax_files():
         "routes/visits.py",
         "core/database.py",
         "core/config.py",
-        "services/ai_service.py",
+        "services/ai_orchestrator_service.py",
     ]
     for f in critical:
         path = os.path.join(base, f)
