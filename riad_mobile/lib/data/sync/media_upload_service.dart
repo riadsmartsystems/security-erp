@@ -5,8 +5,6 @@ import 'package:path/path.dart' as p;
 import '../local/database.dart';
 
 class MediaUploadService {
-  static const int _maxRetries = 5;
-
   final RiadDatabase db;
   final String baseUrl;
   final String jwtToken;
