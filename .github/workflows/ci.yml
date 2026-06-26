@@ -243,6 +243,63 @@ jobs:
           FRAPPE_URL: http://localhost:8000
           REDIS_URL: redis://localhost:6379
 
+      - name: Verify P1 syntax (push files)
+        run: |
+          python -m py_compile services/security-api/app/services/push_service.py
+          python -m py_compile services/security-api/app/routes/push.py
+          python -m py_compile services/security-api/app/schemas/push.py
+
+      - name: P1 CI gate — push endpoints registered
+        run: |
+          python -c "
+          content = open('services/security-api/app/routes/push.py').read()
+          assert '/api/v2/push' in content, '/api/v2/push prefix missing'
+          assert 'push_token_register' in content, 'push_token_register endpoint missing'
+          assert 'push_token_revoke' in content, 'push_token_revoke endpoint missing'
+          assert 'push_send_test' in content, 'push_send_test endpoint missing'
+          print('P1 gate: push endpoints OK')
+          "
+
+      - name: P1 CI gate — fire_and_forget triggers in sync/estimates/media
+        run: |
+          python -c "
+          for route, marker in [('sync.py', 'sync_conflict_resolved'), ('estimates.py', 'estimate_review'), ('media.py', 'transcription_ready')]:
+              content = open(f'services/security-api/app/routes/{route}').read()
+              assert 'fire_and_forget_push' in content, f'fire_and_forget_push missing in {route}'
+              assert marker in content, f'{marker} data type missing in {route}'
+          print('P1 gate: fire_and_forget triggers OK')
+          "
+
+      - name: P1 CI gate — FCM API (send_each_for_multicast + UnregisteredError)
+        run: |
+          python -c "
+          content = open('services/security-api/app/services/push_service.py').read()
+          assert 'send_each_for_multicast' in content, 'send_each_for_multicast missing'
+          assert 'UnregisteredError' in content, 'UnregisteredError revocation missing'
+          assert '500' in content, '500-token chunking missing'
+          assert 'fire_and_forget_push' in content, 'fire_and_forget_push missing'
+          print('P1 gate: FCM API OK')
+          "
+
+      - name: P1 CI gate — auth check on push routes
+        run: |
+          python -c "
+          content = open('services/security-api/app/routes/push.py').read()
+          assert 'get_current_user' in content, 'get_current_user dependency missing'
+          assert 'CurrentUser' in content, 'CurrentUser type missing'
+          assert 'System Manager' in content, 'admin role check missing'
+          print('P1 gate: auth on push routes OK')
+          "
+
+      - name: Run P1 push notification tests
+        run: |
+          python -m unittest discover -s tests/p1 -v
+        env:
+          PYTHONPATH: services/security-api:erpnext/security_erp
+          SECRET_KEY: ci-test-secret-key-min-32-chars-ok
+          FRAPPE_URL: http://localhost:8000
+          REDIS_URL: redis://localhost:6379
+
       - name: Verify C2 TypeScript (Next.js)
         working-directory: riad_web
         run: npx tsc --noEmit
