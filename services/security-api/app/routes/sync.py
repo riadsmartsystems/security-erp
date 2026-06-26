@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends
 
 from app.auth.dependencies import CurrentUser, get_current_user
@@ -10,6 +11,8 @@ from app.schemas.sync import (
     SyncResolveResponse,
 )
 from app.services.sync_service import pull_changes, push_batch, resolve_conflict
+
+logger = logging.getLogger("sync.routes")
 
 router = APIRouter(prefix="/api/v2/sync", tags=["sync"])
 
@@ -35,4 +38,10 @@ async def sync_resolve(
     request: SyncResolveRequest,
     current_user: CurrentUser = Depends(get_current_user),
 ) -> SyncResolveResponse:
-    return await resolve_conflict(request, user_id=current_user.user_id, sid=current_user.frappe_sid)
+    result = await resolve_conflict(request, user_id=current_user.user_id, sid=current_user.frappe_sid)
+    try:
+        from app.services.push_service import fire_and_forget_push
+        fire_and_forget_push(user_id=current_user.user_id, title="Синхронізація", body="Конфлікт вирішено.", data={"type": "sync_conflict_resolved", "conflict_id": request.conflict_id})
+    except Exception as e:
+        logger.warning("Push schedule failed for sync_conflict: %s", e)
+    return result

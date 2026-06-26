@@ -30,6 +30,7 @@ from app.routes.serial import router as serial_router
 from app.routes.maps import router as maps_router
 from app.routes.warehouse import router as warehouse_router
 from app.routes.calculator import router as calculator_router
+from app.routes.push import router as push_router
 
 
 @asynccontextmanager
@@ -119,6 +120,7 @@ app.include_router(serial_router)
 app.include_router(maps_router)
 app.include_router(warehouse_router)
 app.include_router(calculator_router)
+app.include_router(push_router)
 app.include_router(proxy_router)
 
 

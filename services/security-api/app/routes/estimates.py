@@ -73,6 +73,13 @@ async def estimate_review(
         logger.error("estimate.review failed: %s", exc)
         raise HTTPException(status_code=502, detail=f"Estimate review failed: {exc}")
 
+    try:
+        from app.services.push_service import fire_and_forget_push
+        status_text = "затверджено" if body.decision == "approved" else "відхилено"
+        fire_and_forget_push(user_id=user.user_id, title=f"Кошторис {status_text}", body=f"Кошторис {name} {status_text}.", data={"type": "estimate_review", "name": name, "decision": body.decision})
+    except Exception as e:
+        logger.warning("Push schedule failed for estimate_review: %s", e)
+
     return EstimateReviewResponse(
         name=result["name"],
         status=result["status"],

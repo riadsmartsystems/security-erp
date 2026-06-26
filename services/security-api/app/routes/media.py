@@ -109,4 +109,10 @@ async def media_transcription_manual(
         logger.error("media.transcription manual failed: %s", exc)
         raise HTTPException(status_code=502, detail=f"Manual transcription failed: {exc}")
 
+    try:
+        from app.services.push_service import fire_and_forget_push
+        fire_and_forget_push(user_id=user.user_id, title="Транскрипція готова", body=f"Транскрипція для {name} готова.", data={"type": "transcription_ready", "name": name})
+    except Exception as e:
+        logger.warning("Push schedule failed for transcription_ready: %s", e)
+
     return TranscriptionResponse(status="manual")
