@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     google_service_account_json: str = ""  # path to service account JSON key
     google_drive_folder_id: str = ""  # target folder ID in Drive
 
+    # Firebase Cloud Messaging — path to service account JSON key
+    firebase_credentials_json: str = ""
+
     class Config:
         env_file = ".env"
         extra = "ignore"

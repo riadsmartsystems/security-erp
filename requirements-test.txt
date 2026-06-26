@@ -12,3 +12,4 @@ pyotp>=2.9.0
 cryptography>=42.0.0
 prometheus-client>=0.20.0
 fakeredis>=2.0.0
+firebase-admin>=6.5.0
