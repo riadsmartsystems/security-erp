@@ -22,7 +22,7 @@ fi
 DB_PASSWORD="${MYSQL_ROOT_PASSWORD:-}"
 
 echo "[$(date)] Starting ${BACKUP_TYPE} backup..."
-docker exec "$CONTAINER_NAME" mysqldump -uroot -p"${DB_PASSWORD}" --single-transaction --routines --triggers --databases _73c82ec6d255ebe3 2>/tmp/backup_stderr | gzip > "$BACKUP_FILE"
+docker exec "$CONTAINER_NAME" mysqldump -uroot -p"${DB_PASSWORD}" --single-transaction --master-data=2 --routines --triggers --databases _73c82ec6d255ebe3 2>/tmp/backup_stderr | gzip > "$BACKUP_FILE"
 
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
     echo "[$(date)] ERROR: mysqldump failed!"
