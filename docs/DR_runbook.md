@@ -1,222 +1,296 @@
-# DR Runbook — RIAD Security ERP
+# DR Runbook — Security ERP Platform
 
-> Оновлено: 2026-06-26 (v2)
-> Контакт: joker@riad.fun
+**Останнє оновлення:** 2026-06-26
+**Відповідальний:** joker@riad.fun
 
-## Крок 0: Якщо сервер втрачено повністю (апаратна помилка)
+---
 
-Якщо це не просто втрата даних, а втрата ВСЬОГО хоста — спочатку підготуйте
-нове середовище, ПЕРШ ніж переходити до розділу "Повне відновлення":
+## 1. Огляд системи
 
-1. Піднімте новий сервер, встановіть Docker + Docker Compose.
-2. `git clone <repo> "/home/joker/RIAD CRM"` та `git checkout master`.
-3. Відновіть .env із захищеного сховища секретів (password manager / vault).
-   Файл .env НЕ зберігається в git і не відновлюється автоматично.
-4. Якщо backup'и зашифровані GPG — відновіть configs/backup_secret.gpg з
-   ОФЛАЙН-резервної копії (поза цим сервером). Без цього файлу зашифровані
-   backup'и НЕВІДНОВЛЮВАНІ.
-   chmod 0600 "/home/joker/RIAD CRM/configs/backup_secret.gpg"
-5. `docker compose up -d` (піднімає mariadb, redis і т.д., поки що без даних).
-6. Тільки після цього переходьте до розділу "Повне відновлення" нижче.
+| Компонент | Опис |
+|-----------|------|
+| ERPNext | Frappe ERP (backend + frontend + workers + scheduler) |
+| MariaDB | Основна БД (source of truth) |
+| Redis | Кеш, черги, rate limiting |
+| Security API | FastAPI gateway (JWT auth + RBAC) |
+| Cloudflared | Тунель до riad.fun |
 
-⚠️ Приватний GPG-ключ backup@riad.local (configs/backup_secret.gpg) ОБОВ'ЯЗКОВО
-має офлайн-копію поза цим сервером (password manager / зашифрований USB / vault).
-Якщо копії немає — це треба виправити негайно: інакше шифрування backup'ів не
-має сенсу саме для сценарію втрати хоста.
+---
 
-## Швидка перевірка стану системи
+## 2. Стратегія бекапів
 
-```bash
-# Чи працює ERPNext?
-curl -sf https://erp.riad.fun/api/method/ping && echo "ERPNext: OK" || echo "ERPNext: DOWN"
+### 2.1 Що бекапиться
 
-# Останній backup (> 1MB = норма)?
-ls -lt /home/joker/RIAD\ CRM/backups/automated/ | head -3
-LATEST=$(ls -t /home/joker/RIAD\ CRM/backups/automated/mariadb_daily_*.sql.gz* 2>/dev/null | head -1)
-[ -n "$LATEST" ] && [ $(stat -c%s "$LATEST") -gt 1000000 ] && echo "BACKUP: OK" || echo "BACKUP: FAIL"
+| Даний | Метод | Частота | Зберігання |
+|-------|-------|---------|------------|
+| MariaDB | `scripts/backup-mariadb.sh` | Щодня о 02:00 (cron) | 30 днів |
+| Повний стек | `scripts/backup.sh` | Щотижня | 7 днів |
 
-# Binlog (PITR)?
-MARIADB=$(docker ps --format '{{.Names}}' | grep -m1 mariadb)
-PASS=$(grep '^MYSQL_ROOT_PASSWORD=' /home/joker/RIAD\ CRM/.env | cut -d= -f2-)
-docker exec "$MARIADB" mysql -u root -p"$PASS" -e "SHOW VARIABLES LIKE 'log_bin';"
-# Очікується: log_bin = ON
+### 2.2 Де зберігаються бекапи
 
-# Redis AOF?
-docker exec $(docker ps --format '{{.Names}}' | grep -m1 redis) redis-cli CONFIG GET appendonly
-# Очікується: appendonly = yes
-
-# Всі контейнери healthy?
-docker compose ps | grep -c healthy
-# Очікується: ≥ 9
+```
+/home/joker/RIAD CRM/backups/automated/
+├── mariadb_daily_YYYYMMDD_HHMMSS.sql.gz      # GPG-зашифровані
+├── mariadb_daily_YYYYMMDD_HHMMSS.sql.gz.gpg  # зашифровані копії
+└── ...
 ```
 
-## Повне відновлення (Restore)
+### 2.3 GPG-шифрування
 
-### Крок 1: Знайти backup
+- **Публічний ключ:** `configs/backup_public.gpg` (для шифрування)
+- **Приватний ключ:** `configs/backup_secret.gpg` (для дешифрування)
+- **Fingerprint:** `72569A554E8EE37BC74EDCBFE1CE1076F4941C61`
+- **ВАЖЛИВО:** Приватний ключ ОБОВ'ЯЗКОВО зберігати в офлайн-сховищі (password manager / USB)
 
-```bash
-ls -lt /home/joker/RIAD\ CRM/backups/automated/mariadb_daily_*.sql.gz* | head -3
-# Обери файл з найновішою датою (.sql.gz.gpg = зашифрований, .sql.gz = звичайний)
-```
+---
 
-### Крок 2: Зупинити ERPNext (НЕ MariaDB!)
-
-```bash
-cd "/home/joker/RIAD CRM"
-docker compose stop erpnext-backend erpnext-worker-default erpnext-worker-short erpnext-scheduler
-# Перевір: docker compose ps — ці 4 контейнери мають бути Exited
-```
-
-### Крок 3: Відновити базу
-
-**Якщо backup = .sql.gz (plain):**
-```bash
-BACKUP="/home/joker/RIAD CRM/backups/automated/mariadb_daily_XXXXXXXX_XXXXXX.sql.gz"
-MARIADB=$(docker ps --format '{{.Names}}' | grep -m1 mariadb)
-PASS=$(grep '^MYSQL_ROOT_PASSWORD=' /home/joker/RIAD\ CRM/.env | cut -d= -f2-)
-gunzip -c "$BACKUP" | docker exec -i "$MARIADB" mysql -u root -p"$PASS"
-echo "RESTORE_EXIT=$?"
-```
-
-**Якщо backup = .sql.gz.gpg (зашифрований):**
-```bash
-BACKUP="/home/joker/RIAD CRM/backups/automated/mariadb_daily_XXXXXXXX_XXXXXX.sql.gz.gpg"
-MARIADB=$(docker ps --format '{{.Names}}' | grep -m1 mariadb)
-PASS=$(grep '^MYSQL_ROOT_PASSWORD=' /home/joker/RIAD\ CRM/.env | cut -d= -f2-)
-GPG_DIR=$(mktemp -d)
-gpg --batch --yes --homedir "$GPG_DIR" --import "/home/joker/RIAD CRM/configs/backup_secret.gpg" 2>/dev/null
-gpg --batch --yes --homedir "$GPG_DIR" --decrypt "$BACKUP" 2>/dev/null | gunzip | docker exec -i "$MARIADB" mysql -u root -p"$PASS"
-echo "RESTORE_EXIT=$?"
-rm -rf "$GPG_DIR"
-```
-
-> Альтернатива: `scripts/restore.sh "<BACKUP_DIR>"` робить це автоматично і
-> сам визначає формат (GPG / plain gz / plain sql) — підходить як для
-> timestamped cron-backup'ів (mariadb_daily_*), так і для legacy
-> full-backup'ів (mariadb_full.*).
-
-### Крок 4: Запустити ERPNext
+## 3. Перевірка системи (Quick Health Check)
 
 ```bash
-cd "/home/joker/RIAD CRM"
-docker compose up -d erpnext-backend erpnext-worker-default erpnext-worker-short erpnext-scheduler
-# Чекати ~2 хвилини
+# 1. Статус контейнерів
 docker compose ps
-# Всі 4 контейнери мають бути Up (healthy)
+
+# 2. Логи MariaDB (останні 50 рядків)
+docker compose logs --tail=50 mariadb
+
+# 3. Логи ERPNext backend
+docker compose logs --tail=50 erpnext-backend
+
+# 4. Перевірка з'єднання з БД
+docker compose exec mariadb mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT 1"
+
+# 5. Останній бекап
+ls -lt /home/joker/RIAD\ CRM/backups/automated/ | head -5
 ```
 
-### Крок 5: Верифікація після restore
+---
+
+## 4. Відновлення з бекапу (Restore)
+
+### 4.1 Підготовка
 
 ```bash
-# Таблиці на місці?
-MARIADB=$(docker ps --format '{{.Names}}' | grep -m1 mariadb)
-PASS=$(grep '^MYSQL_ROOT_PASSWORD=' /home/joker/RIAD\ CRM/.env | cut -d= -f2-)
-DB=$(grep '^MARIADB_DATABASE=' /home/joker/RIAD\ CRM/.env | cut -d= -f2-)
-TABLES=$(docker exec "$MARIADB" mysql -u root -p"$PASS" -e "USE \`$DB\`; SHOW TABLES;" | wc -l)
-echo "TABLES=$TABLES"
-# Очікується: > 700
-
-# ERPNext відповідає?
-curl -sf https://erp.riad.fun/api/method/ping && echo "ERPNext: OK" || echo "ERPNext: DOWN"
-
-# Користувачі на місці?
-docker exec "$MARIADB" mysql -u root -p"$PASS" -e "SELECT name, enabled FROM \`$DB\`.tabUser WHERE enabled=1;"
-```
-
-## PITR (Point-in-Time Recovery)
-
-Використовуй коли потрібно відновити стан БД на конкретний момент часу
-(наприклад, до помилкового видалення даних о 14:30).
-
-⚠️ Обмеження: binlog зберігається лише 7 днів (configs/mariadb.cnf,
-expire_logs_days=7). PITR можливий ТІЛЬКИ в межах останніх 7 днів. Для
-давніших інцидентів — лише відновлення з найближчого daily/weekly backup'у
-(точність — до дати backup'у, не до секунди).
-
-### Крок 1: Перевірити binlog
-
-```bash
-MARIADB=$(docker ps --format '{{.Names}}' | grep -m1 mariadb)
-PASS=$(grep '^MYSQL_ROOT_PASSWORD=' /home/joker/RIAD\ CRM/.env | cut -d= -f2-)
-docker exec "$MARIADB" mysql -u root -p"$PASS" -e "SHOW VARIABLES LIKE 'log_bin';"
-# log_bin = ON
-```
-
-### Крок 2: Знайти потрібний файл логів
-
-```bash
-docker exec "$MARIADB" mysql -u root -p"$PASS" -e "SHOW BINARY LOGS;"
-# Покаже список файлів логів з розмірами. Ротація відбувається автоматично,
-# тож "потрібний" файл — НЕ завжди mariadb-bin.000001. Якщо backup створено
-# з --master-data (див. опціональний Task 1b), точна позиція початку
-# записана в заголовку самого дампу (CHANGE MASTER TO / MASTER_LOG_FILE).
-# Якщо ні — орієнтуйся на час модифікації файлів логів.
-```
-
-### Крок 3: Витягнути зміни у файл і ПЕРЕВІРИТИ перед застосуванням
-
-```bash
-docker exec "$MARIADB" mysqlbinlog \
-    --stop-datetime="2026-06-26 14:30:00" \
-    /var/lib/mysql/mariadb-bin.000001 > /tmp/pitr_recovery.sql
-# Якщо потрібний проміжок охоплює кілька файлів — повтори для кожного
-# (000001, 000002, ...) у хронологічному порядку й об'єднай результати.
-
-less /tmp/pitr_recovery.sql
-# ОБОВ'ЯЗКОВО перегляньте файл перед застосуванням — переконайтесь, що
-# в ньому немає операції, яку ви намагаєтесь скасувати. НЕ пайпте
-# mysqlbinlog напряму в prod mysql без перегляду.
-```
-
-### Крок 4: Застосувати
-
-```bash
-docker exec -i "$MARIADB" mysql -u root -p"$PASS" < /tmp/pitr_recovery.sql
-# Заміни --stop-datetime на момент ДО помилкової операції.
-# Для точнішого відновлення (секундна гранулярність часто занадто груба) —
-# знайди точну --stop-position замість --stop-datetime, переглянувши вивід
-# mysqlbinlog без фільтра і знайшовши потрібну транзакцію.
-```
-
-## Emergency Contacts
-
-- Сервер: riad.fun
-- SSH: joker@riad.fun
-- Docker статус: `docker compose ps`
-- Backend логи: `docker compose logs -f erpnext-backend --tail=100`
-- MariaDB логи: `docker compose logs -f mariadb --tail=100`
-- Redis логи: `docker compose logs -f redis --tail=100`
-- Backup логи: `cat /home/joker/RIAD\ CRM/backups/automated/cron.log | tail -20`
-
-## Щотижневі перевірки (кожного понеділка)
-
-```bash
+# Зупинити ERPNext (НЕ зупиняємо MariaDB та Redis)
 cd "/home/joker/RIAD CRM"
-
-echo "=== Щотижнева перевірка ==="
-
-# 1. Backup > 1MB?
-LATEST=$(ls -t backups/automated/mariadb_daily_*.sql.gz* 2>/dev/null | head -1)
-[ -n "$LATEST" ] && [ $(stat -c%s "$LATEST") -gt 1000000 ] && echo "1. BACKUP: OK ($(basename "$LATEST"))" || echo "1. BACKUP: FAIL"
-
-# 2. Binlog?
-MARIADB=$(docker ps --format '{{.Names}}' | grep -m1 mariadb)
-PASS=$(grep '^MYSQL_ROOT_PASSWORD=' .env | cut -d= -f2-)
-docker exec "$MARIADB" mysql -u root -p"$PASS" -e "SHOW VARIABLES LIKE 'log_bin';" | grep -q ON && echo "2. BINLOG: OK" || echo "2. BINLOG: FAIL"
-
-# 3. Redis AOF?
-docker exec $(docker ps --format '{{.Names}}' | grep -m1 redis) redis-cli CONFIG GET appendonly | grep -q yes && echo "3. AOF: OK" || echo "3. AOF: FAIL"
-
-# 4. Cron?
-crontab -l | grep -q backup && echo "4. CRON: OK" || echo "4. CRON: FAIL"
-
-# 5. Контейнери healthy?
-HEALTHY=$(docker compose ps | grep -c "healthy")
-echo "5. CONTAINERS: $HEALTHY healthy"
-
-# 6. Disk?
-df -h / | tail -1 | awk '{print "6. DISK: "$5" used"}'
-
-# 7. Офлайн-копія GPG-ключа підтверджена? (ручна перевірка, раз на квартал)
-echo "7. GPG OFFSITE KEY: перевір вручну, чи копія в password manager / vault досі актуальна"
+docker compose stop erpnext-backend erpnext-frontend erpnext-worker-default erpnext-worker-short erpnext-scheduler
 ```
+
+### 4.2 Відновлення MariaDB
+
+**Варіант A: Автоматичний (рекомендовано)**
+
+```bash
+# Використовуємо скрипт відновлення
+# Він автоматично знайде найновіший бекап
+./scripts/restore.sh
+```
+
+**Варіант B: Ручний (конкретний файл)**
+
+```bash
+# Знайти бекап
+ls -lt backups/automated/mariadb_daily_*.sql.gz*
+
+# Якщо .sql.gz.gpg (зашифрований):
+GPG_FILE="backups/automated/mariadb_daily_YYYYMMDD_HHMMSS.sql.gz.gpg"
+GPG_DIR=$(mktemp -d)
+gpg --batch --yes --homedir "$GPG_DIR" --import configs/backup_secret.gpg
+gpg --batch --yes --homedir "$GPG_DIR" --decrypt "$GPG_FILE" | gunzip | \
+  docker compose exec -T mariadb mysql -u root -p"${MYSQL_ROOT_PASSWORD}"
+rm -rf "$GPG_DIR"
+
+# Якщо .sql.gz (не зашифрований):
+GZ_FILE="backups/automated/mariadb_daily_YYYYMMDD_HHMMSS.sql.gz"
+gunzip -c "$GZ_FILE" | docker compose exec -T mariadb mysql -u root -p"${MYSQL_ROOT_PASSWORD}"
+```
+
+### 4.3 Після відновлення
+
+```bash
+# Запустити ERPNext
+docker compose up -d
+
+# Перевірити статус
+docker compose ps
+
+# Перевірити логи
+docker compose logs -f erpnext-backend --tail=100
+```
+
+---
+
+## 5. Відновлення на новому сервері
+
+### 5.1 Кроки
+
+1. **Встановити Docker та Docker Compose** на новому сервері
+2. **Клонувати репозиторій:**
+   ```bash
+   git clone <repo-url> "/home/joker/RIAD CRM"
+   cd "/home/joker/RIAD CRM"
+   ```
+3. **Відновити .env файл:**
+   ```bash
+   # Скопіювати з офлайн-сховища або створити заново
+   cp /path/to/backup/.env "/home/joker/RIAD CRM/.env"
+   ```
+4. **Відновити GPG ключі:**
+   ```bash
+   # Отримати з офлайн-сховища
+   cp /path/to/backup/backup_secret.gpg configs/
+   cp /path/to/backup/backup_public.gpg configs/
+   chmod 600 configs/backup_secret.gpg
+   ```
+5. **Запустити стек:**
+   ```bash
+   docker compose up -d
+   ```
+6. **Відновити дані** (див. розділ 4)
+
+### 5.2 Необхідні файли з офлайн-сховища
+
+| Файл | Опис |
+|------|------|
+| `.env` | Конфігурація середовища (паролі, ключі) |
+| `configs/backup_secret.gpg` | Приватний GPG ключ |
+| `configs/backup_public.gpg` | Публічний GPG ключ |
+
+---
+
+## 6. Перевірка цілісності бекапу
+
+```bash
+# Перевірка розміру (має бути > 1MB для повного бекапу)
+ls -lh backups/automated/mariadb_daily_*.sql.gz* | tail -5
+
+# Перевірка GPG-зашифрованого файлу
+GPG_FILE="backups/automated/mariadb_daily_YYYYMMDD_HHMMSS.sql.gz.gpg"
+GPG_DIR=$(mktemp -d)
+gpg --batch --yes --homedir "$GPG_DIR" --import configs/backup_secret.gpg
+gpg --batch --yes --homedir "$GPG_DIR" --decrypt "$GPG_FILE" | gunzip | head -20
+rm -rf "$GPG_DIR"
+# Очікуваний вивід: SQL dump header (CREATE TABLE, INSERT тощо)
+```
+
+---
+
+## 7. Troubleshooting
+
+### 7.1 MariaDB не стартує
+
+```bash
+# Перевірити логи
+docker compose logs mariadb
+
+# Перевірити диск
+df -h
+
+# Перезапустити
+docker compose restart mariadb
+```
+
+### 7.2 ERPNext не підключається до БД
+
+```bash
+# Перевірити MariaDB
+docker compose exec mariadb mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SHOW DATABASES"
+
+# Перевірити site_config
+docker compose exec erpnext-backend cat sites/erp.localhost/site_config.json
+```
+
+### 7.3 Бекап не створюється (cron)
+
+```bash
+# Перевірити cron
+crontab -l | grep backup
+
+# Перевірити логи backup
+cat /var/log/syslog | grep backup-mariadb
+
+# Запустити вручну для діагностики
+./scripts/backup-mariadb.sh
+```
+
+### 7.4 GPG-шифрування не працює
+
+```bash
+# Перевірити наявність ключів
+ls -la configs/backup_*.gpg
+
+# Перевірити GPG
+gpg --list-keys backup@riad.local
+
+# Тестове шифрування
+echo "test" | gpg --encrypt --recipient backup@riad.local | gpg --decrypt
+```
+
+---
+
+## 8. Контакти
+
+| Роль | Контакт |
+|------|---------|
+| Адміністратор | joker@riad.fun |
+| Сервер | riad.fun |
+| Репозиторій | GitHub (див. .git/config) |
+
+---
+
+## 9. Чек-лист відновлення
+
+- [ ] Зупинити ERPNext контейнери
+- [ ] Знайти останній бекап
+- [ ] Дешифрувати (якщо .gpg)
+- [ ] Відновити MariaDB
+- [ ] Запустити ERPNext
+- [ ] Перевірити логи
+- [ ] Перевірити доступність через https://riad.fun
+- [ ] Повідомити користувачів про відновлення
+
+---
+
+## 10. Відновлення Vault після втрати сервера
+
+### Передумова
+
+- vault_master_key отримано з escrow (див. `docs/key_escrow_procedure.md`)
+- MariaDB відновлено (кроки вище)
+
+### Верифікація
+
+```bash
+docker compose exec erpnext-backend bench --site erp.localhost console
+```
+
+```python
+from security_erp.vault._key import get_master_key
+key = get_master_key()
+print(f"Master key loaded: {len(key)} bytes")
+
+from security_erp.vault.audit import verify_chain
+broken = verify_chain()
+if not broken:
+    print("Audit chain: OK")
+else:
+    print(f"Audit chain: {len(broken)} broken links")
+    for b in broken:
+        print(f"  {b}")
+```
+
+### Якщо verify показує broken
+
+1. Перевірити що vault_master_key правильний (32 байти = 64 hex символи)
+2. Перевірити що MariaDB не пошкоджена
+3. Якщо key неправильний — отримати з escrow ще раз
+
+---
+
+## 11. Необхідні файли з офлайн-сховища (оновлено)
+
+| Файл | Опис |
+|------|------|
+| `.env` | Конфігурація середовища (паролі, ключі) |
+| `configs/backup_secret.gpg` | Приватний GPG ключ |
+| `configs/backup_public.gpg` | Публічний GPG ключ |
+| `configs/vault_master_key` | AES-256 ключ шифрування Vault |
