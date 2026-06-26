@@ -5,12 +5,12 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PushService {
-  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  final FirebaseMessaging _fcm;
   final String _baseUrl;
   final http.Client _client;
 
-  PushService({required String baseUrl, http.Client? client})
-      : _baseUrl = baseUrl, _client = client ?? http.Client();
+  PushService({required String baseUrl, http.Client? client, FirebaseMessaging? fcm})
+      : _baseUrl = baseUrl, _client = client ?? http.Client(), _fcm = fcm ?? FirebaseMessaging.instance;
 
   Future<void> initialize({required String jwtToken}) async {
     final settings = await _fcm.requestPermission(alert: true, badge: true, sound: true);
