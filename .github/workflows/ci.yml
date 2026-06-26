@@ -300,6 +300,68 @@ jobs:
           FRAPPE_URL: http://localhost:8000
           REDIS_URL: redis://localhost:6379
 
+      - name: Run E5 integration tests
+        run: |
+          python3 -m pytest tests/e5/ -v --tb=short
+        env:
+          PYTHONPATH: services/security-api:erpnext/security_erp
+          SECRET_KEY: ci-test-secret-key-min-32-chars-ok
+          FRAPPE_URL: http://localhost:8000
+          REDIS_URL: redis://localhost:6379
+
+      - name: Run S1 sync integration tests
+        run: |
+          python3 -m pytest tests/s1/test_s1_sync_integration.py -v --tb=short
+        env:
+          PYTHONPATH: services/security-api:erpnext/security_erp
+          SECRET_KEY: ci-test-secret-key-min-32-chars-ok
+          FRAPPE_URL: http://localhost:8000
+          REDIS_URL: redis://localhost:6379
+
+      - name: Run FIX-4 AI bugs regression tests
+        run: |
+          python3 -m pytest tests/fix4/ -v --tb=short
+        env:
+          PYTHONPATH: services/security-api:erpnext/security_erp
+          SECRET_KEY: ci-test-secret-key-min-32-chars-ok
+          FRAPPE_URL: http://localhost:8000
+          REDIS_URL: redis://localhost:6379
+
+      - name: Run R6 estimate schema tests
+        run: |
+          python3 -m pytest tests/r6/ -v --tb=short
+        env:
+          PYTHONPATH: services/security-api:erpnext/security_erp
+          SECRET_KEY: ci-test-secret-key-min-32-chars-ok
+          FRAPPE_URL: http://localhost:8000
+          REDIS_URL: redis://localhost:6379
+
+      - name: Run Vault Act tests
+        run: |
+          python3 -m pytest tests/vault/test_act_pure.py -v --tb=short
+        env:
+          PYTHONPATH: erpnext/security_erp
+          VAULT_MASTER_KEY: "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf"
+
+      - name: Run Push service tests
+        run: |
+          python3 -m pytest tests/p1/test_push_service.py -v --tb=short
+        env:
+          PYTHONPATH: services/security-api:erpnext/security_erp
+          SECRET_KEY: ci-test-secret-key-min-32-chars-ok
+          FRAPPE_URL: http://localhost:8000
+          REDIS_URL: redis://localhost:6379
+
+      - name: Run E9 security hardening tests
+        run: |
+          python3 -m pytest tests/e9/ -v --tb=short
+        env:
+          PYTHONPATH: services/security-api:erpnext/security_erp
+          SECRET_KEY: ci-test-secret-key-min-32-chars-ok
+          FRAPPE_URL: http://localhost:8000
+          REDIS_URL: redis://localhost:6379
+          VAULT_MASTER_KEY: "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf"
+
       - name: Verify C2 TypeScript (Next.js)
         working-directory: riad_web
         run: npx tsc --noEmit
