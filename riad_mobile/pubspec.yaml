@@ -42,7 +42,7 @@ dependencies:
   mobile_scanner: ^5.2.3
 
   # Audio recording
-  record: ^5.1.2
+  record: ^7.1.0
 
   # Maps (OSM)
   flutter_map: ^7.0.2

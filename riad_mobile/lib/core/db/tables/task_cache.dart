@@ -4,7 +4,7 @@ class TaskCache extends Table {
   TextColumn get id         => text()();
   TextColumn get taskType   => text()();
   TextColumn get entityId   => text()();
-  TextColumn get entityName => text().withDefault(const Constant(''))();
+  TextColumn get objectName => text().withDefault(const Constant(''))();
   TextColumn get status     => text()();
   TextColumn get assignedTo => text()();
   DateTimeColumn get dueDate => dateTime().nullable()();
