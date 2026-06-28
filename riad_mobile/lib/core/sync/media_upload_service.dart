@@ -64,11 +64,12 @@ class MediaUploadService {
             .getSingleOrNull();
         if (asset == null) continue;
 
+        final multipartFile = await MultipartFile.fromFile(
+          item.localPath,
+          filename: '${item.clientUuid}.${_ext(item.mediaType)}',
+        );
         final formData = FormData.fromMap({
-          'file': MultipartFile.fromString(
-            item.localPath,
-            filename: '${item.clientUuid}.${_ext(item.mediaType)}',
-          ),
+          'file':       multipartFile,
           'doc_type':   asset.parentDoctype,
           'doc_name':   asset.parentName,
           'tag':        asset.tag,

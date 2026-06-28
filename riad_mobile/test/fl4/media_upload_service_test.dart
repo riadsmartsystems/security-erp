@@ -34,11 +34,23 @@ void main() {
     registerFallbackValue(Options());
   });
 
+  late File tmpSuccessFile;
+  late File tmpFailureFile;
+
   setUp(() {
     mockDio = MockDio();
     db = _testDb();
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    tmpSuccessFile = File('/tmp/test_media_success_$ts.jpg');
+    tmpSuccessFile.writeAsBytesSync([0xFF, 0xD8, 0xFF]); // minimal JPEG header
+    tmpFailureFile = File('/tmp/test_media_failure_$ts.jpg');
+    tmpFailureFile.writeAsBytesSync([0xFF, 0xD8, 0xFF]);
   });
-  tearDown(() => db.close());
+  tearDown(() async {
+    await db.close();
+    if (tmpSuccessFile.existsSync()) tmpSuccessFile.deleteSync();
+    if (tmpFailureFile.existsSync()) tmpFailureFile.deleteSync();
+  });
 
   ProviderContainer _container({bool online = true}) {
     return ProviderContainer(overrides: [
@@ -106,11 +118,11 @@ void main() {
         parentName: 'EV-003',
         mediaType: 'photo',
         tag: const Value('before'),
-        localPath: const Value('/tmp/test.jpg'),
+        localPath: Value(tmpSuccessFile.path),
       ));
       await db.into(db.pendingMediaUploads).insert(PendingMediaUploadsCompanion.insert(
         clientUuid: 'uuid-3',
-        localPath: '/tmp/test.jpg',
+        localPath: tmpSuccessFile.path,
         mediaType: 'photo',
         parentDoctype: 'Engineer Visit',
         parentName: 'EV-003',
@@ -148,11 +160,11 @@ void main() {
         parentName: 'EV-004',
         mediaType: 'photo',
         tag: const Value('after'),
-        localPath: const Value('/tmp/missing.jpg'),
+        localPath: Value(tmpFailureFile.path),
       ));
       await db.into(db.pendingMediaUploads).insert(PendingMediaUploadsCompanion.insert(
         clientUuid: 'uuid-4',
-        localPath: '/tmp/missing.jpg',
+        localPath: tmpFailureFile.path,
         mediaType: 'photo',
         parentDoctype: 'Engineer Visit',
         parentName: 'EV-004',
