@@ -11,8 +11,15 @@ class ScanScreen extends ConsumerStatefulWidget {
 }
 
 class _ScanScreenState extends ConsumerState<ScanScreen> {
+  late final MobileScannerController _controller = MobileScannerController();
   final Set<String> _scannedInSession = {};
   bool _paused = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +27,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       appBar: AppBar(title: const Text('Скан серійника')),
       body: Stack(children: [
         MobileScanner(
+          controller: _controller,
           onDetect: (capture) {
             if (_paused) return;
             final code = capture.barcodes.firstOrNull?.rawValue;
