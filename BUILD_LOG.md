@@ -1,5 +1,425 @@
 # BUILD_LOG — RIAD Security ERP
 
+---
+
+## FL0 — Архітектурний фундамент Flutter
+**Status:** ✅ DONE
+**Date:** 2026-06-28
+
+### DoD-докази
+- `dart run build_runner build`: SUCCESS — `database.g.dart` згенеровано (50 outputs)
+- `flutter analyze --no-fatal-infos`: **No issues found!** (0 errors, 0 warnings)
+- `flutter test`: **1/1 passed** (smoke test)
+- `flutter build apk --debug`: **BUILD SUCCESSFUL** → `app-debug.apk`
+
+### Бренд-кольори
+Fallback-палітра `#006EE6` (riad.fun недоступний для автоматичного витягання)
+
+### Архів
+`riad_mobile_archive/` — commit `ddd145b` (git mv)
+
+### Нові файли (`riad_mobile/lib/`)
+| Файл | Призначення |
+|------|-------------|
+| `core/theme/color_tokens.dart` | Brand colors + semantic tokens |
+| `core/theme/app_theme.dart` | Material 3 ThemeData dark |
+| `core/router/route_names.dart` | 19 маршрутів як константи |
+| `core/router/app_router.dart` | GoRouter + placeholder screens |
+| `core/db/tables/` (12 файлів) | Drift schema (visits, checklist, media, sync, ...) |
+| `core/db/database.dart` | AppDatabase + databaseProvider |
+| `core/api/api_error.dart` | Бізнес-коди помилок |
+| `core/api/dio_client.dart` | Dio + providers |
+| `core/api/interceptors/` (3 файли) | envelope, auth stub, logging |
+| `core/connectivity/connectivity_service.dart` | StreamProvider<bool> |
+| `main.dart` | ProviderScope + MaterialApp.router |
+| `test/smoke_test.dart` | Smoke test |
+
+### Commits FL0 (base 41a0bbf → head 08f16e4)
+```
+ddd145b chore(flutter): archive non-working riad_mobile → riad_mobile_archive
+c204103 feat(flutter): FL0 — flutter create riad_mobile + pubspec.yaml
+009585c chore(flutter): FL0 — create clean architecture folder structure
+52357ac feat(flutter): FL0 — Material 3 dark theme + color tokens
+e8ae00f feat(flutter): FL0 — GoRouter with 19 routes + placeholder screens
+74ba4dc feat(flutter): FL0 — Drift schema: 12 offline-first tables
+c5bfe42 feat(flutter): FL0 — AppDatabase + Riverpod provider (12 tables)
+8195796 feat(flutter): FL0 — Dio HTTP client + interceptors (envelope, auth stub, logging)
+23b05de feat(flutter): FL0 — connectivity StreamProvider<bool>
+e0bf8ac feat(flutter): FL0 — main.dart: ProviderScope + MaterialApp.router
+df24333 feat(flutter): FL0 — Android permissions + minSdk 26 + smoke test
+08f16e4 feat(flutter): FL0 — build_runner generated + DoD all green
+```
+
+### Виправлення при DoD
+1. `TaskCache.entityName` → `objectName` (конфлікт з Drift internal property)
+2. `record ^5.1.2` → `record ^7.1.0` (сумісність з Android SDK)
+3. `isCoreLibraryDesugaringEnabled = true` (flutter_local_notifications desugaring)
+4. Package name `fun.riad.riad_mobile` — `fun` є Kotlin-ключовим словом, escaped у Kotlin
+
+### Concerns для FL4
+- `record` API 7.x відрізняється від 5.x — адаптувати виклики при реалізації голосових нотаток
+- KGP deprecation warning (camera_android_camerax, mobile_scanner) — не блокує зараз
+
+---
+
+## H1 — Key-escrow + DR-runbook + restore-drill (Gate C2)
+**Status:** ✅ DONE — Gate C2 ЗНЯТО (drill зелений)
+**Date:** 2026-06-28
+
+### Що зроблено (file:line evidence)
+
+**Документація:**
+- `docs/key_escrow_procedure.md` — повністю переписано: ≥2 offsite-копії КОЖНОГО ключа, резолюція two-person→single-operator, чеклист ручних дій (sha256 верифікація, шифрування перед збереженням, регламент перевірки), швидка офлайн-шпаргалка
+- `docs/DR_runbook.md` — повний покроковий runbook: 10 кроків від нової машини до верифікованого Vault; розділ 4 (повне відновлення), розділ 5 (відновлення БД), PITR через mysqlbinlog, vault_master_key ін'єкція, crypto roundtrip верифікація
+- `docs/DECISIONS.md` — блок H1: резолюція two-person конфлікту, drill-доказ із sha256 ключів, умови зняття Gate C2
+
+**Скрипти:**
+- `scripts/rotate_vault_key.sh` — новий; dry-run режим (`--dry-run`); re-encrypt всіх v1:-полів VaultEntry новим ключем; детектує поля через `v1:` sentinel
+- `scripts/dr_drill.sh` — новий; 6 кроків drill без живого Frappe; зберігає вивід у `scripts/dr_drill_output_TIMESTAMP.txt`
+
+### Drill-вивід (ДОКАЗ — Gate C2)
+
+```
+================================================================
+DR DRILL — RIAD Security ERP
+Date: 2026-06-28T12:59:44Z
+================================================================
+
+[PASS] vault_master_key: 64 hex chars = 32 bytes (AES-256 OK)
+       SHA256: e4369f453bc4b3876bd85dca58e7418460a85a1a78f708af28f692beeb458186
+
+[PASS] backup_secret.gpg: imports successfully
+       SHA256: 7bc866eeb4bcc96fede5231af2351e338348742037b3a301f24ec1e873e2c19b
+       Fingerprint: 72569A554E8EE37BC74EDCBFE1CE1076F4941C61
+
+[PASS] Бекап: GPG decrypt + gunzip → valid SQL header
+       File: mariadb_daily_20260626_092205.sql.gz.gpg (3.2M)
+
+[PASS] AES-256-GCM roundtrip с vault_master_key
+       Plaintext:  'dr_drill_vault_test_2026'
+       Decrypted:  'dr_drill_vault_test_2026'
+       Wrong-key rejection: PASSED
+
+[PASS] Vault v1: формат encrypt/decrypt
+       v1: sentinel detection: PASSED (2/4 detected)
+
+[PASS] pytest tests/e9/test_e9_vault_restore.py: 7 passed in 0.06s
+
+PASSED: 6  FAILED: 0
+=== DR DRILL: PASSED ===
+Gate C2 drill evidence: 2026-06-28T12:59:44Z
+Full output: scripts/dr_drill_output_20260628_125944Z.txt
+```
+
+### Резолюція two-person конфлікту
+
+Two-person ceremony скасовано (соло-ФОП — інсайдер = власник, two-person = зайве тертя).
+Захист через резервність: ≥2 незалежні offsite-копії КОЖНОГО ключа.
+Зафіксовано: `docs/DECISIONS.md` блок H1, `docs/key_escrow_procedure.md`.
+
+### РУЧНИЙ КРОК (обов'язковий перед prod)
+```
+1. Скопіювати configs/vault_master_key та configs/backup_secret.gpg
+   до Каналу A (USB/password manager) з sha256-верифікацією
+2. Скопіювати зашифровані копії до Каналу B (хмара)
+3. Заповнити поля "Канал A/B" та "Остання ротація" у docs/key_escrow_procedure.md
+```
+
+---
+
+## P1 — Push (FCM): консолідація диспетчера + service-account wiring
+**Status:** ✅ DONE
+**Date:** 2026-06-28
+
+### Архітектура (file:line evidence)
+
+**Frappe notifications module (новий):**
+- `erpnext/security_erp/security_erp/notifications/templates.py` — `build_payload()`: 5 подій → title/body/deeplink, `WHITELIST_FIELDS` захист
+- `erpnext/security_erp/security_erp/notifications/device_session.py` — `get_push_tokens()` з RIAD Device Session, `firebase_send()` (перенесено з security-api), `register_push_token()` @whitelist
+- `erpnext/security_erp/security_erp/notifications/dispatcher.py` — `push_dispatch()`: publish_realtime + FCM одним викликом; `api_push_dispatch()` @whitelist для FastAPI-origin подій
+
+**Frappe event sources (оновлено):**
+- `tasks/transcribe.py:100` — після Whisper done → `push_dispatch('transcription_ready', owner, ...)`
+- `tasks/ai_estimate.py:139` — якщо is_manual_fallback → `push_dispatch('degradation_manual', owner, ...)`
+- `tasks/hourly.py:59-80` — SLA breach → `publish_realtime` + `push_dispatch` до assigned_engineer; breach dict тепер включає `name`
+- `doctype/service_ticket/service_ticket.py:21-38` — `after_insert` + `on_update` (has_value_changed assigned_engineer) → `push_dispatch('task_assigned', assigned_engineer, ...)`
+
+**FastAPI slim (оновлено):**
+- `services/security-api/app/services/push_service.py:116` — `fire_and_forget_frappe_push()` замість `fire_and_forget_push()`; `register_token()` тепер пише і в Redis і в RIAD Device Session
+- `routes/sync.py:44` → `fire_and_forget_frappe_push(event_type='sync_conflict', ...)`
+- `routes/estimates.py:77` → `fire_and_forget_frappe_push(event_type='estimate_review', ...)`
+- `routes/media.py:113` → `fire_and_forget_frappe_push(event_type='transcription_ready', ...)`
+- `routes/push.py:18` — передає `sid=user.frappe_sid` до `register_token`
+
+**Flutter:**
+- `riad_mobile/lib/services/push_nav.dart` — `PushNavEvent` stream singleton
+- `riad_mobile/lib/services/push_service.dart:53` — `_onNotificationTap` читає `event_type` (не `type`), викликає `dispatchPushNav`
+- `riad_mobile/lib/main.dart:211` — `HomeScreen._handlePushNav` підписується на stream, перемикає вкладку
+
+**Service-account wiring:**
+- `Dockerfile.backend:3` — `firebase-admin>=6.5` додано до pip install
+- `.gitignore:47` — `configs/firebase-service-account.json` додано явно
+- `firebase_credentials_json` читається з `frappe.conf` (site config)
+
+### Тести
+- `tests/p1/test_push_payload_whitelist.py` — 8 тестів: whitelist, sensitive fields, unknown event, overrides
+- `tests/p1/test_push_routes.py` — оновлено: `fire_and_forget_frappe_push`, `sid` у register_token
+- `tests/p1/test_push_service.py` — оновлено: `TestFireAndForget` тестує `fire_and_forget_frappe_push`
+- Всього: **46 тестів P1, OK**
+- CI gates оновлено: `ci.yml:281-310`
+
+### РУЧНИЙ КРОК (service account)
+```
+Firebase Console → проєкт riad-babff → Project Settings → Service accounts
+→ Generate new private key
+→ зберегти у configs/firebase-service-account.json
+→ .env (або bench site config): firebase_credentials_json=configs/firebase-service-account.json
+→ bench --site erp.localhost set-config firebase_credentials_json /path/to/configs/firebase-service-account.json
+→ docker compose restart erpnext-backend erpnext-worker-default erpnext-worker-short erpnext-scheduler
+```
+
+### Конфлікти вирішені
+- **K1 (Token storage gap):** `push_token` у RIAD Device Session тепер пишеться через `register_push_token()` @whitelist; Frappe dispatcher читає з Device Session. Redis залишається кешем для FastAPI test endpoint.
+- **K3 (CI gates stale):** Gates оновлено — тепер перевіряють `fire_and_forget_frappe_push` у routes і `push_dispatch` у Frappe notifications.
+- **K4 (.gitignore):** Виправлено.
+
+---
+
+## SV1 — Service Flow: Service Request + Warranty Claim + Service Actions
+**Status:** ✅ DONE
+**Date:** 2026-06-28
+
+### SV1-A (DocType Foundation + CRUD API Core)
+- erpnext/security_erp/security_erp/security_erp/doctype/service_request/service_request.json
+- erpnext/security_erp/security_erp/security_erp/doctype/service_action/service_action.json
+- services/security-api/app/schemas/service_request.py
+- services/security-api/app/services/service_request_service.py
+- services/security-api/app/routes/service_requests.py:POST/GET/PATCH /api/v2/service-requests/
+- Tests: 18 passed (tests/sv1/test_sv1_core.py)
+
+### SV1-B (ERPNext Warranty Claim Adapter)
+- services/security-api/app/services/warranty_service.py
+- Endpoints: POST/GET /api/v2/service-requests/{name}/warranty-claim
+- Tests: 8 passed (tests/sv1/test_sv1_warranty.py)
+
+### SV1-C (Service Actions API + Vault Audit Log ref)
+- Endpoints: POST/GET /api/v2/service-requests/{name}/actions
+- Tests: 17 passed (tests/sv1/test_sv1_actions.py) incl. vault_isolation_lint
+- Vault isolation: PASS (no security_erp.vault imports in service layer)
+
+### SV1-D (CI Integration + Final Verification)
+- .github/workflows/ci.yml: SV1 syntax gate + CI gate + test step added (lines 383-431)
+- Combined pytest: 417 passed, 0 failed
+- Gateway discipline: OK (18 route-files all compliant, including service_requests.py)
+- SV1 vault isolation CI gate: CONFIRMED
+
+**Next:** H1 (Hardening: key-escrow procedure) або P1 (Push notifications) — рішення власника
+
+---
+
+## SV1-B — ERPNext Warranty Claim Adapter ✅ DONE
+
+**Дата:** 2026-06-28
+**Статус:** DoD виконано
+
+### Файли
+
+| Файл | Дія |
+|------|-----|
+| `services/security-api/app/services/warranty_service.py` | НОВИЙ — WarrantyService.create_warranty_claim / get_warranty_claim (frappe_post→frappe_put→frappe_get) |
+| `services/security-api/app/schemas/service_request.py` | Розширено: +WarrantyClaimCreate, +WarrantyClaimRef (без фінансових полів) |
+| `services/security-api/app/routes/service_requests.py` | Розширено: +POST/GET /{name}/warranty-claim з RBAC |
+| `tests/sv1/test_sv1_warranty.py` | НОВИЙ — 8 TDD тестів |
+
+### Endpoints
+
+```
+POST /api/v2/service-requests/{name}/warranty-claim  (FSM_FULL|FSM_OWN)
+GET  /api/v2/service-requests/{name}/warranty-claim  (FSM_FULL|FSM_READ|FSM_OWN|WAREHOUSE)
+```
+
+Передумови POST: request_type == "гарантія" (інакше 400), warranty_claim ще не встановлено (інакше 409).
+Відповідь: WarrantyClaimRef (name, status, complaint, serial_no) — БЕЗ repair_cost/amount.
+
+### DoD чек-лист
+
+- ✅ `py_compile` warranty_service.py / service_request.py / service_requests.py → OK
+- ✅ **8 тестів зелені** у tests/sv1/test_sv1_warranty.py
+- ✅ Combined pytest → **400 passed, 0 failed**
+- ✅ Жодних фінансових полів у WarrantyClaimRef (repair_cost, amount відсутні)
+- ✅ Gateway discipline: warranty_service.py не імпортує security_erp/vault
+
+---
+
+## SV1-A — DocType Foundation + CRUD API Core ✅ DONE
+
+**Дата:** 2026-06-28
+**Статус:** DoD виконано
+
+### Файли
+
+| Файл | Дія |
+|------|-----|
+| `erpnext/security_erp/security_erp/security_erp/doctype/service_request/service_request.json` | НОВИЙ — DocType autoname SR-.YYYY.-.#####, 4 permissions |
+| `erpnext/security_erp/security_erp/security_erp/doctype/service_request/service_request.py` | НОВИЙ — autoname() + validate() closed_at check |
+| `erpnext/security_erp/security_erp/security_erp/doctype/service_action/service_action.json` | НОВИЙ — child table (istable=1), 7 content fields |
+| `erpnext/security_erp/security_erp/security_erp/doctype/service_action/service_action.py` | НОВИЙ — базовий контролер |
+| `services/security-api/app/schemas/service_request.py` | НОВИЙ — 5 Pydantic DTO (Create/Update/Detail/ListItem/ActionSummary) |
+| `services/security-api/app/services/service_request_service.py` | НОВИЙ — create/list/get/update через frappe_post/get/put (SID) |
+| `services/security-api/app/routes/service_requests.py` | НОВИЙ — POST/GET/GET/{name}/PATCH з RBAC |
+| `services/security-api/app/main.py` | Оновлено: +service_requests_router |
+| `tests/sv1/__init__.py` | НОВИЙ |
+| `tests/sv1/test_sv1_core.py` | НОВИЙ — 18 TDD тестів |
+
+### Endpoints
+
+```
+POST   /api/v2/service-requests/       create_service_request  (FSM_FULL|FSM_OWN)
+GET    /api/v2/service-requests/       list_service_requests   (FSM_*|WAREHOUSE read)
+GET    /api/v2/service-requests/{name} get_service_request     (FSM_*|WAREHOUSE read)
+PATCH  /api/v2/service-requests/{name} update_service_request  (FSM_FULL|FSM_OWN)
+```
+
+RBAC: Engineer (FSM_OWN) → auto-filter `assigned_to=user_id` на list; Warehouse → read-only (PATCH → 403).
+
+### DoD чек-лист
+
+- ✅ `service_request.json` + `service_action.json` — валідні Frappe DocType JSON
+- ✅ `autoname`: SR-.YYYY.-.#####; `validate`: closed_at + status != закрито → frappe.throw
+- ✅ `py_compile` схем/сервісу/роутів → OK
+- ✅ **18 тестів зелені** у tests/sv1/test_sv1_core.py (TDD: RED→GREEN)
+- ✅ Combined pytest → **392 passed, 0 failed**
+- ✅ Gateway discipline lint → exit 0 (18 route-файлів, service_requests.py [OK])
+- ✅ RBAC: warehouse 403 на PATCH/POST, 200 на GET — перевірено тестами
+
+---
+
+## FIX-AI — AI-трек тести ✅ DONE
+
+**Дата:** 2026-06-28
+**Статус:** DoD виконано
+
+| Root cause | Файл | Виправлення | Результат |
+|---|---|---|---|
+| RC-1: реальний Redis | tests/ai/test_a1_circuit_breaker.py | fakeredis.FakeAsyncRedis замість реального Redis | ✅ |
+| RC-2: stale patch paths (TestScenarioRoleGate) | tests/a4/test_a4_session.py | patch target: `app.routes.scenarios.*` → `app.services.scenario_service.*` (4 рядки) | ✅ |
+| RC-3: sys.modules top-level | tests/fix4/test_fix4_ai_bugs.py | `patch.dict(sys.modules, {...})` в setUp/tearDown (вже у попередній сесії) | ✅ |
+
+**Combined pytest:** 374 passed, 0 failed
+**RC-1:** ✅ DONE — fakeredis замінив реальний Redis у tests/ai/
+**RC-2:** ✅ DONE — patch targets оновлені у tests/a4/ (TestScenarioRoleGate)
+**RC-3:** ✅ DONE — sys.modules.setdefault перенесено в setUp/tearDown
+
+### DoD чек-лист
+
+- ✅ `tests/ai/` → 17 passed, 0 failed (усі circuit breaker тести)
+- ✅ `tests/a3/` → 10 passed, 0 failed
+- ✅ `tests/a4/` → 27 passed, 0 failed (включно з TestScenarioRoleGate 5/5)
+- ✅ `tests/fix4/` → 14 passed, 0 failed
+- ✅ Combined `tests/` → **374 passed, 0 failed**
+- ✅ AI↔Vault isolation lint → OK (77 files scanned)
+- ✅ Gateway discipline → exit 0 (17 route-файлів compliant)
+- ✅ py_compile всіх змінених тестових файлів → OK
+
+---
+
+## VERIFY-AUDIT-FIXES — Незалежна верифікація після S-A/S-B/S-C ✅ БЛОКЕР ВИПРАВЛЕНО
+
+**Дата:** 2026-06-28
+**Сесія:** VERIFY-AUDIT-FIXES (audit-verify субагент, окремий чат)
+**Принцип:** DoD = `file:line + tests green`, не BUILD_LOG narrative
+
+### Результати аудиту
+
+| # | Перевірка | Команда | Результат | Статус |
+|---|-----------|---------|-----------|--------|
+| 1 | pytest COMBINED | `python3 -m pytest tests/ -q` | **4 failed, 370 passed** — `tests/a4/test_a4_session.py::TestScenarioRoleGate` (4 тести) | ❌ |
+| 2 | Gateway discipline lint | `python3 scripts/check_gateway_discipline.py` | **exit 0**, усі 17 route-файлів `[OK]`, `mobile.py` / `serial.py` / `scenarios.py` — чисті | ✅ |
+| 3 | grep frappe_* у routes/ | `grep -rn "frappe_get\|frappe_post..." app/routes/` | Хіти лише в EXCLUDED файлах (act.py, vault.py, auth.py, proxy.py, doctypes.py, ai.py); `mobile.py`, `serial.py`, `scenarios.py` — 0 хітів | ✅ |
+| 4 | Flutter tests | `/home/joker/flutter/bin/flutter test` (з `riad_mobile/`) | **90/90 passed** (+2 від очікуваних 88) | ✅ |
+| 5 | remote_inspection.json vs media_asset.json | python3 json parse + compare | Обидва: `pending\nprocessing\ndone\nfailed` — ідентичні | ✅ |
+| 6 | TypeScript tsc | `npx tsc --noEmit` (з `riad_web/`) | **exit 0**, 0 errors | ✅ |
+| 7 | Jest | `npm test -- --watchAll=false` (з `riad_web/`) | **33/33 passed**, 4 suites | ✅ |
+
+### ❌ БЛОКЕР — повернути до S-A
+
+**Що:** `tests/a4/test_a4_session.py::TestScenarioRoleGate` — 4 тести
+
+**Файл:рядки:**
+- `tests/a4/test_a4_session.py:429` — `patch("app.routes.scenarios.frappe_get", ...)`
+- `tests/a4/test_a4_session.py:450` — `patch("app.routes.scenarios.frappe_get", ...)`
+- `tests/a4/test_a4_session.py:466` — `patch("app.routes.scenarios.frappe_get", ...)`
+- `tests/a4/test_a4_session.py:487` — `patch("app.routes.scenarios.frappe_post", ...)`
+
+**Причина:** FIX-7 (сесія S-A) перемістив `frappe_get/post` з `app/routes/scenarios.py` до `app/services/scenario_service.py`, але 4 тести в `tests/a4/` не оновлено. Правильна адреса: `app.services.scenario_service.frappe_get/post`.
+
+**Доказ:** `AttributeError: <module 'app.routes.scenarios'> does not have the attribute 'frappe_get'`
+
+**Контрольна перевірка:** `tests/fix7/test_fix7_gateway_discipline.py` — **16/16 passed** (використовує правильний `patch.object(scenario_service, "frappe_get", ...)`). Виробничий код (scenario_service.py) ПРАВИЛЬНИЙ — проблема лише в 4 старих тестах у tests/a4/.
+
+**Виправлення (тільки тест, не prod):**
+```python
+# Замінити у TestScenarioRoleGate (рядки 429, 450, 466, 487):
+# СТАРО:  patch("app.routes.scenarios.frappe_get", ...)
+# НОВО:   patch("app.services.scenario_service.frappe_get", ...)
+# СТАРО:  patch("app.routes.scenarios.frappe_post", ...)
+# НОВО:   patch("app.services.scenario_service.frappe_post", ...)
+```
+
+**Очікуваний результат після виправлення:** 374 passed, 0 failed
+
+---
+
+## FIX-DOCTYPE — remote_inspection.transcription_status схема ✅
+
+**Дата:** 2026-06-28
+**Статус:** DoD виконано
+
+### Зроблено
+
+| Поле | До | Після |
+|------|-----|-------|
+| `remote_inspection.transcription_status` options | `\nnone\npending\ndone\nmanual` | `pending\nprocessing\ndone\nfailed` |
+| `remote_inspection.transcription_status` default | `none` | `pending` |
+
+**Доказ коду:** `remote_inspection.json:17` (зміна застосована)
+**bench migrate:** успішно (`erp.localhost`, 100% security_erp DocTypes)
+**Frappe meta верифікація:** `"options": "pending\nprocessing\ndone\nfailed"`, `"default": "pending"` ✅
+
+### КОНФЛІКТ (зафіксовано, не вирішено — потребує окремого FIX-5)
+
+`services/security-api/app/services/media_service.py:78` встановлює `"transcription_status": "manual"` на **Media Asset**, але `media_asset.json` (канон FIX-4) не містить `manual` в options (`pending/processing/done/failed`). Конфлікт не стосується `remote_inspection`.
+
+### DoD чек-лист
+
+- ✅ options `remote_inspection` ≡ options `media_asset` (обидва: `pending\nprocessing\ndone\nfailed`)
+- ✅ `bench migrate erp.localhost` без помилок
+- ✅ Frappe meta підтверджує застосування в БД
+- ✅ 0 коду залежить від `none`/`manual` в `remote_inspection.transcription_status`
+- ⚠️ Конфлікт `media_service.py:78` → `manual` на Media Asset явно зафіксовано (FIX-5)
+
+---
+
+## FIX-FLUTTER — Регресії Flutter тестів ✅
+
+**Дата:** 2026-06-28
+**Статус:** DoD виконано
+
+### Зроблено
+
+| Проблема | Файл | Правка |
+|----------|------|--------|
+| 2a: `body['email']` → null | `test/f2/auth_api_client_test.dart:14` | `body['email']` → `body['username']` (відповідає `auth_api_client.dart:32`) |
+| 2b: `Icons.shield_outlined` not found | `test/widget_test.dart:19` | Замінено icon-перевірку на `byType(TextFormField) findsNWidgets(2)` + `byType(ElevatedButton) findsOneWidget` |
+
+### DoD чек-лист
+
+- ✅ `flutter test` → **90/90 passed, 0 failed** (було 88/90)
+- ✅ `git diff` → зміни **тільки у `test/`** (production-код недоторканий)
+- ✅ Code evidence: `auth_api_client.dart:32` (`'username': email`), `login_screen.dart:96-178` (2× TextFormField, 1× ElevatedButton)
+
+---
+
 ## Фаза E5 — Підсумкова верифікація ✅
 
 **Дата:** 2026-06-26
@@ -2643,5 +3063,101 @@ riad_mobile/
 2. ✅ `AiDegradedBanner` відображається на сторінках створення та перегляду кошторису
 3. ✅ `npx tsc --noEmit` → 0 errors
 4. ✅ BUILD_LOG оновлено
+
+---
+
+## FIX-7 (Gateway Discipline Close-out) — mobile + serial + scenarios service layer ✅ DONE
+
+**Дата:** 2026-06-28
+**Сесія:** FIX-7 (gateway discipline close-out)
+**Статус:** DoD виконано
+
+### Контекст
+
+FIX-6 залишив `serial.py`, `scenarios.py` як `KNOWN_PENDING` і `mobile.py` як активний `[VIOLATION]`.
+Цей FIX-7 закриває всі три залишкові порушення.
+
+### Технічне рішення
+
+**Нові сервіси:**
+- `app/services/mobile_service.py` — `get_my_tasks(*, sid, limit)` через `frappe_get` (делегований SID B1)
+- `app/services/serial_service.py` — `record_serial_scan(*, sid, serial_no, item, visit_uuid)` через `frappe_post`
+- `app/services/scenario_service.py` — `list_scenarios`, `get_scenario`, `upsert_scenario`, `upsert_scenario_item`
+
+**Оновлені routes (0 прямих frappe_* викликів):**
+- `app/routes/mobile.py` — видалено `_frappe_get`, `FRAPPE_URL`, `httpx`; делегує до `mobile_service`
+- `app/routes/serial.py` — видалено `from app.core.database import frappe_post`; делегує до `serial_service`
+- `app/routes/scenarios.py` — видалено `from app.core.database import frappe_get, frappe_post, frappe_put`; делегує до `scenario_service`
+
+**Лінтер (blocking):**
+- `scripts/check_gateway_discipline.py`: `KNOWN_PENDING = frozenset()` — тепер порожній
+- CI крок `FIX-7 CI gate — gateway discipline blocking (0 violations)` додано до `ci.yml`
+
+**Тести:**
+- `tests/fix7/test_fix7_gateway_discipline.py` (16 тестів) — TDD RED→GREEN: сервісні тести + grep-gate
+- `tests/s4/test_s4_gateway.py` — оновлено `@patch` цілі: `app.routes.serial.frappe_post` → `app.services.serial_service.frappe_post`
+- `tests/fix6/test_check_gateway_discipline.py` — оновлено під нову семантику: `serial.py`/`scenarios.py` тепер VIOLATION (не TODO)
+
+### DoD перевірка
+
+1. ✅ `python3 scripts/check_gateway_discipline.py` → 0 violations, exit 0; усі 17 route-файлів `[OK]`
+2. ✅ `grep frappe_get/post/put app/routes/{mobile,serial,scenarios}.py` → 0 результатів
+3. ✅ `python3 -m unittest tests.fix7.test_fix7_gateway_discipline` → 16/16 passed
+4. ✅ COMBINED run (111 тестів): fix7 + fix6 + check_gateway_discipline + s4 + fix5 + r3 → 111/111 OK
+5. ✅ `python3 -m py_compile` всіх нових/змінених файлів → syntax OK
+6. ✅ CI оновлено: FIX-7 syntax check + test run + blocking lint gate в `ci.yml`
+
+### Змінені/нові файли
+
+| Файл | Зміна |
+|------|-------|
+| `services/security-api/app/services/mobile_service.py` | НОВИЙ — Frappe-логіка my-tasks |
+| `services/security-api/app/services/serial_service.py` | НОВИЙ — Frappe-логіка record_serial_scan |
+| `services/security-api/app/services/scenario_service.py` | НОВИЙ — Frappe-логіка Scenario CRUD |
+| `services/security-api/app/routes/mobile.py` | Оновлено: видалено `_frappe_get`, делегує до mobile_service |
+| `services/security-api/app/routes/serial.py` | Оновлено: видалено frappe_post, делегує до serial_service |
+| `services/security-api/app/routes/scenarios.py` | Оновлено: видалено frappe_get/post/put, делегує до scenario_service |
+| `scripts/check_gateway_discipline.py` | Оновлено: KNOWN_PENDING=frozenset(), blocking message |
+| `tests/fix7/test_fix7_gateway_discipline.py` | НОВИЙ — 16 TDD тестів |
+| `tests/fix6/test_check_gateway_discipline.py` | Оновлено: serial/scenarios тепер VIOLATION (не TODO) |
+| `tests/s4/test_s4_gateway.py` | Оновлено: @patch для serial → serial_service |
+| `.github/workflows/ci.yml` | Оновлено: +FIX-7 syntax check + test run + blocking lint gate |
+
+---
+
+## SV1-C — Service Actions API + Vault Audit Log ref
+**Status:** ✅ DONE
+**Дата:** 2026-06-28
+
+### Що реалізовано
+
+POST/GET `/api/v2/service-requests/{name}/actions` — Service Action child table з валідацією per action_type та vault ізоляцією.
+
+### Файли
+
+| Файл | Зміна |
+|------|-------|
+| `services/security-api/app/schemas/service_request.py` | Розширено: VaultAuditRefDisplay, ServiceActionCreate, ServiceActionDetail |
+| `services/security-api/app/services/service_request_service.py` | Розширено: add_service_action, list_service_actions |
+| `services/security-api/app/routes/service_requests.py` | Розширено: POST/GET /{name}/actions |
+| `tests/sv1/test_sv1_actions.py` | НОВИЙ — 17 тестів SV1-C |
+
+### Endpoints
+
+- `POST /api/v2/service-requests/{name}/actions` — RBAC FSM_FULL|FSM_OWN; діагностика/ремонт/заміна/зміна_паролів
+- `GET  /api/v2/service-requests/{name}/actions` — RBAC FSM_FULL|FSM_READ|FSM_OWN|WAREHOUSE
+
+### Валідація per action_type
+
+- `зміна_паролів` → vault_audit_ref ОБОВ'ЯЗКОВИЙ; перевіряється існування в Vault Audit Log; відповідь містить VaultAuditRefDisplay (name/timestamp/user_name/action_type_display — жодних секретів)
+- `заміна` → replaced_serial_old/new валідуються через Serial No якщо передані; 422 якщо не знайдено
+- `діагностика`/`ремонт` → vault_audit_ref НЕ ДОЗВОЛЕНИЙ; 422 якщо передано
+
+### DoD перевірка
+
+1. ✅ `python3 -m py_compile` schemas/service/routes → syntax OK
+2. ✅ `tests/sv1/test_sv1_actions.py` → 17/17 passed incl. vault_isolation_lint
+3. ✅ Combined: 417 total passed, 0 failed
+4. ✅ Vault isolation: PASS (жодного `security_erp.vault` імпорту в service layer)
 
 ---
