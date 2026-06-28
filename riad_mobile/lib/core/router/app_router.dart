@@ -7,6 +7,12 @@ import '../../features/auth/mfa_verify_screen.dart';
 import '../../features/checklist/checklist_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/home/main_shell.dart';
+import '../../features/map/installation_map_screen.dart';
+import '../../features/object/object_list_screen.dart';
+import '../../features/object/object_passport_screen.dart';
+import '../../features/sync/conflict_resolution_screen.dart';
+import '../../features/sync/sync_screen.dart';
+import '../../features/vault/vault_entries_screen.dart';
 import '../../features/visit/visit_detail_screen.dart';
 import '../../features/visit/visit_list_screen.dart';
 import '../auth/auth_models.dart';
@@ -85,18 +91,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: Routes.objects,
-            builder: (_, __) => const Scaffold(
-                body: Center(child: Text("Об'єкти — FL5"))),
+            builder: (_, __) => const ObjectListScreen(),
           ),
           GoRoute(
             path: Routes.vault,
-            builder: (_, __) =>
-                const Scaffold(body: Center(child: Text('Vault — FL7'))),
+            builder: (_, __) => const VaultEntriesScreen(),
           ),
           GoRoute(
             path: Routes.sync,
-            builder: (_, __) =>
-                const Scaffold(body: Center(child: Text('Синк — FL6'))),
+            builder: (_, __) => const SyncScreen(),
           ),
           GoRoute(
             path: '/home/visits',
@@ -127,12 +130,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.objectDetail,
         builder: (_, s) =>
-            PlaceholderScreen('Object ${s.pathParameters["id"]}'),
+            ObjectPassportScreen(objectId: s.pathParameters['id']!),
       ),
       GoRoute(
         path: Routes.installationMap,
         builder: (_, s) =>
-            PlaceholderScreen('Map ${s.pathParameters["objectId"]}'),
+            InstallationMapScreen(objectId: s.pathParameters['objectId']!),
       ),
       GoRoute(
         path: Routes.scan,
@@ -156,7 +159,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.conflictResolution,
         builder: (_, s) =>
-            PlaceholderScreen('Conflict ${s.pathParameters["id"]}'),
+            ConflictResolutionScreen(conflictId: s.pathParameters['id']!),
       ),
       GoRoute(
         path: Routes.profile,

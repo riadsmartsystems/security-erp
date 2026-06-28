@@ -10,6 +10,7 @@ class InstallationPoints extends Table {
   RealColumn  get lat         => real().nullable()();
   RealColumn  get lng         => real().nullable()();
   TextColumn  get label       => text().withDefault(const Constant(''))();
+  TextColumn  get status      => text().withDefault(const Constant('planned'))();
   TextColumn  get payload     => text().withDefault(const Constant('{}'))();
   IntColumn   get riadVersion => integer().withDefault(const Constant(0))();
   BoolColumn  get riadDeleted => boolean().withDefault(const Constant(false))();

@@ -2,6 +2,46 @@
 
 ---
 
+## FL5 — Object Passport + Installation Map — 2026-06-29
+**Статус:** ✅ DONE
+
+### DoD-докази
+- `flutter analyze --no-fatal-infos`: **33 issues found** (0 errors, 0 warnings — лише `info` рівень, не блокує)
+- `flutter test`: **204/204 passed** (0 failed, +35 нових тестів FL5 + +28 нових тестів FL6/FL7)
+- `flutter test test/fl5/`: **35/35 passed** (0 failed)
+
+### Що реалізовано
+- `ObjectListScreen` — список об'єктів з AppBar, empty state, error state
+- `ObjectPassportScreen` — паспорт об'єкта з 3 секціями (Mandatory/Operational/Financial), role-based доступ
+- `InstallationMapScreen` — роутер між floor plan та territory map на основі `map_kind`
+- `FloorPlanEditor` — GestureDetector + LayoutBuilder + Stack, normalized x/y ∈ [0..1], sync queue
+- `TerritoryMap` — FlutterMap + OSM tiles, GPS координати lat/lng
+- `objectListProvider` + `objectByIdProvider` — offline-first (Drift cache + API)
+- `mapDataProvider` — lazy load мапи по objectId
+- Роутер: `/objects`, `/object/:id`, `/map/:objectId`
+- Drift schema v4: додано `mapKind`, `basePlanUrl` до `object_passports`; `status` до `installation_points`
+
+### Тести FL5 (35 tests)
+- `object_provider_test.dart` — 6 tests (list/byId providers, DTO-driven фільтрація)
+- `object_passport_screen_test.dart` — 9 tests (role-based UI, loading, sections)
+- `floor_plan_editor_test.dart` — 6 tests (render, hint, tap→sync, canEdit guard)
+- `territory_map_test.dart` — 3 tests (FlutterMap render, GPS points)
+- `installation_map_screen_test.dart` — 6 tests (loading, null/unknown/floor/territory)
+- `object_list_screen_test.dart` — 5 tests (loading, empty, list, error, AppBar)
+
+### Архітектурні рішення FL5
+- `Completer<T>().future` замість `Future.delayed` у loading-тестах (без pending timer)
+- `class _FakeSyncQueue implements SyncQueueService` (не `extends`) — уникає null-safety crash
+- `_FakeAuthNotifier extends AuthNotifier` + `overrideWith(() => ...)` — стандартний pattern
+- DTO-driven rendering: поле відсутнє в відповіді → поле відсутнє в UI (не CSS-приховано)
+- `map_kind: 'floor'` → x/y normalized; `map_kind: 'territory'` → lat/lng GPS; НІКОЛИ не змішувати
+
+### Обмеження FL5 (для наступних сесій)
+- TerritoryMap: OSM tiles недоступні в тестовому середовищі (400 status) — не впливає на test pass
+- FL4 (camera/scan) — заглушки, незалежний від FL5
+
+---
+
 ## FL7 — Vault (Password Vault) — 2026-06-28
 **Статус:** ✅ DONE
 

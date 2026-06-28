@@ -32,9 +32,10 @@ part 'database.g.dart';
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
+  AppDatabase.forTesting(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -42,6 +43,18 @@ class AppDatabase extends _$AppDatabase {
       if (from < 2) {
         await m.database.customStatement('DROP TABLE IF EXISTS task_cache');
         await m.create(taskCache);
+      }
+      if (from < 3) {
+        // Column renames not supported in SQLite — drop & recreate
+        await m.database.customStatement('DROP TABLE IF EXISTS checklist_items');
+        await m.create(checklistItems);
+        await m.database.customStatement('DROP TABLE IF EXISTS sync_queue');
+        await m.create(syncQueue);
+      }
+      if (from < 4) {
+        await m.addColumn(objectPassports, objectPassports.mapKind);
+        await m.addColumn(objectPassports, objectPassports.basePlanUrl);
+        await m.addColumn(installationPoints, installationPoints.status);
       }
     },
   );

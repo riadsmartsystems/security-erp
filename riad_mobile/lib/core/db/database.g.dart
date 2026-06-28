@@ -1044,17 +1044,17 @@ class $ChecklistItemsTable extends ChecklistItems
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
       'id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _instanceIdMeta =
-      const VerificationMeta('instanceId');
+  static const VerificationMeta _checklistIdMeta =
+      const VerificationMeta('checklistId');
   @override
-  late final GeneratedColumn<String> instanceId = GeneratedColumn<String>(
-      'instance_id', aliasedName, false,
+  late final GeneratedColumn<String> checklistId = GeneratedColumn<String>(
+      'checklist_id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _itemUuidMeta =
-      const VerificationMeta('itemUuid');
+  static const VerificationMeta _templateItemIdMeta =
+      const VerificationMeta('templateItemId');
   @override
-  late final GeneratedColumn<String> itemUuid = GeneratedColumn<String>(
-      'item_uuid', aliasedName, false,
+  late final GeneratedColumn<String> templateItemId = GeneratedColumn<String>(
+      'template_item_id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _labelMeta = const VerificationMeta('label');
   @override
@@ -1077,12 +1077,20 @@ class $ChecklistItemsTable extends ChecklistItems
   late final GeneratedColumn<String> photoId = GeneratedColumn<String>(
       'photo_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _serialNoMeta =
-      const VerificationMeta('serialNo');
+  static const VerificationMeta _serialNumberMeta =
+      const VerificationMeta('serialNumber');
   @override
-  late final GeneratedColumn<String> serialNo = GeneratedColumn<String>(
-      'serial_no', aliasedName, true,
+  late final GeneratedColumn<String> serialNumber = GeneratedColumn<String>(
+      'serial_number', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _riadVersionMeta =
       const VerificationMeta('riadVersion');
   @override
@@ -1118,12 +1126,13 @@ class $ChecklistItemsTable extends ChecklistItems
   @override
   List<GeneratedColumn> get $columns => [
         id,
-        instanceId,
-        itemUuid,
+        checklistId,
+        templateItemId,
         label,
         checked,
         photoId,
-        serialNo,
+        serialNumber,
+        sortOrder,
         riadVersion,
         riadDeleted,
         riadDeletedAt,
@@ -1144,19 +1153,21 @@ class $ChecklistItemsTable extends ChecklistItems
     } else if (isInserting) {
       context.missing(_idMeta);
     }
-    if (data.containsKey('instance_id')) {
+    if (data.containsKey('checklist_id')) {
       context.handle(
-          _instanceIdMeta,
-          instanceId.isAcceptableOrUnknown(
-              data['instance_id']!, _instanceIdMeta));
+          _checklistIdMeta,
+          checklistId.isAcceptableOrUnknown(
+              data['checklist_id']!, _checklistIdMeta));
     } else if (isInserting) {
-      context.missing(_instanceIdMeta);
+      context.missing(_checklistIdMeta);
     }
-    if (data.containsKey('item_uuid')) {
-      context.handle(_itemUuidMeta,
-          itemUuid.isAcceptableOrUnknown(data['item_uuid']!, _itemUuidMeta));
+    if (data.containsKey('template_item_id')) {
+      context.handle(
+          _templateItemIdMeta,
+          templateItemId.isAcceptableOrUnknown(
+              data['template_item_id']!, _templateItemIdMeta));
     } else if (isInserting) {
-      context.missing(_itemUuidMeta);
+      context.missing(_templateItemIdMeta);
     }
     if (data.containsKey('label')) {
       context.handle(
@@ -1172,9 +1183,15 @@ class $ChecklistItemsTable extends ChecklistItems
       context.handle(_photoIdMeta,
           photoId.isAcceptableOrUnknown(data['photo_id']!, _photoIdMeta));
     }
-    if (data.containsKey('serial_no')) {
-      context.handle(_serialNoMeta,
-          serialNo.isAcceptableOrUnknown(data['serial_no']!, _serialNoMeta));
+    if (data.containsKey('serial_number')) {
+      context.handle(
+          _serialNumberMeta,
+          serialNumber.isAcceptableOrUnknown(
+              data['serial_number']!, _serialNumberMeta));
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
     }
     if (data.containsKey('riad_version')) {
       context.handle(
@@ -1209,18 +1226,20 @@ class $ChecklistItemsTable extends ChecklistItems
     return ChecklistItem(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      instanceId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}instance_id'])!,
-      itemUuid: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}item_uuid'])!,
+      checklistId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}checklist_id'])!,
+      templateItemId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}template_item_id'])!,
       label: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}label'])!,
       checked: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}checked'])!,
       photoId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}photo_id']),
-      serialNo: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}serial_no']),
+      serialNumber: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}serial_number']),
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
       riadVersion: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}riad_version'])!,
       riadDeleted: attachedDatabase.typeMapping
@@ -1240,24 +1259,26 @@ class $ChecklistItemsTable extends ChecklistItems
 
 class ChecklistItem extends DataClass implements Insertable<ChecklistItem> {
   final String id;
-  final String instanceId;
-  final String itemUuid;
+  final String checklistId;
+  final String templateItemId;
   final String label;
   final bool checked;
   final String? photoId;
-  final String? serialNo;
+  final String? serialNumber;
+  final int sortOrder;
   final int riadVersion;
   final bool riadDeleted;
   final DateTime? riadDeletedAt;
   final DateTime updatedAt;
   const ChecklistItem(
       {required this.id,
-      required this.instanceId,
-      required this.itemUuid,
+      required this.checklistId,
+      required this.templateItemId,
       required this.label,
       required this.checked,
       this.photoId,
-      this.serialNo,
+      this.serialNumber,
+      required this.sortOrder,
       required this.riadVersion,
       required this.riadDeleted,
       this.riadDeletedAt,
@@ -1266,16 +1287,17 @@ class ChecklistItem extends DataClass implements Insertable<ChecklistItem> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
-    map['instance_id'] = Variable<String>(instanceId);
-    map['item_uuid'] = Variable<String>(itemUuid);
+    map['checklist_id'] = Variable<String>(checklistId);
+    map['template_item_id'] = Variable<String>(templateItemId);
     map['label'] = Variable<String>(label);
     map['checked'] = Variable<bool>(checked);
     if (!nullToAbsent || photoId != null) {
       map['photo_id'] = Variable<String>(photoId);
     }
-    if (!nullToAbsent || serialNo != null) {
-      map['serial_no'] = Variable<String>(serialNo);
+    if (!nullToAbsent || serialNumber != null) {
+      map['serial_number'] = Variable<String>(serialNumber);
     }
+    map['sort_order'] = Variable<int>(sortOrder);
     map['riad_version'] = Variable<int>(riadVersion);
     map['riad_deleted'] = Variable<bool>(riadDeleted);
     if (!nullToAbsent || riadDeletedAt != null) {
@@ -1288,16 +1310,17 @@ class ChecklistItem extends DataClass implements Insertable<ChecklistItem> {
   ChecklistItemsCompanion toCompanion(bool nullToAbsent) {
     return ChecklistItemsCompanion(
       id: Value(id),
-      instanceId: Value(instanceId),
-      itemUuid: Value(itemUuid),
+      checklistId: Value(checklistId),
+      templateItemId: Value(templateItemId),
       label: Value(label),
       checked: Value(checked),
       photoId: photoId == null && nullToAbsent
           ? const Value.absent()
           : Value(photoId),
-      serialNo: serialNo == null && nullToAbsent
+      serialNumber: serialNumber == null && nullToAbsent
           ? const Value.absent()
-          : Value(serialNo),
+          : Value(serialNumber),
+      sortOrder: Value(sortOrder),
       riadVersion: Value(riadVersion),
       riadDeleted: Value(riadDeleted),
       riadDeletedAt: riadDeletedAt == null && nullToAbsent
@@ -1312,12 +1335,13 @@ class ChecklistItem extends DataClass implements Insertable<ChecklistItem> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return ChecklistItem(
       id: serializer.fromJson<String>(json['id']),
-      instanceId: serializer.fromJson<String>(json['instanceId']),
-      itemUuid: serializer.fromJson<String>(json['itemUuid']),
+      checklistId: serializer.fromJson<String>(json['checklistId']),
+      templateItemId: serializer.fromJson<String>(json['templateItemId']),
       label: serializer.fromJson<String>(json['label']),
       checked: serializer.fromJson<bool>(json['checked']),
       photoId: serializer.fromJson<String?>(json['photoId']),
-      serialNo: serializer.fromJson<String?>(json['serialNo']),
+      serialNumber: serializer.fromJson<String?>(json['serialNumber']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
       riadVersion: serializer.fromJson<int>(json['riadVersion']),
       riadDeleted: serializer.fromJson<bool>(json['riadDeleted']),
       riadDeletedAt: serializer.fromJson<DateTime?>(json['riadDeletedAt']),
@@ -1329,12 +1353,13 @@ class ChecklistItem extends DataClass implements Insertable<ChecklistItem> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
-      'instanceId': serializer.toJson<String>(instanceId),
-      'itemUuid': serializer.toJson<String>(itemUuid),
+      'checklistId': serializer.toJson<String>(checklistId),
+      'templateItemId': serializer.toJson<String>(templateItemId),
       'label': serializer.toJson<String>(label),
       'checked': serializer.toJson<bool>(checked),
       'photoId': serializer.toJson<String?>(photoId),
-      'serialNo': serializer.toJson<String?>(serialNo),
+      'serialNumber': serializer.toJson<String?>(serialNumber),
+      'sortOrder': serializer.toJson<int>(sortOrder),
       'riadVersion': serializer.toJson<int>(riadVersion),
       'riadDeleted': serializer.toJson<bool>(riadDeleted),
       'riadDeletedAt': serializer.toJson<DateTime?>(riadDeletedAt),
@@ -1344,24 +1369,27 @@ class ChecklistItem extends DataClass implements Insertable<ChecklistItem> {
 
   ChecklistItem copyWith(
           {String? id,
-          String? instanceId,
-          String? itemUuid,
+          String? checklistId,
+          String? templateItemId,
           String? label,
           bool? checked,
           Value<String?> photoId = const Value.absent(),
-          Value<String?> serialNo = const Value.absent(),
+          Value<String?> serialNumber = const Value.absent(),
+          int? sortOrder,
           int? riadVersion,
           bool? riadDeleted,
           Value<DateTime?> riadDeletedAt = const Value.absent(),
           DateTime? updatedAt}) =>
       ChecklistItem(
         id: id ?? this.id,
-        instanceId: instanceId ?? this.instanceId,
-        itemUuid: itemUuid ?? this.itemUuid,
+        checklistId: checklistId ?? this.checklistId,
+        templateItemId: templateItemId ?? this.templateItemId,
         label: label ?? this.label,
         checked: checked ?? this.checked,
         photoId: photoId.present ? photoId.value : this.photoId,
-        serialNo: serialNo.present ? serialNo.value : this.serialNo,
+        serialNumber:
+            serialNumber.present ? serialNumber.value : this.serialNumber,
+        sortOrder: sortOrder ?? this.sortOrder,
         riadVersion: riadVersion ?? this.riadVersion,
         riadDeleted: riadDeleted ?? this.riadDeleted,
         riadDeletedAt:
@@ -1371,13 +1399,18 @@ class ChecklistItem extends DataClass implements Insertable<ChecklistItem> {
   ChecklistItem copyWithCompanion(ChecklistItemsCompanion data) {
     return ChecklistItem(
       id: data.id.present ? data.id.value : this.id,
-      instanceId:
-          data.instanceId.present ? data.instanceId.value : this.instanceId,
-      itemUuid: data.itemUuid.present ? data.itemUuid.value : this.itemUuid,
+      checklistId:
+          data.checklistId.present ? data.checklistId.value : this.checklistId,
+      templateItemId: data.templateItemId.present
+          ? data.templateItemId.value
+          : this.templateItemId,
       label: data.label.present ? data.label.value : this.label,
       checked: data.checked.present ? data.checked.value : this.checked,
       photoId: data.photoId.present ? data.photoId.value : this.photoId,
-      serialNo: data.serialNo.present ? data.serialNo.value : this.serialNo,
+      serialNumber: data.serialNumber.present
+          ? data.serialNumber.value
+          : this.serialNumber,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       riadVersion:
           data.riadVersion.present ? data.riadVersion.value : this.riadVersion,
       riadDeleted:
@@ -1393,12 +1426,13 @@ class ChecklistItem extends DataClass implements Insertable<ChecklistItem> {
   String toString() {
     return (StringBuffer('ChecklistItem(')
           ..write('id: $id, ')
-          ..write('instanceId: $instanceId, ')
-          ..write('itemUuid: $itemUuid, ')
+          ..write('checklistId: $checklistId, ')
+          ..write('templateItemId: $templateItemId, ')
           ..write('label: $label, ')
           ..write('checked: $checked, ')
           ..write('photoId: $photoId, ')
-          ..write('serialNo: $serialNo, ')
+          ..write('serialNumber: $serialNumber, ')
+          ..write('sortOrder: $sortOrder, ')
           ..write('riadVersion: $riadVersion, ')
           ..write('riadDeleted: $riadDeleted, ')
           ..write('riadDeletedAt: $riadDeletedAt, ')
@@ -1408,19 +1442,31 @@ class ChecklistItem extends DataClass implements Insertable<ChecklistItem> {
   }
 
   @override
-  int get hashCode => Object.hash(id, instanceId, itemUuid, label, checked,
-      photoId, serialNo, riadVersion, riadDeleted, riadDeletedAt, updatedAt);
+  int get hashCode => Object.hash(
+      id,
+      checklistId,
+      templateItemId,
+      label,
+      checked,
+      photoId,
+      serialNumber,
+      sortOrder,
+      riadVersion,
+      riadDeleted,
+      riadDeletedAt,
+      updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is ChecklistItem &&
           other.id == this.id &&
-          other.instanceId == this.instanceId &&
-          other.itemUuid == this.itemUuid &&
+          other.checklistId == this.checklistId &&
+          other.templateItemId == this.templateItemId &&
           other.label == this.label &&
           other.checked == this.checked &&
           other.photoId == this.photoId &&
-          other.serialNo == this.serialNo &&
+          other.serialNumber == this.serialNumber &&
+          other.sortOrder == this.sortOrder &&
           other.riadVersion == this.riadVersion &&
           other.riadDeleted == this.riadDeleted &&
           other.riadDeletedAt == this.riadDeletedAt &&
@@ -1429,12 +1475,13 @@ class ChecklistItem extends DataClass implements Insertable<ChecklistItem> {
 
 class ChecklistItemsCompanion extends UpdateCompanion<ChecklistItem> {
   final Value<String> id;
-  final Value<String> instanceId;
-  final Value<String> itemUuid;
+  final Value<String> checklistId;
+  final Value<String> templateItemId;
   final Value<String> label;
   final Value<bool> checked;
   final Value<String?> photoId;
-  final Value<String?> serialNo;
+  final Value<String?> serialNumber;
+  final Value<int> sortOrder;
   final Value<int> riadVersion;
   final Value<bool> riadDeleted;
   final Value<DateTime?> riadDeletedAt;
@@ -1442,12 +1489,13 @@ class ChecklistItemsCompanion extends UpdateCompanion<ChecklistItem> {
   final Value<int> rowid;
   const ChecklistItemsCompanion({
     this.id = const Value.absent(),
-    this.instanceId = const Value.absent(),
-    this.itemUuid = const Value.absent(),
+    this.checklistId = const Value.absent(),
+    this.templateItemId = const Value.absent(),
     this.label = const Value.absent(),
     this.checked = const Value.absent(),
     this.photoId = const Value.absent(),
-    this.serialNo = const Value.absent(),
+    this.serialNumber = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     this.riadVersion = const Value.absent(),
     this.riadDeleted = const Value.absent(),
     this.riadDeletedAt = const Value.absent(),
@@ -1456,29 +1504,31 @@ class ChecklistItemsCompanion extends UpdateCompanion<ChecklistItem> {
   });
   ChecklistItemsCompanion.insert({
     required String id,
-    required String instanceId,
-    required String itemUuid,
+    required String checklistId,
+    required String templateItemId,
     required String label,
     this.checked = const Value.absent(),
     this.photoId = const Value.absent(),
-    this.serialNo = const Value.absent(),
+    this.serialNumber = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     this.riadVersion = const Value.absent(),
     this.riadDeleted = const Value.absent(),
     this.riadDeletedAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
-        instanceId = Value(instanceId),
-        itemUuid = Value(itemUuid),
+        checklistId = Value(checklistId),
+        templateItemId = Value(templateItemId),
         label = Value(label);
   static Insertable<ChecklistItem> custom({
     Expression<String>? id,
-    Expression<String>? instanceId,
-    Expression<String>? itemUuid,
+    Expression<String>? checklistId,
+    Expression<String>? templateItemId,
     Expression<String>? label,
     Expression<bool>? checked,
     Expression<String>? photoId,
-    Expression<String>? serialNo,
+    Expression<String>? serialNumber,
+    Expression<int>? sortOrder,
     Expression<int>? riadVersion,
     Expression<bool>? riadDeleted,
     Expression<DateTime>? riadDeletedAt,
@@ -1487,12 +1537,13 @@ class ChecklistItemsCompanion extends UpdateCompanion<ChecklistItem> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (instanceId != null) 'instance_id': instanceId,
-      if (itemUuid != null) 'item_uuid': itemUuid,
+      if (checklistId != null) 'checklist_id': checklistId,
+      if (templateItemId != null) 'template_item_id': templateItemId,
       if (label != null) 'label': label,
       if (checked != null) 'checked': checked,
       if (photoId != null) 'photo_id': photoId,
-      if (serialNo != null) 'serial_no': serialNo,
+      if (serialNumber != null) 'serial_number': serialNumber,
+      if (sortOrder != null) 'sort_order': sortOrder,
       if (riadVersion != null) 'riad_version': riadVersion,
       if (riadDeleted != null) 'riad_deleted': riadDeleted,
       if (riadDeletedAt != null) 'riad_deleted_at': riadDeletedAt,
@@ -1503,12 +1554,13 @@ class ChecklistItemsCompanion extends UpdateCompanion<ChecklistItem> {
 
   ChecklistItemsCompanion copyWith(
       {Value<String>? id,
-      Value<String>? instanceId,
-      Value<String>? itemUuid,
+      Value<String>? checklistId,
+      Value<String>? templateItemId,
       Value<String>? label,
       Value<bool>? checked,
       Value<String?>? photoId,
-      Value<String?>? serialNo,
+      Value<String?>? serialNumber,
+      Value<int>? sortOrder,
       Value<int>? riadVersion,
       Value<bool>? riadDeleted,
       Value<DateTime?>? riadDeletedAt,
@@ -1516,12 +1568,13 @@ class ChecklistItemsCompanion extends UpdateCompanion<ChecklistItem> {
       Value<int>? rowid}) {
     return ChecklistItemsCompanion(
       id: id ?? this.id,
-      instanceId: instanceId ?? this.instanceId,
-      itemUuid: itemUuid ?? this.itemUuid,
+      checklistId: checklistId ?? this.checklistId,
+      templateItemId: templateItemId ?? this.templateItemId,
       label: label ?? this.label,
       checked: checked ?? this.checked,
       photoId: photoId ?? this.photoId,
-      serialNo: serialNo ?? this.serialNo,
+      serialNumber: serialNumber ?? this.serialNumber,
+      sortOrder: sortOrder ?? this.sortOrder,
       riadVersion: riadVersion ?? this.riadVersion,
       riadDeleted: riadDeleted ?? this.riadDeleted,
       riadDeletedAt: riadDeletedAt ?? this.riadDeletedAt,
@@ -1536,11 +1589,11 @@ class ChecklistItemsCompanion extends UpdateCompanion<ChecklistItem> {
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
-    if (instanceId.present) {
-      map['instance_id'] = Variable<String>(instanceId.value);
+    if (checklistId.present) {
+      map['checklist_id'] = Variable<String>(checklistId.value);
     }
-    if (itemUuid.present) {
-      map['item_uuid'] = Variable<String>(itemUuid.value);
+    if (templateItemId.present) {
+      map['template_item_id'] = Variable<String>(templateItemId.value);
     }
     if (label.present) {
       map['label'] = Variable<String>(label.value);
@@ -1551,8 +1604,11 @@ class ChecklistItemsCompanion extends UpdateCompanion<ChecklistItem> {
     if (photoId.present) {
       map['photo_id'] = Variable<String>(photoId.value);
     }
-    if (serialNo.present) {
-      map['serial_no'] = Variable<String>(serialNo.value);
+    if (serialNumber.present) {
+      map['serial_number'] = Variable<String>(serialNumber.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
     }
     if (riadVersion.present) {
       map['riad_version'] = Variable<int>(riadVersion.value);
@@ -1576,12 +1632,13 @@ class ChecklistItemsCompanion extends UpdateCompanion<ChecklistItem> {
   String toString() {
     return (StringBuffer('ChecklistItemsCompanion(')
           ..write('id: $id, ')
-          ..write('instanceId: $instanceId, ')
-          ..write('itemUuid: $itemUuid, ')
+          ..write('checklistId: $checklistId, ')
+          ..write('templateItemId: $templateItemId, ')
           ..write('label: $label, ')
           ..write('checked: $checked, ')
           ..write('photoId: $photoId, ')
-          ..write('serialNo: $serialNo, ')
+          ..write('serialNumber: $serialNumber, ')
+          ..write('sortOrder: $sortOrder, ')
           ..write('riadVersion: $riadVersion, ')
           ..write('riadDeleted: $riadDeleted, ')
           ..write('riadDeletedAt: $riadDeletedAt, ')
@@ -1622,6 +1679,20 @@ class $ObjectPassportsTable extends ObjectPassports
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant(''));
+  static const VerificationMeta _mapKindMeta =
+      const VerificationMeta('mapKind');
+  @override
+  late final GeneratedColumn<String> mapKind = GeneratedColumn<String>(
+      'map_kind', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('floor'));
+  static const VerificationMeta _basePlanUrlMeta =
+      const VerificationMeta('basePlanUrl');
+  @override
+  late final GeneratedColumn<String> basePlanUrl = GeneratedColumn<String>(
+      'base_plan_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _riadVersionMeta =
       const VerificationMeta('riadVersion');
   @override
@@ -1668,6 +1739,8 @@ class $ObjectPassportsTable extends ObjectPassports
         customerId,
         name,
         address,
+        mapKind,
+        basePlanUrl,
         riadVersion,
         riadDeleted,
         riadDeletedAt,
@@ -1706,6 +1779,16 @@ class $ObjectPassportsTable extends ObjectPassports
     if (data.containsKey('address')) {
       context.handle(_addressMeta,
           address.isAcceptableOrUnknown(data['address']!, _addressMeta));
+    }
+    if (data.containsKey('map_kind')) {
+      context.handle(_mapKindMeta,
+          mapKind.isAcceptableOrUnknown(data['map_kind']!, _mapKindMeta));
+    }
+    if (data.containsKey('base_plan_url')) {
+      context.handle(
+          _basePlanUrlMeta,
+          basePlanUrl.isAcceptableOrUnknown(
+              data['base_plan_url']!, _basePlanUrlMeta));
     }
     if (data.containsKey('riad_version')) {
       context.handle(
@@ -1750,6 +1833,10 @@ class $ObjectPassportsTable extends ObjectPassports
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
       address: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}address'])!,
+      mapKind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}map_kind'])!,
+      basePlanUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}base_plan_url']),
       riadVersion: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}riad_version'])!,
       riadDeleted: attachedDatabase.typeMapping
@@ -1774,6 +1861,8 @@ class ObjectPassport extends DataClass implements Insertable<ObjectPassport> {
   final String customerId;
   final String name;
   final String address;
+  final String mapKind;
+  final String? basePlanUrl;
   final int riadVersion;
   final bool riadDeleted;
   final DateTime? riadDeletedAt;
@@ -1784,6 +1873,8 @@ class ObjectPassport extends DataClass implements Insertable<ObjectPassport> {
       required this.customerId,
       required this.name,
       required this.address,
+      required this.mapKind,
+      this.basePlanUrl,
       required this.riadVersion,
       required this.riadDeleted,
       this.riadDeletedAt,
@@ -1796,6 +1887,10 @@ class ObjectPassport extends DataClass implements Insertable<ObjectPassport> {
     map['customer_id'] = Variable<String>(customerId);
     map['name'] = Variable<String>(name);
     map['address'] = Variable<String>(address);
+    map['map_kind'] = Variable<String>(mapKind);
+    if (!nullToAbsent || basePlanUrl != null) {
+      map['base_plan_url'] = Variable<String>(basePlanUrl);
+    }
     map['riad_version'] = Variable<int>(riadVersion);
     map['riad_deleted'] = Variable<bool>(riadDeleted);
     if (!nullToAbsent || riadDeletedAt != null) {
@@ -1812,6 +1907,10 @@ class ObjectPassport extends DataClass implements Insertable<ObjectPassport> {
       customerId: Value(customerId),
       name: Value(name),
       address: Value(address),
+      mapKind: Value(mapKind),
+      basePlanUrl: basePlanUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(basePlanUrl),
       riadVersion: Value(riadVersion),
       riadDeleted: Value(riadDeleted),
       riadDeletedAt: riadDeletedAt == null && nullToAbsent
@@ -1830,6 +1929,8 @@ class ObjectPassport extends DataClass implements Insertable<ObjectPassport> {
       customerId: serializer.fromJson<String>(json['customerId']),
       name: serializer.fromJson<String>(json['name']),
       address: serializer.fromJson<String>(json['address']),
+      mapKind: serializer.fromJson<String>(json['mapKind']),
+      basePlanUrl: serializer.fromJson<String?>(json['basePlanUrl']),
       riadVersion: serializer.fromJson<int>(json['riadVersion']),
       riadDeleted: serializer.fromJson<bool>(json['riadDeleted']),
       riadDeletedAt: serializer.fromJson<DateTime?>(json['riadDeletedAt']),
@@ -1845,6 +1946,8 @@ class ObjectPassport extends DataClass implements Insertable<ObjectPassport> {
       'customerId': serializer.toJson<String>(customerId),
       'name': serializer.toJson<String>(name),
       'address': serializer.toJson<String>(address),
+      'mapKind': serializer.toJson<String>(mapKind),
+      'basePlanUrl': serializer.toJson<String?>(basePlanUrl),
       'riadVersion': serializer.toJson<int>(riadVersion),
       'riadDeleted': serializer.toJson<bool>(riadDeleted),
       'riadDeletedAt': serializer.toJson<DateTime?>(riadDeletedAt),
@@ -1858,6 +1961,8 @@ class ObjectPassport extends DataClass implements Insertable<ObjectPassport> {
           String? customerId,
           String? name,
           String? address,
+          String? mapKind,
+          Value<String?> basePlanUrl = const Value.absent(),
           int? riadVersion,
           bool? riadDeleted,
           Value<DateTime?> riadDeletedAt = const Value.absent(),
@@ -1868,6 +1973,8 @@ class ObjectPassport extends DataClass implements Insertable<ObjectPassport> {
         customerId: customerId ?? this.customerId,
         name: name ?? this.name,
         address: address ?? this.address,
+        mapKind: mapKind ?? this.mapKind,
+        basePlanUrl: basePlanUrl.present ? basePlanUrl.value : this.basePlanUrl,
         riadVersion: riadVersion ?? this.riadVersion,
         riadDeleted: riadDeleted ?? this.riadDeleted,
         riadDeletedAt:
@@ -1882,6 +1989,9 @@ class ObjectPassport extends DataClass implements Insertable<ObjectPassport> {
           data.customerId.present ? data.customerId.value : this.customerId,
       name: data.name.present ? data.name.value : this.name,
       address: data.address.present ? data.address.value : this.address,
+      mapKind: data.mapKind.present ? data.mapKind.value : this.mapKind,
+      basePlanUrl:
+          data.basePlanUrl.present ? data.basePlanUrl.value : this.basePlanUrl,
       riadVersion:
           data.riadVersion.present ? data.riadVersion.value : this.riadVersion,
       riadDeleted:
@@ -1901,6 +2011,8 @@ class ObjectPassport extends DataClass implements Insertable<ObjectPassport> {
           ..write('customerId: $customerId, ')
           ..write('name: $name, ')
           ..write('address: $address, ')
+          ..write('mapKind: $mapKind, ')
+          ..write('basePlanUrl: $basePlanUrl, ')
           ..write('riadVersion: $riadVersion, ')
           ..write('riadDeleted: $riadDeleted, ')
           ..write('riadDeletedAt: $riadDeletedAt, ')
@@ -1911,8 +2023,8 @@ class ObjectPassport extends DataClass implements Insertable<ObjectPassport> {
   }
 
   @override
-  int get hashCode => Object.hash(id, customerId, name, address, riadVersion,
-      riadDeleted, riadDeletedAt, payload, cachedAt);
+  int get hashCode => Object.hash(id, customerId, name, address, mapKind,
+      basePlanUrl, riadVersion, riadDeleted, riadDeletedAt, payload, cachedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1921,6 +2033,8 @@ class ObjectPassport extends DataClass implements Insertable<ObjectPassport> {
           other.customerId == this.customerId &&
           other.name == this.name &&
           other.address == this.address &&
+          other.mapKind == this.mapKind &&
+          other.basePlanUrl == this.basePlanUrl &&
           other.riadVersion == this.riadVersion &&
           other.riadDeleted == this.riadDeleted &&
           other.riadDeletedAt == this.riadDeletedAt &&
@@ -1933,6 +2047,8 @@ class ObjectPassportsCompanion extends UpdateCompanion<ObjectPassport> {
   final Value<String> customerId;
   final Value<String> name;
   final Value<String> address;
+  final Value<String> mapKind;
+  final Value<String?> basePlanUrl;
   final Value<int> riadVersion;
   final Value<bool> riadDeleted;
   final Value<DateTime?> riadDeletedAt;
@@ -1944,6 +2060,8 @@ class ObjectPassportsCompanion extends UpdateCompanion<ObjectPassport> {
     this.customerId = const Value.absent(),
     this.name = const Value.absent(),
     this.address = const Value.absent(),
+    this.mapKind = const Value.absent(),
+    this.basePlanUrl = const Value.absent(),
     this.riadVersion = const Value.absent(),
     this.riadDeleted = const Value.absent(),
     this.riadDeletedAt = const Value.absent(),
@@ -1956,6 +2074,8 @@ class ObjectPassportsCompanion extends UpdateCompanion<ObjectPassport> {
     required String customerId,
     required String name,
     this.address = const Value.absent(),
+    this.mapKind = const Value.absent(),
+    this.basePlanUrl = const Value.absent(),
     this.riadVersion = const Value.absent(),
     this.riadDeleted = const Value.absent(),
     this.riadDeletedAt = const Value.absent(),
@@ -1970,6 +2090,8 @@ class ObjectPassportsCompanion extends UpdateCompanion<ObjectPassport> {
     Expression<String>? customerId,
     Expression<String>? name,
     Expression<String>? address,
+    Expression<String>? mapKind,
+    Expression<String>? basePlanUrl,
     Expression<int>? riadVersion,
     Expression<bool>? riadDeleted,
     Expression<DateTime>? riadDeletedAt,
@@ -1982,6 +2104,8 @@ class ObjectPassportsCompanion extends UpdateCompanion<ObjectPassport> {
       if (customerId != null) 'customer_id': customerId,
       if (name != null) 'name': name,
       if (address != null) 'address': address,
+      if (mapKind != null) 'map_kind': mapKind,
+      if (basePlanUrl != null) 'base_plan_url': basePlanUrl,
       if (riadVersion != null) 'riad_version': riadVersion,
       if (riadDeleted != null) 'riad_deleted': riadDeleted,
       if (riadDeletedAt != null) 'riad_deleted_at': riadDeletedAt,
@@ -1996,6 +2120,8 @@ class ObjectPassportsCompanion extends UpdateCompanion<ObjectPassport> {
       Value<String>? customerId,
       Value<String>? name,
       Value<String>? address,
+      Value<String>? mapKind,
+      Value<String?>? basePlanUrl,
       Value<int>? riadVersion,
       Value<bool>? riadDeleted,
       Value<DateTime?>? riadDeletedAt,
@@ -2007,6 +2133,8 @@ class ObjectPassportsCompanion extends UpdateCompanion<ObjectPassport> {
       customerId: customerId ?? this.customerId,
       name: name ?? this.name,
       address: address ?? this.address,
+      mapKind: mapKind ?? this.mapKind,
+      basePlanUrl: basePlanUrl ?? this.basePlanUrl,
       riadVersion: riadVersion ?? this.riadVersion,
       riadDeleted: riadDeleted ?? this.riadDeleted,
       riadDeletedAt: riadDeletedAt ?? this.riadDeletedAt,
@@ -2030,6 +2158,12 @@ class ObjectPassportsCompanion extends UpdateCompanion<ObjectPassport> {
     }
     if (address.present) {
       map['address'] = Variable<String>(address.value);
+    }
+    if (mapKind.present) {
+      map['map_kind'] = Variable<String>(mapKind.value);
+    }
+    if (basePlanUrl.present) {
+      map['base_plan_url'] = Variable<String>(basePlanUrl.value);
     }
     if (riadVersion.present) {
       map['riad_version'] = Variable<int>(riadVersion.value);
@@ -2059,6 +2193,8 @@ class ObjectPassportsCompanion extends UpdateCompanion<ObjectPassport> {
           ..write('customerId: $customerId, ')
           ..write('name: $name, ')
           ..write('address: $address, ')
+          ..write('mapKind: $mapKind, ')
+          ..write('basePlanUrl: $basePlanUrl, ')
           ..write('riadVersion: $riadVersion, ')
           ..write('riadDeleted: $riadDeleted, ')
           ..write('riadDeletedAt: $riadDeletedAt, ')
@@ -2125,6 +2261,13 @@ class $InstallationPointsTable extends InstallationPoints
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant(''));
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('planned'));
   static const VerificationMeta _payloadMeta =
       const VerificationMeta('payload');
   @override
@@ -2176,6 +2319,7 @@ class $InstallationPointsTable extends InstallationPoints
         lat,
         lng,
         label,
+        status,
         payload,
         riadVersion,
         riadDeleted,
@@ -2233,6 +2377,10 @@ class $InstallationPointsTable extends InstallationPoints
       context.handle(
           _labelMeta, label.isAcceptableOrUnknown(data['label']!, _labelMeta));
     }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
     if (data.containsKey('payload')) {
       context.handle(_payloadMeta,
           payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta));
@@ -2286,6 +2434,8 @@ class $InstallationPointsTable extends InstallationPoints
           .read(DriftSqlType.double, data['${effectivePrefix}lng']),
       label: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}label'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
       payload: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}payload'])!,
       riadVersion: attachedDatabase.typeMapping
@@ -2316,6 +2466,7 @@ class InstallationPoint extends DataClass
   final double? lat;
   final double? lng;
   final String label;
+  final String status;
   final String payload;
   final int riadVersion;
   final bool riadDeleted;
@@ -2331,6 +2482,7 @@ class InstallationPoint extends DataClass
       this.lat,
       this.lng,
       required this.label,
+      required this.status,
       required this.payload,
       required this.riadVersion,
       required this.riadDeleted,
@@ -2356,6 +2508,7 @@ class InstallationPoint extends DataClass
       map['lng'] = Variable<double>(lng);
     }
     map['label'] = Variable<String>(label);
+    map['status'] = Variable<String>(status);
     map['payload'] = Variable<String>(payload);
     map['riad_version'] = Variable<int>(riadVersion);
     map['riad_deleted'] = Variable<bool>(riadDeleted);
@@ -2377,6 +2530,7 @@ class InstallationPoint extends DataClass
       lat: lat == null && nullToAbsent ? const Value.absent() : Value(lat),
       lng: lng == null && nullToAbsent ? const Value.absent() : Value(lng),
       label: Value(label),
+      status: Value(status),
       payload: Value(payload),
       riadVersion: Value(riadVersion),
       riadDeleted: Value(riadDeleted),
@@ -2400,6 +2554,7 @@ class InstallationPoint extends DataClass
       lat: serializer.fromJson<double?>(json['lat']),
       lng: serializer.fromJson<double?>(json['lng']),
       label: serializer.fromJson<String>(json['label']),
+      status: serializer.fromJson<String>(json['status']),
       payload: serializer.fromJson<String>(json['payload']),
       riadVersion: serializer.fromJson<int>(json['riadVersion']),
       riadDeleted: serializer.fromJson<bool>(json['riadDeleted']),
@@ -2420,6 +2575,7 @@ class InstallationPoint extends DataClass
       'lat': serializer.toJson<double?>(lat),
       'lng': serializer.toJson<double?>(lng),
       'label': serializer.toJson<String>(label),
+      'status': serializer.toJson<String>(status),
       'payload': serializer.toJson<String>(payload),
       'riadVersion': serializer.toJson<int>(riadVersion),
       'riadDeleted': serializer.toJson<bool>(riadDeleted),
@@ -2438,6 +2594,7 @@ class InstallationPoint extends DataClass
           Value<double?> lat = const Value.absent(),
           Value<double?> lng = const Value.absent(),
           String? label,
+          String? status,
           String? payload,
           int? riadVersion,
           bool? riadDeleted,
@@ -2453,6 +2610,7 @@ class InstallationPoint extends DataClass
         lat: lat.present ? lat.value : this.lat,
         lng: lng.present ? lng.value : this.lng,
         label: label ?? this.label,
+        status: status ?? this.status,
         payload: payload ?? this.payload,
         riadVersion: riadVersion ?? this.riadVersion,
         riadDeleted: riadDeleted ?? this.riadDeleted,
@@ -2471,6 +2629,7 @@ class InstallationPoint extends DataClass
       lat: data.lat.present ? data.lat.value : this.lat,
       lng: data.lng.present ? data.lng.value : this.lng,
       label: data.label.present ? data.label.value : this.label,
+      status: data.status.present ? data.status.value : this.status,
       payload: data.payload.present ? data.payload.value : this.payload,
       riadVersion:
           data.riadVersion.present ? data.riadVersion.value : this.riadVersion,
@@ -2495,6 +2654,7 @@ class InstallationPoint extends DataClass
           ..write('lat: $lat, ')
           ..write('lng: $lng, ')
           ..write('label: $label, ')
+          ..write('status: $status, ')
           ..write('payload: $payload, ')
           ..write('riadVersion: $riadVersion, ')
           ..write('riadDeleted: $riadDeleted, ')
@@ -2505,8 +2665,22 @@ class InstallationPoint extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(id, mapId, pointUuid, mapKind, x, y, lat, lng,
-      label, payload, riadVersion, riadDeleted, riadDeletedAt, updatedAt);
+  int get hashCode => Object.hash(
+      id,
+      mapId,
+      pointUuid,
+      mapKind,
+      x,
+      y,
+      lat,
+      lng,
+      label,
+      status,
+      payload,
+      riadVersion,
+      riadDeleted,
+      riadDeletedAt,
+      updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2520,6 +2694,7 @@ class InstallationPoint extends DataClass
           other.lat == this.lat &&
           other.lng == this.lng &&
           other.label == this.label &&
+          other.status == this.status &&
           other.payload == this.payload &&
           other.riadVersion == this.riadVersion &&
           other.riadDeleted == this.riadDeleted &&
@@ -2537,6 +2712,7 @@ class InstallationPointsCompanion extends UpdateCompanion<InstallationPoint> {
   final Value<double?> lat;
   final Value<double?> lng;
   final Value<String> label;
+  final Value<String> status;
   final Value<String> payload;
   final Value<int> riadVersion;
   final Value<bool> riadDeleted;
@@ -2553,6 +2729,7 @@ class InstallationPointsCompanion extends UpdateCompanion<InstallationPoint> {
     this.lat = const Value.absent(),
     this.lng = const Value.absent(),
     this.label = const Value.absent(),
+    this.status = const Value.absent(),
     this.payload = const Value.absent(),
     this.riadVersion = const Value.absent(),
     this.riadDeleted = const Value.absent(),
@@ -2570,6 +2747,7 @@ class InstallationPointsCompanion extends UpdateCompanion<InstallationPoint> {
     this.lat = const Value.absent(),
     this.lng = const Value.absent(),
     this.label = const Value.absent(),
+    this.status = const Value.absent(),
     this.payload = const Value.absent(),
     this.riadVersion = const Value.absent(),
     this.riadDeleted = const Value.absent(),
@@ -2590,6 +2768,7 @@ class InstallationPointsCompanion extends UpdateCompanion<InstallationPoint> {
     Expression<double>? lat,
     Expression<double>? lng,
     Expression<String>? label,
+    Expression<String>? status,
     Expression<String>? payload,
     Expression<int>? riadVersion,
     Expression<bool>? riadDeleted,
@@ -2607,6 +2786,7 @@ class InstallationPointsCompanion extends UpdateCompanion<InstallationPoint> {
       if (lat != null) 'lat': lat,
       if (lng != null) 'lng': lng,
       if (label != null) 'label': label,
+      if (status != null) 'status': status,
       if (payload != null) 'payload': payload,
       if (riadVersion != null) 'riad_version': riadVersion,
       if (riadDeleted != null) 'riad_deleted': riadDeleted,
@@ -2626,6 +2806,7 @@ class InstallationPointsCompanion extends UpdateCompanion<InstallationPoint> {
       Value<double?>? lat,
       Value<double?>? lng,
       Value<String>? label,
+      Value<String>? status,
       Value<String>? payload,
       Value<int>? riadVersion,
       Value<bool>? riadDeleted,
@@ -2642,6 +2823,7 @@ class InstallationPointsCompanion extends UpdateCompanion<InstallationPoint> {
       lat: lat ?? this.lat,
       lng: lng ?? this.lng,
       label: label ?? this.label,
+      status: status ?? this.status,
       payload: payload ?? this.payload,
       riadVersion: riadVersion ?? this.riadVersion,
       riadDeleted: riadDeleted ?? this.riadDeleted,
@@ -2681,6 +2863,9 @@ class InstallationPointsCompanion extends UpdateCompanion<InstallationPoint> {
     if (label.present) {
       map['label'] = Variable<String>(label.value);
     }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
     if (payload.present) {
       map['payload'] = Variable<String>(payload.value);
     }
@@ -2714,6 +2899,7 @@ class InstallationPointsCompanion extends UpdateCompanion<InstallationPoint> {
           ..write('lat: $lat, ')
           ..write('lng: $lng, ')
           ..write('label: $label, ')
+          ..write('status: $status, ')
           ..write('payload: $payload, ')
           ..write('riadVersion: $riadVersion, ')
           ..write('riadDeleted: $riadDeleted, ')
@@ -5093,6 +5279,14 @@ class $SyncQueueTable extends SyncQueue
   late final GeneratedColumn<String> payload = GeneratedColumn<String>(
       'payload', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _clientVersionMeta =
+      const VerificationMeta('clientVersion');
+  @override
+  late final GeneratedColumn<int> clientVersion = GeneratedColumn<int>(
+      'client_version', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
@@ -5100,11 +5294,11 @@ class $SyncQueueTable extends SyncQueue
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('pending'));
-  static const VerificationMeta _attemptsMeta =
-      const VerificationMeta('attempts');
+  static const VerificationMeta _retriesMeta =
+      const VerificationMeta('retries');
   @override
-  late final GeneratedColumn<int> attempts = GeneratedColumn<int>(
-      'attempts', aliasedName, false,
+  late final GeneratedColumn<int> retries = GeneratedColumn<int>(
+      'retries', aliasedName, false,
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
@@ -5131,8 +5325,9 @@ class $SyncQueueTable extends SyncQueue
         name,
         operation,
         payload,
+        clientVersion,
         status,
-        attempts,
+        retries,
         createdAt,
         updatedAt
       ];
@@ -5173,13 +5368,19 @@ class $SyncQueueTable extends SyncQueue
     } else if (isInserting) {
       context.missing(_payloadMeta);
     }
+    if (data.containsKey('client_version')) {
+      context.handle(
+          _clientVersionMeta,
+          clientVersion.isAcceptableOrUnknown(
+              data['client_version']!, _clientVersionMeta));
+    }
     if (data.containsKey('status')) {
       context.handle(_statusMeta,
           status.isAcceptableOrUnknown(data['status']!, _statusMeta));
     }
-    if (data.containsKey('attempts')) {
-      context.handle(_attemptsMeta,
-          attempts.isAcceptableOrUnknown(data['attempts']!, _attemptsMeta));
+    if (data.containsKey('retries')) {
+      context.handle(_retriesMeta,
+          retries.isAcceptableOrUnknown(data['retries']!, _retriesMeta));
     }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
@@ -5208,10 +5409,12 @@ class $SyncQueueTable extends SyncQueue
           .read(DriftSqlType.string, data['${effectivePrefix}operation'])!,
       payload: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}payload'])!,
+      clientVersion: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}client_version'])!,
       status: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
-      attempts: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}attempts'])!,
+      retries: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}retries'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -5231,8 +5434,9 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
   final String name;
   final String operation;
   final String payload;
+  final int clientVersion;
   final String status;
-  final int attempts;
+  final int retries;
   final DateTime createdAt;
   final DateTime updatedAt;
   const SyncQueueData(
@@ -5241,8 +5445,9 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
       required this.name,
       required this.operation,
       required this.payload,
+      required this.clientVersion,
       required this.status,
-      required this.attempts,
+      required this.retries,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -5253,8 +5458,9 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
     map['name'] = Variable<String>(name);
     map['operation'] = Variable<String>(operation);
     map['payload'] = Variable<String>(payload);
+    map['client_version'] = Variable<int>(clientVersion);
     map['status'] = Variable<String>(status);
-    map['attempts'] = Variable<int>(attempts);
+    map['retries'] = Variable<int>(retries);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -5267,8 +5473,9 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
       name: Value(name),
       operation: Value(operation),
       payload: Value(payload),
+      clientVersion: Value(clientVersion),
       status: Value(status),
-      attempts: Value(attempts),
+      retries: Value(retries),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -5283,8 +5490,9 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
       name: serializer.fromJson<String>(json['name']),
       operation: serializer.fromJson<String>(json['operation']),
       payload: serializer.fromJson<String>(json['payload']),
+      clientVersion: serializer.fromJson<int>(json['clientVersion']),
       status: serializer.fromJson<String>(json['status']),
-      attempts: serializer.fromJson<int>(json['attempts']),
+      retries: serializer.fromJson<int>(json['retries']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -5298,8 +5506,9 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
       'name': serializer.toJson<String>(name),
       'operation': serializer.toJson<String>(operation),
       'payload': serializer.toJson<String>(payload),
+      'clientVersion': serializer.toJson<int>(clientVersion),
       'status': serializer.toJson<String>(status),
-      'attempts': serializer.toJson<int>(attempts),
+      'retries': serializer.toJson<int>(retries),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -5311,8 +5520,9 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
           String? name,
           String? operation,
           String? payload,
+          int? clientVersion,
           String? status,
-          int? attempts,
+          int? retries,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       SyncQueueData(
@@ -5321,8 +5531,9 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
         name: name ?? this.name,
         operation: operation ?? this.operation,
         payload: payload ?? this.payload,
+        clientVersion: clientVersion ?? this.clientVersion,
         status: status ?? this.status,
-        attempts: attempts ?? this.attempts,
+        retries: retries ?? this.retries,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -5333,8 +5544,11 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
       name: data.name.present ? data.name.value : this.name,
       operation: data.operation.present ? data.operation.value : this.operation,
       payload: data.payload.present ? data.payload.value : this.payload,
+      clientVersion: data.clientVersion.present
+          ? data.clientVersion.value
+          : this.clientVersion,
       status: data.status.present ? data.status.value : this.status,
-      attempts: data.attempts.present ? data.attempts.value : this.attempts,
+      retries: data.retries.present ? data.retries.value : this.retries,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -5348,8 +5562,9 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
           ..write('name: $name, ')
           ..write('operation: $operation, ')
           ..write('payload: $payload, ')
+          ..write('clientVersion: $clientVersion, ')
           ..write('status: $status, ')
-          ..write('attempts: $attempts, ')
+          ..write('retries: $retries, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -5357,8 +5572,8 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
   }
 
   @override
-  int get hashCode => Object.hash(id, docType, name, operation, payload, status,
-      attempts, createdAt, updatedAt);
+  int get hashCode => Object.hash(id, docType, name, operation, payload,
+      clientVersion, status, retries, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5368,8 +5583,9 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
           other.name == this.name &&
           other.operation == this.operation &&
           other.payload == this.payload &&
+          other.clientVersion == this.clientVersion &&
           other.status == this.status &&
-          other.attempts == this.attempts &&
+          other.retries == this.retries &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -5380,8 +5596,9 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
   final Value<String> name;
   final Value<String> operation;
   final Value<String> payload;
+  final Value<int> clientVersion;
   final Value<String> status;
-  final Value<int> attempts;
+  final Value<int> retries;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const SyncQueueCompanion({
@@ -5390,8 +5607,9 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
     this.name = const Value.absent(),
     this.operation = const Value.absent(),
     this.payload = const Value.absent(),
+    this.clientVersion = const Value.absent(),
     this.status = const Value.absent(),
-    this.attempts = const Value.absent(),
+    this.retries = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -5401,8 +5619,9 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
     required String name,
     required String operation,
     required String payload,
+    this.clientVersion = const Value.absent(),
     this.status = const Value.absent(),
-    this.attempts = const Value.absent(),
+    this.retries = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   })  : docType = Value(docType),
@@ -5415,8 +5634,9 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
     Expression<String>? name,
     Expression<String>? operation,
     Expression<String>? payload,
+    Expression<int>? clientVersion,
     Expression<String>? status,
-    Expression<int>? attempts,
+    Expression<int>? retries,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -5426,8 +5646,9 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
       if (name != null) 'name': name,
       if (operation != null) 'operation': operation,
       if (payload != null) 'payload': payload,
+      if (clientVersion != null) 'client_version': clientVersion,
       if (status != null) 'status': status,
-      if (attempts != null) 'attempts': attempts,
+      if (retries != null) 'retries': retries,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -5439,8 +5660,9 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
       Value<String>? name,
       Value<String>? operation,
       Value<String>? payload,
+      Value<int>? clientVersion,
       Value<String>? status,
-      Value<int>? attempts,
+      Value<int>? retries,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt}) {
     return SyncQueueCompanion(
@@ -5449,8 +5671,9 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
       name: name ?? this.name,
       operation: operation ?? this.operation,
       payload: payload ?? this.payload,
+      clientVersion: clientVersion ?? this.clientVersion,
       status: status ?? this.status,
-      attempts: attempts ?? this.attempts,
+      retries: retries ?? this.retries,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -5474,11 +5697,14 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
     if (payload.present) {
       map['payload'] = Variable<String>(payload.value);
     }
+    if (clientVersion.present) {
+      map['client_version'] = Variable<int>(clientVersion.value);
+    }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
-    if (attempts.present) {
-      map['attempts'] = Variable<int>(attempts.value);
+    if (retries.present) {
+      map['retries'] = Variable<int>(retries.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -5497,8 +5723,9 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
           ..write('name: $name, ')
           ..write('operation: $operation, ')
           ..write('payload: $payload, ')
+          ..write('clientVersion: $clientVersion, ')
           ..write('status: $status, ')
-          ..write('attempts: $attempts, ')
+          ..write('retries: $retries, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -6850,12 +7077,13 @@ typedef $$ChecklistInstancesTableProcessedTableManager = ProcessedTableManager<
 typedef $$ChecklistItemsTableCreateCompanionBuilder = ChecklistItemsCompanion
     Function({
   required String id,
-  required String instanceId,
-  required String itemUuid,
+  required String checklistId,
+  required String templateItemId,
   required String label,
   Value<bool> checked,
   Value<String?> photoId,
-  Value<String?> serialNo,
+  Value<String?> serialNumber,
+  Value<int> sortOrder,
   Value<int> riadVersion,
   Value<bool> riadDeleted,
   Value<DateTime?> riadDeletedAt,
@@ -6865,12 +7093,13 @@ typedef $$ChecklistItemsTableCreateCompanionBuilder = ChecklistItemsCompanion
 typedef $$ChecklistItemsTableUpdateCompanionBuilder = ChecklistItemsCompanion
     Function({
   Value<String> id,
-  Value<String> instanceId,
-  Value<String> itemUuid,
+  Value<String> checklistId,
+  Value<String> templateItemId,
   Value<String> label,
   Value<bool> checked,
   Value<String?> photoId,
-  Value<String?> serialNo,
+  Value<String?> serialNumber,
+  Value<int> sortOrder,
   Value<int> riadVersion,
   Value<bool> riadDeleted,
   Value<DateTime?> riadDeletedAt,
@@ -6890,11 +7119,12 @@ class $$ChecklistItemsTableFilterComposer
   ColumnFilters<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get instanceId => $composableBuilder(
-      column: $table.instanceId, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get checklistId => $composableBuilder(
+      column: $table.checklistId, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get itemUuid => $composableBuilder(
-      column: $table.itemUuid, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get templateItemId => $composableBuilder(
+      column: $table.templateItemId,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get label => $composableBuilder(
       column: $table.label, builder: (column) => ColumnFilters(column));
@@ -6905,8 +7135,11 @@ class $$ChecklistItemsTableFilterComposer
   ColumnFilters<String> get photoId => $composableBuilder(
       column: $table.photoId, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get serialNo => $composableBuilder(
-      column: $table.serialNo, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get serialNumber => $composableBuilder(
+      column: $table.serialNumber, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get riadVersion => $composableBuilder(
       column: $table.riadVersion, builder: (column) => ColumnFilters(column));
@@ -6933,11 +7166,12 @@ class $$ChecklistItemsTableOrderingComposer
   ColumnOrderings<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get instanceId => $composableBuilder(
-      column: $table.instanceId, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get checklistId => $composableBuilder(
+      column: $table.checklistId, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get itemUuid => $composableBuilder(
-      column: $table.itemUuid, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get templateItemId => $composableBuilder(
+      column: $table.templateItemId,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get label => $composableBuilder(
       column: $table.label, builder: (column) => ColumnOrderings(column));
@@ -6948,8 +7182,12 @@ class $$ChecklistItemsTableOrderingComposer
   ColumnOrderings<String> get photoId => $composableBuilder(
       column: $table.photoId, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get serialNo => $composableBuilder(
-      column: $table.serialNo, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get serialNumber => $composableBuilder(
+      column: $table.serialNumber,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get riadVersion => $composableBuilder(
       column: $table.riadVersion, builder: (column) => ColumnOrderings(column));
@@ -6977,11 +7215,11 @@ class $$ChecklistItemsTableAnnotationComposer
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get instanceId => $composableBuilder(
-      column: $table.instanceId, builder: (column) => column);
+  GeneratedColumn<String> get checklistId => $composableBuilder(
+      column: $table.checklistId, builder: (column) => column);
 
-  GeneratedColumn<String> get itemUuid =>
-      $composableBuilder(column: $table.itemUuid, builder: (column) => column);
+  GeneratedColumn<String> get templateItemId => $composableBuilder(
+      column: $table.templateItemId, builder: (column) => column);
 
   GeneratedColumn<String> get label =>
       $composableBuilder(column: $table.label, builder: (column) => column);
@@ -6992,8 +7230,11 @@ class $$ChecklistItemsTableAnnotationComposer
   GeneratedColumn<String> get photoId =>
       $composableBuilder(column: $table.photoId, builder: (column) => column);
 
-  GeneratedColumn<String> get serialNo =>
-      $composableBuilder(column: $table.serialNo, builder: (column) => column);
+  GeneratedColumn<String> get serialNumber => $composableBuilder(
+      column: $table.serialNumber, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
 
   GeneratedColumn<int> get riadVersion => $composableBuilder(
       column: $table.riadVersion, builder: (column) => column);
@@ -7036,12 +7277,13 @@ class $$ChecklistItemsTableTableManager extends RootTableManager<
               $$ChecklistItemsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
-            Value<String> instanceId = const Value.absent(),
-            Value<String> itemUuid = const Value.absent(),
+            Value<String> checklistId = const Value.absent(),
+            Value<String> templateItemId = const Value.absent(),
             Value<String> label = const Value.absent(),
             Value<bool> checked = const Value.absent(),
             Value<String?> photoId = const Value.absent(),
-            Value<String?> serialNo = const Value.absent(),
+            Value<String?> serialNumber = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
             Value<int> riadVersion = const Value.absent(),
             Value<bool> riadDeleted = const Value.absent(),
             Value<DateTime?> riadDeletedAt = const Value.absent(),
@@ -7050,12 +7292,13 @@ class $$ChecklistItemsTableTableManager extends RootTableManager<
           }) =>
               ChecklistItemsCompanion(
             id: id,
-            instanceId: instanceId,
-            itemUuid: itemUuid,
+            checklistId: checklistId,
+            templateItemId: templateItemId,
             label: label,
             checked: checked,
             photoId: photoId,
-            serialNo: serialNo,
+            serialNumber: serialNumber,
+            sortOrder: sortOrder,
             riadVersion: riadVersion,
             riadDeleted: riadDeleted,
             riadDeletedAt: riadDeletedAt,
@@ -7064,12 +7307,13 @@ class $$ChecklistItemsTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             required String id,
-            required String instanceId,
-            required String itemUuid,
+            required String checklistId,
+            required String templateItemId,
             required String label,
             Value<bool> checked = const Value.absent(),
             Value<String?> photoId = const Value.absent(),
-            Value<String?> serialNo = const Value.absent(),
+            Value<String?> serialNumber = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
             Value<int> riadVersion = const Value.absent(),
             Value<bool> riadDeleted = const Value.absent(),
             Value<DateTime?> riadDeletedAt = const Value.absent(),
@@ -7078,12 +7322,13 @@ class $$ChecklistItemsTableTableManager extends RootTableManager<
           }) =>
               ChecklistItemsCompanion.insert(
             id: id,
-            instanceId: instanceId,
-            itemUuid: itemUuid,
+            checklistId: checklistId,
+            templateItemId: templateItemId,
             label: label,
             checked: checked,
             photoId: photoId,
-            serialNo: serialNo,
+            serialNumber: serialNumber,
+            sortOrder: sortOrder,
             riadVersion: riadVersion,
             riadDeleted: riadDeleted,
             riadDeletedAt: riadDeletedAt,
@@ -7118,6 +7363,8 @@ typedef $$ObjectPassportsTableCreateCompanionBuilder = ObjectPassportsCompanion
   required String customerId,
   required String name,
   Value<String> address,
+  Value<String> mapKind,
+  Value<String?> basePlanUrl,
   Value<int> riadVersion,
   Value<bool> riadDeleted,
   Value<DateTime?> riadDeletedAt,
@@ -7131,6 +7378,8 @@ typedef $$ObjectPassportsTableUpdateCompanionBuilder = ObjectPassportsCompanion
   Value<String> customerId,
   Value<String> name,
   Value<String> address,
+  Value<String> mapKind,
+  Value<String?> basePlanUrl,
   Value<int> riadVersion,
   Value<bool> riadDeleted,
   Value<DateTime?> riadDeletedAt,
@@ -7159,6 +7408,12 @@ class $$ObjectPassportsTableFilterComposer
 
   ColumnFilters<String> get address => $composableBuilder(
       column: $table.address, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mapKind => $composableBuilder(
+      column: $table.mapKind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get basePlanUrl => $composableBuilder(
+      column: $table.basePlanUrl, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get riadVersion => $composableBuilder(
       column: $table.riadVersion, builder: (column) => ColumnFilters(column));
@@ -7197,6 +7452,12 @@ class $$ObjectPassportsTableOrderingComposer
   ColumnOrderings<String> get address => $composableBuilder(
       column: $table.address, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get mapKind => $composableBuilder(
+      column: $table.mapKind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get basePlanUrl => $composableBuilder(
+      column: $table.basePlanUrl, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get riadVersion => $composableBuilder(
       column: $table.riadVersion, builder: (column) => ColumnOrderings(column));
 
@@ -7234,6 +7495,12 @@ class $$ObjectPassportsTableAnnotationComposer
 
   GeneratedColumn<String> get address =>
       $composableBuilder(column: $table.address, builder: (column) => column);
+
+  GeneratedColumn<String> get mapKind =>
+      $composableBuilder(column: $table.mapKind, builder: (column) => column);
+
+  GeneratedColumn<String> get basePlanUrl => $composableBuilder(
+      column: $table.basePlanUrl, builder: (column) => column);
 
   GeneratedColumn<int> get riadVersion => $composableBuilder(
       column: $table.riadVersion, builder: (column) => column);
@@ -7282,6 +7549,8 @@ class $$ObjectPassportsTableTableManager extends RootTableManager<
             Value<String> customerId = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<String> address = const Value.absent(),
+            Value<String> mapKind = const Value.absent(),
+            Value<String?> basePlanUrl = const Value.absent(),
             Value<int> riadVersion = const Value.absent(),
             Value<bool> riadDeleted = const Value.absent(),
             Value<DateTime?> riadDeletedAt = const Value.absent(),
@@ -7294,6 +7563,8 @@ class $$ObjectPassportsTableTableManager extends RootTableManager<
             customerId: customerId,
             name: name,
             address: address,
+            mapKind: mapKind,
+            basePlanUrl: basePlanUrl,
             riadVersion: riadVersion,
             riadDeleted: riadDeleted,
             riadDeletedAt: riadDeletedAt,
@@ -7306,6 +7577,8 @@ class $$ObjectPassportsTableTableManager extends RootTableManager<
             required String customerId,
             required String name,
             Value<String> address = const Value.absent(),
+            Value<String> mapKind = const Value.absent(),
+            Value<String?> basePlanUrl = const Value.absent(),
             Value<int> riadVersion = const Value.absent(),
             Value<bool> riadDeleted = const Value.absent(),
             Value<DateTime?> riadDeletedAt = const Value.absent(),
@@ -7318,6 +7591,8 @@ class $$ObjectPassportsTableTableManager extends RootTableManager<
             customerId: customerId,
             name: name,
             address: address,
+            mapKind: mapKind,
+            basePlanUrl: basePlanUrl,
             riadVersion: riadVersion,
             riadDeleted: riadDeleted,
             riadDeletedAt: riadDeletedAt,
@@ -7358,6 +7633,7 @@ typedef $$InstallationPointsTableCreateCompanionBuilder
   Value<double?> lat,
   Value<double?> lng,
   Value<String> label,
+  Value<String> status,
   Value<String> payload,
   Value<int> riadVersion,
   Value<bool> riadDeleted,
@@ -7376,6 +7652,7 @@ typedef $$InstallationPointsTableUpdateCompanionBuilder
   Value<double?> lat,
   Value<double?> lng,
   Value<String> label,
+  Value<String> status,
   Value<String> payload,
   Value<int> riadVersion,
   Value<bool> riadDeleted,
@@ -7419,6 +7696,9 @@ class $$InstallationPointsTableFilterComposer
 
   ColumnFilters<String> get label => $composableBuilder(
       column: $table.label, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get payload => $composableBuilder(
       column: $table.payload, builder: (column) => ColumnFilters(column));
@@ -7471,6 +7751,9 @@ class $$InstallationPointsTableOrderingComposer
 
   ColumnOrderings<String> get label => $composableBuilder(
       column: $table.label, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get payload => $composableBuilder(
       column: $table.payload, builder: (column) => ColumnOrderings(column));
@@ -7525,6 +7808,9 @@ class $$InstallationPointsTableAnnotationComposer
   GeneratedColumn<String> get label =>
       $composableBuilder(column: $table.label, builder: (column) => column);
 
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
   GeneratedColumn<String> get payload =>
       $composableBuilder(column: $table.payload, builder: (column) => column);
 
@@ -7578,6 +7864,7 @@ class $$InstallationPointsTableTableManager extends RootTableManager<
             Value<double?> lat = const Value.absent(),
             Value<double?> lng = const Value.absent(),
             Value<String> label = const Value.absent(),
+            Value<String> status = const Value.absent(),
             Value<String> payload = const Value.absent(),
             Value<int> riadVersion = const Value.absent(),
             Value<bool> riadDeleted = const Value.absent(),
@@ -7595,6 +7882,7 @@ class $$InstallationPointsTableTableManager extends RootTableManager<
             lat: lat,
             lng: lng,
             label: label,
+            status: status,
             payload: payload,
             riadVersion: riadVersion,
             riadDeleted: riadDeleted,
@@ -7612,6 +7900,7 @@ class $$InstallationPointsTableTableManager extends RootTableManager<
             Value<double?> lat = const Value.absent(),
             Value<double?> lng = const Value.absent(),
             Value<String> label = const Value.absent(),
+            Value<String> status = const Value.absent(),
             Value<String> payload = const Value.absent(),
             Value<int> riadVersion = const Value.absent(),
             Value<bool> riadDeleted = const Value.absent(),
@@ -7629,6 +7918,7 @@ class $$InstallationPointsTableTableManager extends RootTableManager<
             lat: lat,
             lng: lng,
             label: label,
+            status: status,
             payload: payload,
             riadVersion: riadVersion,
             riadDeleted: riadDeleted,
@@ -8752,8 +9042,9 @@ typedef $$SyncQueueTableCreateCompanionBuilder = SyncQueueCompanion Function({
   required String name,
   required String operation,
   required String payload,
+  Value<int> clientVersion,
   Value<String> status,
-  Value<int> attempts,
+  Value<int> retries,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
 });
@@ -8763,8 +9054,9 @@ typedef $$SyncQueueTableUpdateCompanionBuilder = SyncQueueCompanion Function({
   Value<String> name,
   Value<String> operation,
   Value<String> payload,
+  Value<int> clientVersion,
   Value<String> status,
-  Value<int> attempts,
+  Value<int> retries,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
 });
@@ -8793,11 +9085,14 @@ class $$SyncQueueTableFilterComposer
   ColumnFilters<String> get payload => $composableBuilder(
       column: $table.payload, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<int> get clientVersion => $composableBuilder(
+      column: $table.clientVersion, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<String> get status => $composableBuilder(
       column: $table.status, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<int> get attempts => $composableBuilder(
-      column: $table.attempts, builder: (column) => ColumnFilters(column));
+  ColumnFilters<int> get retries => $composableBuilder(
+      column: $table.retries, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -8830,11 +9125,15 @@ class $$SyncQueueTableOrderingComposer
   ColumnOrderings<String> get payload => $composableBuilder(
       column: $table.payload, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get clientVersion => $composableBuilder(
+      column: $table.clientVersion,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get status => $composableBuilder(
       column: $table.status, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<int> get attempts => $composableBuilder(
-      column: $table.attempts, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<int> get retries => $composableBuilder(
+      column: $table.retries, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
@@ -8867,11 +9166,14 @@ class $$SyncQueueTableAnnotationComposer
   GeneratedColumn<String> get payload =>
       $composableBuilder(column: $table.payload, builder: (column) => column);
 
+  GeneratedColumn<int> get clientVersion => $composableBuilder(
+      column: $table.clientVersion, builder: (column) => column);
+
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
-  GeneratedColumn<int> get attempts =>
-      $composableBuilder(column: $table.attempts, builder: (column) => column);
+  GeneratedColumn<int> get retries =>
+      $composableBuilder(column: $table.retries, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -8911,8 +9213,9 @@ class $$SyncQueueTableTableManager extends RootTableManager<
             Value<String> name = const Value.absent(),
             Value<String> operation = const Value.absent(),
             Value<String> payload = const Value.absent(),
+            Value<int> clientVersion = const Value.absent(),
             Value<String> status = const Value.absent(),
-            Value<int> attempts = const Value.absent(),
+            Value<int> retries = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
           }) =>
@@ -8922,8 +9225,9 @@ class $$SyncQueueTableTableManager extends RootTableManager<
             name: name,
             operation: operation,
             payload: payload,
+            clientVersion: clientVersion,
             status: status,
-            attempts: attempts,
+            retries: retries,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -8933,8 +9237,9 @@ class $$SyncQueueTableTableManager extends RootTableManager<
             required String name,
             required String operation,
             required String payload,
+            Value<int> clientVersion = const Value.absent(),
             Value<String> status = const Value.absent(),
-            Value<int> attempts = const Value.absent(),
+            Value<int> retries = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
           }) =>
@@ -8944,8 +9249,9 @@ class $$SyncQueueTableTableManager extends RootTableManager<
             name: name,
             operation: operation,
             payload: payload,
+            clientVersion: clientVersion,
             status: status,
-            attempts: attempts,
+            retries: retries,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
