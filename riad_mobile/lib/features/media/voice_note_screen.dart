@@ -20,6 +20,7 @@ class VoiceNoteScreen extends ConsumerStatefulWidget {
 class _VoiceNoteScreenState extends ConsumerState<VoiceNoteScreen> {
   final _recorder = AudioRecorder();
   bool _recording = false;
+  String? _currentMediaId;
   String? _savedMediaId;
   String _transcriptionStatus = 'none';
 
@@ -65,8 +66,8 @@ class _VoiceNoteScreenState extends ConsumerState<VoiceNoteScreen> {
   Future<void> _start() async {
     if (!await _recorder.hasPermission()) return;
     final dir = await getApplicationDocumentsDirectory();
-    final mediaId = const Uuid().v4();
-    final path = '${dir.path}/media/$mediaId.aac';
+    _currentMediaId = const Uuid().v4();
+    final path = '${dir.path}/media/$_currentMediaId.aac';
     await Directory('${dir.path}/media').create(recursive: true);
     await _recorder.start(
       const RecordConfig(encoder: AudioEncoder.aacLc),
@@ -81,7 +82,8 @@ class _VoiceNoteScreenState extends ConsumerState<VoiceNoteScreen> {
     setState(() => _recording = false);
     if (path == null) return;
 
-    final mediaId = const Uuid().v4();
+    final mediaId = _currentMediaId!;
+    _currentMediaId = null;
     await ref.read(mediaUploadProvider).saveAndQueue(
           mediaId: mediaId,
           localPath: path,
