@@ -8,8 +8,11 @@ import '../../features/checklist/checklist_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/home/main_shell.dart';
 import '../../features/map/installation_map_screen.dart';
+import '../../features/media/camera_screen.dart';
+import '../../features/media/voice_note_screen.dart';
 import '../../features/object/object_list_screen.dart';
 import '../../features/object/object_passport_screen.dart';
+import '../../features/scan/scan_screen.dart';
 import '../../features/sync/conflict_resolution_screen.dart';
 import '../../features/sync/sync_screen.dart';
 import '../../features/vault/vault_entries_screen.dart';
@@ -139,12 +142,25 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: Routes.scan,
-        builder: (_, __) => const PlaceholderScreen('Scan'),
+        builder: (_, s) => ScanScreen(
+          visitId: s.uri.queryParameters['visitId'] ?? '',
+        ),
       ),
       GoRoute(
         path: Routes.voiceNote,
         builder: (_, s) =>
-            PlaceholderScreen('Voice ${s.pathParameters["visitId"]}'),
+            VoiceNoteScreen(visitId: s.pathParameters['visitId']!),
+      ),
+      GoRoute(
+        path: Routes.camera,
+        builder: (_, s) => CameraScreen(
+          docType: s.uri.queryParameters['docType'] ?? 'Engineer Visit',
+          docName: s.uri.queryParameters['docName'] ?? '',
+          defaultTag: PhotoTag.values.firstWhere(
+            (t) => t.name == (s.uri.queryParameters['tag'] ?? 'before'),
+            orElse: () => PhotoTag.before,
+          ),
+        ),
       ),
       GoRoute(
         path: Routes.remoteInspection,

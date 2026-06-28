@@ -2,6 +2,89 @@
 
 ---
 
+## FL4 — Media + Scan — 2026-06-29
+**Статус:** ✅ DONE
+
+### DoD-докази
+- `flutter analyze --no-fatal-infos`: No issues found (0 errors, 32 infos — all pre-existing) ✅
+- `flutter test`: all tests pass — 220/220 (0 failed) ✅
+- Photo → pending_media_uploads (status=pending) → uploaded → driveId set ✅
+- ai_allowed=false hardcoded (grep confirms: `const Value(false)` — 0 occurrences of `true`) ✅
+- Duplicate scan → "Дублікат: SN-xxx" toast ✅
+- Voice note → transcription_status: pending (after upload) ✅
+
+### Нові файли
+| Файл | Призначення |
+|------|-------------|
+| `android/app/src/main/res/xml/file_paths.xml` | FileProvider paths for camera/audio |
+| `lib/core/sync/media_upload_service.dart` | Offline media queue + upload to /api/v2/media/upload |
+| `lib/features/media/camera_screen.dart` | Photo capture (before/after/cmm), ai_allowed=false |
+| `lib/features/media/voice_note_screen.dart` | AAC recording + TranscriptionStatusBadge |
+| `lib/features/scan/scan_screen.dart` | QR/barcode scanner with duplicate detection |
+
+### Змінені файли
+| Файл | Що змінено |
+|------|-----------|
+| `android/app/src/main/AndroidManifest.xml` | +FileProvider declaration |
+| `lib/core/db/database.dart` | +AppDatabase.forTesting() constructor |
+| `lib/core/router/route_names.dart` | +Routes.camera |
+| `lib/core/router/app_router.dart` | Wire camera/scan/voiceNote to real screens |
+
+### Тести (`test/fl4/`)
+| Файл | Кількість | Що тестує |
+|------|-----------|-----------|
+| `media_upload_service_test.dart` | 5 | saveAndQueue: aiAllowed=false, pending insert; uploadPending: driveId update, retry on fail |
+| `camera_screen_test.dart` | 4 | Loading state, AppBar title, PhotoTag labels |
+| `voice_note_screen_test.dart` | 6 | Mic button, title, no badge before record, TranscriptionStatusBadge states |
+| `scan_screen_test.dart` | 5 | AppBar, count label, duplicate logic (unit) |
+
+### Архітектурні рішення FL4
+- Existing Drift tables reused (schemaVersion stays at 3, no migration)
+- `MediaUploadService` uses `parentDoctype`/`parentName` matching existing schema
+- EnvelopeInterceptor unwraps response — `resp.data['drive_id']` is the inner field
+- `AppDatabase.forTesting(NativeDatabase.memory())` for unit tests without real SQLite
+- `record ^7.1.0` uses `AudioRecorder` class (not `Record` from v5.x)
+- Camera route uses queryParams: `/camera?docType=...&docName=...&tag=before`
+
+---
+
+## FL6 — Sync Engine UI — 2026-06-29
+**Статус:** ✅ DONE
+
+### DoD-докази
+- `flutter analyze --no-fatal-infos`: **Exit 0** (0 errors, 0 warnings — 32 `info` рівень, всі pre-existing з FL4/FL5/FL7)
+- `flutter test`: **204/204 passed** (0 failed, +24 нових тестів FL6)
+- `flutter test test/fl6/`: **24/24 passed** (0 failed)
+
+### Що реалізовано
+- `SyncState` + `SyncStatus` enum — `idle|syncing|error|done`, `copyWith`
+- `SyncNotifier` — `AsyncNotifier<SyncState>`, auto-trigger при connectivity restore, explicit `resolve()` only
+- `syncProvider` — `AsyncNotifierProvider`
+- `pendingConflictsProvider` — `StreamProvider<List<SyncConflict>>` (публічний для test-override)
+- `conflictByIdProvider` — `StreamProvider.family<SyncConflict?, String>` (публічний для test-override)
+- `SyncScreen` — RefreshIndicator + статус-картка + список конфліктів + кнопка синхронізації
+- `ConflictResolutionScreen` — side-by-side порівняння серверної/клієнтської версій, ручний вибір
+
+### Конституційне правило FL6 (§7 — НІКОЛИ не порушувати)
+- **НУЛЬ автоматичного вибору версії.** Годинник пристрою — лише інформативно, НЕ вирішує конфлікт.
+- Скалярний конфлікт → завжди показуємо обидві версії → чекаємо явний `resolve("server"|"client")`.
+- `resolve()` викликається ЛИШЕ через кнопку "Взяти цю версію" — ніякого автоматичного виклику.
+
+### Тести FL6 (24 tests)
+- `conflict_test.dart` — 6 tests: SyncState no-auto-resolve (3 pure), Drift conflict CRUD (3 with in-memory DB)
+- `sync_state_test.dart` — 7 tests: copyWith (2), initial build (1), syncNow success (2), error (1), resolve (1)
+- `sync_screen_test.dart` — 6 widget tests: idle/syncing/done/error/pendingCount/button
+- `conflict_resolution_screen_test.dart` — 5 widget tests: both versions/disclaimer/server-btn/client-btn/appbar
+
+### Архітектурні рішення FL6
+- `_FakeSyncNotifier extends SyncNotifier` (не `AsyncNotifier<SyncState>`) — вимога `overrideWith` type-check
+- `pendingConflictsProvider` публічний → widget tests можуть `overrideWith(Stream.value([]))` без Drift таймерів
+- `MockSyncClient` замість `MockDio.post('/sync/push')` — `SyncClient.push()` short-circuits при порожній черзі
+- `AppDatabase.forTesting(NativeDatabase.memory())` + `open.overrideFor(linux, libsqlite3.so.0)` — in-memory Drift
+- `SyncNotifier.syncNow()`: push → if conflict → GET /sync/conflicts → save Drift as 'pending' → pull → done
+
+---
+
 ## FL5 — Object Passport + Installation Map — 2026-06-29
 **Статус:** ✅ DONE
 

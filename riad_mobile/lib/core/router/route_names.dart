@@ -13,6 +13,7 @@ abstract class Routes {
   static const installationMap   = '/map/:objectId';
   static const scan              = '/scan';
   static const voiceNote         = '/voice/:visitId';
+  static const camera            = '/camera';
   static const remoteInspection  = '/remote-inspection/:id';
   static const serviceRequest    = '/service/:id';
   static const conflictResolution= '/conflict/:id';
