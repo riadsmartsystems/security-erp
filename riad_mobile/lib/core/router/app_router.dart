@@ -4,8 +4,11 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/mfa_enrollment_screen.dart';
 import '../../features/auth/mfa_verify_screen.dart';
+import '../../features/checklist/checklist_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/home/main_shell.dart';
+import '../../features/visit/visit_detail_screen.dart';
+import '../../features/visit/visit_list_screen.dart';
 import '../auth/auth_models.dart';
 import '../auth/auth_notifier.dart';
 import 'route_names.dart';
@@ -95,6 +98,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) =>
                 const Scaffold(body: Center(child: Text('Синк — FL6'))),
           ),
+          GoRoute(
+            path: '/home/visits',
+            builder: (_, __) => const VisitListScreen(),
+          ),
         ],
       ),
       GoRoute(
@@ -110,12 +117,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.visitDetail,
         builder: (_, s) =>
-            PlaceholderScreen('Visit ${s.pathParameters["id"]}'),
+            VisitDetailScreen(visitId: s.pathParameters['id']!),
       ),
       GoRoute(
         path: Routes.checklist,
         builder: (_, s) =>
-            PlaceholderScreen('Checklist ${s.pathParameters["visitId"]}'),
+            ChecklistScreen(visitId: s.pathParameters['visitId']!),
       ),
       GoRoute(
         path: Routes.objectDetail,

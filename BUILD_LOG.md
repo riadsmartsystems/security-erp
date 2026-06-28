@@ -2,6 +2,110 @@
 
 ---
 
+## FL7 — Vault (Password Vault) — 2026-06-28
+**Статус:** ✅ DONE
+
+### DoD-докази
+- `flutter analyze lib/features/vault/ --no-fatal-infos`: **No issues found!** (0 errors, 0 warnings, 0 infos)
+- `flutter test`: **141/141 passed** (0 failed, +35 нових тестів FL7)
+- TDD: тести написані першими (RED), потім реалізація (GREEN)
+- Offline → VaultOfflineBanner shown (no fetch attempt) ✅
+- MFA verify → entries list (masked) ✅
+- Reveal → audit badge appears ✅
+- Session timer: counts down, auto-logout at 0 ✅
+- grep: vault entries NOT in Drift ✅
+- grep: vault session NOT in flutter_secure_storage ✅
+
+### Нові файли
+| Файл | Призначення |
+|------|-------------|
+| `lib/features/vault/providers/vault_provider.dart` | `VaultSession` (in-memory) + `VaultState` + `VaultEntry` + `VaultNotifier` + `vaultProvider` |
+| `lib/features/vault/widgets/vault_offline_banner.dart` | Scaffold з wifi_off: Vault online-only banner |
+| `lib/features/vault/widgets/vault_session_timer.dart` | Countdown timer (5-хв); при 0 → auto-logout |
+| `lib/features/vault/widgets/vault_entry_tile.dart` | Masked entry + reveal + "Записано в аудит" badge |
+| `lib/features/vault/vault_mfa_screen.dart` | TOTP input, error, loading spinner |
+| `lib/features/vault/vault_entries_screen.dart` | Online-gate → MFA-gate → entries list |
+
+### Змінені файли
+| Файл | Що змінено |
+|------|-----------|
+| `lib/core/router/app_router.dart` | Vault route: placeholder → `VaultEntriesScreen()` |
+
+### Тести (`test/fl7/`)
+| Файл | Кількість | Що тестує |
+|------|-----------|-----------|
+| `vault_model_test.dart` | 9 | VaultEntry.fromJson, VaultSession.isValid, VaultState/copyWith |
+| `vault_notifier_test.dart` | 6 | initial/offline/online-success/online-fail/reveal/logout |
+| `vault_offline_banner_test.dart` | 3 | wifi_off icon, тексти |
+| `vault_mfa_screen_test.dart` | 6 | lock icon, input, button, error, loading, audit text |
+| `vault_entries_screen_test.dart` | 4 | offline→banner, online+unauth→MFA, auth+entries, auth+empty |
+| `vault_entry_tile_test.dart` | 7 | label/username/masked/кнопки/reveal/audit-badge/hide |
+
+### Архітектурні рішення FL7
+- `VaultSession._session` = приватне поле Notifier → ТІЛЬКИ в пам'яті, не в storage
+- `_session = null` у `_expireSession()` + `state = const VaultState()` → повний reset
+- `VaultOfflineBanner` — окремий `Scaffold` (не просто Container) → замінює весь екран
+- `withValues(alpha:)` замість `withOpacity()` (Flutter 3.44.2 API)
+- `pumpAndSettle` → `pump()` для isLoading-тестів (CircularProgressIndicator не settles)
+
+### Обмеження FL7 (для наступних сесій)
+- `POST /api/v2/vault/mfa/verify` реальний — потребує staging API зі TOTP-enrolled user
+- Session timer auto-logout тестується unit (check isValid), не widget (Timer не settles)
+- FL8 може додати Vault до BottomNav badge при offline
+
+---
+
+## FL3 — Visit + Checklist (offline-first core) — 2026-06-28
+**Статус:** ✅ DONE
+
+### DoD-докази
+- `flutter analyze --no-fatal-infos`: **No issues found!** (0 errors, 0 warnings, 0 infos у власному коді)
+- `flutter test`: **141/141 passed** (0 failed) — +60 нових від FL3
+- TDD: тести написані першими (RED), потім реалізація (GREEN)
+- `shouldWriteChecked` union-merge: 4/4 тести зелені
+- `dart run build_runner build`: SUCCESS (schemaVersion 3)
+
+### Нові файли
+| Файл | Призначення |
+|------|-------------|
+| `lib/core/sync/sync_queue_service.dart` | `SyncQueueService`: enqueue/getPending/markDone/markFailed; `syncQueueProvider` |
+| `lib/core/sync/sync_client.dart` | `SyncClient`: push (→ `/sync/push`) + pull (← `/sync/pull`) для Visit/ChecklistInstance/Item |
+| `lib/features/visit/providers/visit_provider.dart` | `visitsProvider` (stream list) + `visitByIdProvider` (stream single) |
+| `lib/features/visit/visit_list_screen.dart` | Список виїздів + FAB create (offline: DB → SyncQueue) |
+| `lib/features/visit/visit_detail_screen.dart` | FSM: draft → in_progress → done + link до чек-листу |
+| `lib/features/checklist/providers/checklist_provider.dart` | `checklistItemsProvider` (stream by visitId, ordered by sortOrder) |
+| `lib/features/checklist/checklist_screen.dart` | Чек-лист + `shouldWriteChecked()` (union-merge, pub. функція) |
+| `lib/features/checklist/widgets/checklist_item_tile.dart` | `CheckboxListTile`: label, serialNumber, photoId icon |
+
+### Змінені файли
+| Файл | Що змінено |
+|------|-----------|
+| `lib/core/db/tables/checklist_items.dart` | `instanceId`→`checklistId`, `itemUuid`→`templateItemId`, `serialNo`→`serialNumber`, `+sortOrder` |
+| `lib/core/db/tables/sync_queue.dart` | `attempts`→`retries`, `+clientVersion` |
+| `lib/core/db/database.dart` | `schemaVersion` 2→3; міграція: DROP+CREATE checklist_items+sync_queue |
+| `lib/core/router/app_router.dart` | `/visit/:id` → `VisitDetailScreen`, `/checklist/:visitId` → `ChecklistScreen`, `+/home/visits` |
+
+### Тести (`test/fl3/`)
+| Файл | Кількість | Що тестує |
+|------|-----------|-----------|
+| `sync_merge_test.dart` | 4 | `shouldWriteChecked` union-merge (all 4 комбінації) |
+| `visit_list_screen_test.dart` | 6 | loading/error/empty/data/title/FAB |
+| `visit_detail_screen_test.dart` | 7 | loading/null/status card/Розпочати/Завершити/done-no-btn/checklist link |
+| `checklist_screen_test.dart` | 8 | loading/error/items/unchecked/checked/serialNumber/photoIcon/title |
+
+### Архітектурні рішення FL3
+- `shouldWriteChecked()` — публічна чиста функція для тестованості union-merge
+- Provider overrides у тестах (як у FL2) — без реального Drift/SQLite у test runtime
+- `VisitsCompanion.insert()` — `payload` опціональний (default `'{}'` з БД), не передаємо явно
+- Drift generated types: `Visit` (не `VisitData`), `ChecklistItem` (не `ChecklistItemData`)
+
+### Обмеження FL3 (для наступних сесій)
+- `objectId: 'placeholder'`, `engineerId: 'current_user'` — реальні дані з форми FL5/auth
+- Sync push/pull — потребує запущеного staging API для інтеграційних тестів
+- Conflict ID зберігається як `failed` — UI вибору конфліктів у FL6
+
+---
+
 ## FL2 — Navigation Shell + Home Screen — 2026-06-28
 **Статус:** ✅ DONE
 
