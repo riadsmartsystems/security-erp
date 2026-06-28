@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/auth/login_screen.dart';
+import '../../features/auth/mfa_enrollment_screen.dart';
+import '../../features/auth/mfa_verify_screen.dart';
+import '../../features/home/home_screen.dart';
+import '../../features/home/main_shell.dart';
+import '../auth/auth_models.dart';
+import '../auth/auth_notifier.dart';
 import 'route_names.dart';
 
 class PlaceholderScreen extends StatelessWidget {
@@ -16,46 +23,94 @@ class PlaceholderScreen extends StatelessWidget {
       );
 }
 
+/// Bridges Riverpod authProvider changes to GoRouter's Listenable interface.
+class _AuthListenable extends ChangeNotifier {
+  _AuthListenable(Ref ref) {
+    ref.listen<AsyncValue<AuthState>>(authProvider, (_, __) {
+      notifyListeners();
+    });
+  }
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
+  final listenable = _AuthListenable(ref);
+
   return GoRouter(
     initialLocation: Routes.login,
+    refreshListenable: listenable,
+    redirect: (context, state) {
+      final authAsync = ref.read(authProvider);
+
+      // While loading (first frame), stay put
+      if (authAsync.isLoading) return null;
+
+      final authState = authAsync.value;
+      final isOnLogin = state.matchedLocation == Routes.login;
+      final isOnMfa = state.matchedLocation == Routes.mfaVerify ||
+          state.matchedLocation == Routes.mfaEnrollment;
+
+      if (authState is Unauthenticated || authState is AuthInitial || authState == null) {
+        return isOnLogin ? null : Routes.login;
+      }
+      if (authState is AuthMfaRequired) {
+        return isOnMfa ? null : Routes.mfaVerify;
+      }
+      if (authState is AuthAuthenticated) {
+        return (isOnLogin || isOnMfa) ? Routes.tasks : null;
+      }
+      return null;
+    },
     routes: [
       GoRoute(
         path: Routes.login,
-        builder: (_, __) => const PlaceholderScreen('Login'),
+        builder: (_, __) => const LoginScreen(),
       ),
       GoRoute(
         path: Routes.mfaEnrollment,
-        builder: (_, __) => const PlaceholderScreen('MFA Enrollment'),
+        builder: (_, __) => const MfaEnrollmentScreen(),
       ),
       GoRoute(
         path: Routes.mfaVerify,
-        builder: (_, __) => const PlaceholderScreen('MFA Verify'),
+        builder: (_, __) => const MfaVerifyScreen(),
       ),
       ShellRoute(
-        builder: (_, __, child) => child,
+        builder: (_, __, child) => MainShell(child: child),
         routes: [
           GoRoute(
             path: Routes.tasks,
-            builder: (_, __) => const PlaceholderScreen('Tasks Today'),
+            builder: (_, __) => const HomeScreen(),
           ),
           GoRoute(
             path: Routes.objects,
-            builder: (_, __) => const PlaceholderScreen('Objects'),
+            builder: (_, __) => const Scaffold(
+                body: Center(child: Text("Об'єкти — FL5"))),
           ),
           GoRoute(
             path: Routes.vault,
-            builder: (_, __) => const PlaceholderScreen('Vault'),
+            builder: (_, __) =>
+                const Scaffold(body: Center(child: Text('Vault — FL7'))),
           ),
           GoRoute(
             path: Routes.sync,
-            builder: (_, __) => const PlaceholderScreen('Sync'),
+            builder: (_, __) =>
+                const Scaffold(body: Center(child: Text('Синк — FL6'))),
           ),
         ],
       ),
       GoRoute(
+        path: '/estimate/:id',
+        builder: (_, s) =>
+            PlaceholderScreen('Estimate ${s.pathParameters["id"]}'),
+      ),
+      GoRoute(
+        path: '/lead/:id',
+        builder: (_, s) =>
+            PlaceholderScreen('Lead ${s.pathParameters["id"]}'),
+      ),
+      GoRoute(
         path: Routes.visitDetail,
-        builder: (_, s) => PlaceholderScreen('Visit ${s.pathParameters["id"]}'),
+        builder: (_, s) =>
+            PlaceholderScreen('Visit ${s.pathParameters["id"]}'),
       ),
       GoRoute(
         path: Routes.checklist,

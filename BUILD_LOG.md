@@ -2,6 +2,99 @@
 
 ---
 
+## FL2 — Navigation Shell + Home Screen — 2026-06-28
+**Статус:** ✅ DONE
+
+### DoD-докази
+- `flutter analyze --no-fatal-infos`: **No issues found!** (0 errors, 0 warnings, 0 infos)
+- `flutter test`: **81/81 passed** (0 failed)
+- TDD: тести написані першими (RED), потім реалізація (GREEN)
+
+### Нові файли
+| Файл | Призначення |
+|------|-------------|
+| `lib/features/home/task_model.dart` | `Task` (Equatable) + `TaskType` enum + `fromJson` |
+| `lib/features/home/providers/home_provider.dart` | `tasksProvider` (offline-aware), `aiStatusProvider`, `pendingCountProvider` |
+| `lib/core/widgets/ai_status_chip.dart` | AppBar chip: AI / AI резерв / Ручний режим |
+| `lib/core/widgets/offline_banner.dart` | Помаранчевий банер при відсутності мережі |
+| `lib/features/home/widgets/task_card.dart` | Картка задачі: іконка типу + статус-бейдж |
+| `lib/features/home/widgets/quick_actions_fab.dart` | Speed-dial FAB з role-based фільтрацією (2 для installer, 5 для engineer+) |
+| `lib/features/home/main_shell.dart` | `MainShell` (ShellRoute wrapper): AppBar + OfflineBanner + NavigationBar |
+| `lib/features/home/home_screen.dart` | `HomeScreen`: список задач сьогодні, RefreshIndicator, порожній стан, помилка |
+
+### Змінені файли
+| Файл | Що змінено |
+|------|-----------|
+| `lib/core/db/tables/task_cache.dart` | Замінено `entityId/assignedTo/dueDate/payload` → `title/address/dueTime(nullable)` |
+| `lib/core/db/database.dart` | `schemaVersion` → 2, міграція DROP+CREATE task_cache |
+| `lib/core/router/app_router.dart` | ShellRoute → `MainShell`, Tasks → `HomeScreen`, додано `/estimate/:id` + `/lead/:id` |
+
+### Тести (`test/fl2/`)
+| Файл | Кількість | Що тестує |
+|------|-----------|-----------|
+| `task_model_test.dart` | 12 | fromJson всі поля, nullable dueTime, всі TaskType, unknown→visit, Equatable |
+| `offline_banner_test.dart` | 4 | показується offline, прихований online, default=true (no value) |
+| `task_card_test.dart` | 9 | title, subtitle, dueTime, статуси, onTap, іконки типів |
+| `ai_status_chip_test.dart` | 5 | ok/degraded/manual/loading/error стани |
+| `home_screen_test.dart` | 5 | loading/error/empty/data/multiple tasks |
+
+### Архітектурні рішення FL2
+- `TaskCache` schema оновлена до v2: `title/address/dueTime(String?)` — природніше для UI ніж `payload JSON`
+- `withOpacity` → `withValues(alpha:)` — Flutter 3.44.2 API
+- FAB `/estimate/new` + `/lead/new` → нові placeholder routes (GoRouter `/estimate/:id`, `/lead/:id`)
+- `Completer<T>().future` для never-resolving в тестах (без pending timer артефактів)
+
+### Обмеження FL2 (для наступних сесій)
+- Об'єкти/Vault/Синк — placeholder текст, FL5/FL6/FL7 відповідно
+- FAB маршрути `/visit/new`, `/service/new` — попадають у `/visit/:id` + `/service/:id` (id='new')
+- Реальний `GET /api/v2/tasks/today` — потребує запущеного staging API
+
+---
+
+## FL1 — Auth Layer
+**Status:** ✅ DONE
+**Date:** 2026-06-28
+
+### DoD-докази
+- `flutter analyze --no-fatal-infos`: **No issues found!** (0 errors, 0 warnings, 0 infos)
+- `flutter test`: **45/45 passed** (0 failed)
+- TDD: кожен файл — спочатку тест RED, потім GREEN (підтверджено виводом flutter test)
+
+### Нові файли
+| Файл | Призначення |
+|------|-------------|
+| `lib/core/auth/auth_models.dart` | `AuthUser` (Equatable) + sealed `AuthState` (5 типів) |
+| `lib/core/auth/token_storage.dart` | JWT зберігання у `flutter_secure_storage`, `tokenStorageProvider` |
+| `lib/core/auth/auth_notifier.dart` | `AuthNotifier` (AsyncNotifier): login/logout/completeMfa/build, `authProvider` |
+| `lib/features/auth/login_screen.dart` | UI: email+password, toggle visibility, error RIAD-AUTH-INVALID/RATELIMIT, spinner |
+| `lib/features/auth/mfa_enrollment_screen.dart` | QR-код (qr_flutter) + секрет для TOTP-застосунку |
+| `lib/features/auth/mfa_verify_screen.dart` | 6-digit TOTP input, auto-verify on maxLength, error display |
+| `lib/core/api/interceptors/auth_interceptor.dart` | JWT attach + авто-refresh при 401 + queue pending requests |
+| `lib/core/router/app_router.dart` | GoRouter redirect guard + `_AuthListenable` (ChangeNotifier → refreshListenable) |
+
+### Тести (`test/f1/`)
+| Файл | Кількість | Що тестує |
+|------|-----------|-----------|
+| `auth_models_test.dart` | 11 | fromJson, Equatable, sealed types |
+| `token_storage_test.dart` | 8 | read/write/clear з mock FlutterSecureStorage |
+| `auth_notifier_test.dart` | 11 | build/login/logout/completeMfa, стани, token save |
+| `login_screen_test.dart` | 6 | title/fields/button/visibility toggle/error/loading |
+| `mfa_verify_test.dart` | 4 | instruction/title/button/invalid TOTP error |
+| `auth_interceptor_test.dart` | 4 | Bearer attach, no token, 404/500 pass-through |
+
+### Архітектурні рішення FL1
+- `_AuthListenable extends ChangeNotifier` — bridge між `authProvider` і GoRouter `refreshListenable`; чистіше ніж `AsyncNotifier with ChangeNotifier` (без множинного наслідування)
+- `AuthInterceptor` refresh: окремий plain `Dio()` без interceptors — уникає рекурсії
+- `TokenStorage` injectable: приймає `FlutterSecureStorage?` — тестований без platform mock
+- `_registerDevice()` — non-critical: catch(_) не блокує логін при відсутньому FCM-токені
+
+### Обмеження FL1 (для наступних сесій)
+- `device_name: 'Android Device'` — реальна модель у FL9 (firebase_messaging)
+- `fcm_token: null` — P1 зареєстровано, підключиться у FL9
+- MFA enrollment QR — реальний виклик `/auth/mfa/setup` потребує запущеного staging
+
+---
+
 ## FL0 — Архітектурний фундамент Flutter
 **Status:** ✅ DONE
 **Date:** 2026-06-28

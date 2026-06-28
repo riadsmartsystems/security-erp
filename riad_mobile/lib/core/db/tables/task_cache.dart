@@ -3,12 +3,11 @@ import 'package:drift/drift.dart';
 class TaskCache extends Table {
   TextColumn get id         => text()();
   TextColumn get taskType   => text()();
-  TextColumn get entityId   => text()();
+  TextColumn get title      => text()();
   TextColumn get objectName => text().withDefault(const Constant(''))();
+  TextColumn get address    => text().withDefault(const Constant(''))();
   TextColumn get status     => text()();
-  TextColumn get assignedTo => text()();
-  DateTimeColumn get dueDate => dateTime().nullable()();
-  TextColumn get payload    => text().withDefault(const Constant('{}'))();
+  TextColumn get dueTime    => text().nullable()();
   DateTimeColumn get cachedAt =>
       dateTime().withDefault(currentDateAndTime)();
 

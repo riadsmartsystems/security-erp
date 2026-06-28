@@ -5911,11 +5911,10 @@ class $TaskCacheTable extends TaskCache
   late final GeneratedColumn<String> taskType = GeneratedColumn<String>(
       'task_type', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _entityIdMeta =
-      const VerificationMeta('entityId');
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
   @override
-  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
-      'entity_id', aliasedName, false,
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+      'title', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _objectNameMeta =
       const VerificationMeta('objectName');
@@ -5925,31 +5924,25 @@ class $TaskCacheTable extends TaskCache
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant(''));
+  static const VerificationMeta _addressMeta =
+      const VerificationMeta('address');
+  @override
+  late final GeneratedColumn<String> address = GeneratedColumn<String>(
+      'address', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
       'status', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _assignedToMeta =
-      const VerificationMeta('assignedTo');
+  static const VerificationMeta _dueTimeMeta =
+      const VerificationMeta('dueTime');
   @override
-  late final GeneratedColumn<String> assignedTo = GeneratedColumn<String>(
-      'assigned_to', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _dueDateMeta =
-      const VerificationMeta('dueDate');
-  @override
-  late final GeneratedColumn<DateTime> dueDate = GeneratedColumn<DateTime>(
-      'due_date', aliasedName, true,
-      type: DriftSqlType.dateTime, requiredDuringInsert: false);
-  static const VerificationMeta _payloadMeta =
-      const VerificationMeta('payload');
-  @override
-  late final GeneratedColumn<String> payload = GeneratedColumn<String>(
-      'payload', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant('{}'));
+  late final GeneratedColumn<String> dueTime = GeneratedColumn<String>(
+      'due_time', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _cachedAtMeta =
       const VerificationMeta('cachedAt');
   @override
@@ -5959,17 +5952,8 @@ class $TaskCacheTable extends TaskCache
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
   @override
-  List<GeneratedColumn> get $columns => [
-        id,
-        taskType,
-        entityId,
-        objectName,
-        status,
-        assignedTo,
-        dueDate,
-        payload,
-        cachedAt
-      ];
+  List<GeneratedColumn> get $columns =>
+      [id, taskType, title, objectName, address, status, dueTime, cachedAt];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -5991,11 +5975,11 @@ class $TaskCacheTable extends TaskCache
     } else if (isInserting) {
       context.missing(_taskTypeMeta);
     }
-    if (data.containsKey('entity_id')) {
-      context.handle(_entityIdMeta,
-          entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta));
+    if (data.containsKey('title')) {
+      context.handle(
+          _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
     } else if (isInserting) {
-      context.missing(_entityIdMeta);
+      context.missing(_titleMeta);
     }
     if (data.containsKey('object_name')) {
       context.handle(
@@ -6003,27 +5987,19 @@ class $TaskCacheTable extends TaskCache
           objectName.isAcceptableOrUnknown(
               data['object_name']!, _objectNameMeta));
     }
+    if (data.containsKey('address')) {
+      context.handle(_addressMeta,
+          address.isAcceptableOrUnknown(data['address']!, _addressMeta));
+    }
     if (data.containsKey('status')) {
       context.handle(_statusMeta,
           status.isAcceptableOrUnknown(data['status']!, _statusMeta));
     } else if (isInserting) {
       context.missing(_statusMeta);
     }
-    if (data.containsKey('assigned_to')) {
-      context.handle(
-          _assignedToMeta,
-          assignedTo.isAcceptableOrUnknown(
-              data['assigned_to']!, _assignedToMeta));
-    } else if (isInserting) {
-      context.missing(_assignedToMeta);
-    }
-    if (data.containsKey('due_date')) {
-      context.handle(_dueDateMeta,
-          dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta));
-    }
-    if (data.containsKey('payload')) {
-      context.handle(_payloadMeta,
-          payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta));
+    if (data.containsKey('due_time')) {
+      context.handle(_dueTimeMeta,
+          dueTime.isAcceptableOrUnknown(data['due_time']!, _dueTimeMeta));
     }
     if (data.containsKey('cached_at')) {
       context.handle(_cachedAtMeta,
@@ -6042,18 +6018,16 @@ class $TaskCacheTable extends TaskCache
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
       taskType: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}task_type'])!,
-      entityId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}entity_id'])!,
+      title: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
       objectName: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}object_name'])!,
+      address: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}address'])!,
       status: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
-      assignedTo: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}assigned_to'])!,
-      dueDate: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}due_date']),
-      payload: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}payload'])!,
+      dueTime: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}due_time']),
       cachedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}cached_at'])!,
     );
@@ -6068,36 +6042,33 @@ class $TaskCacheTable extends TaskCache
 class TaskCacheData extends DataClass implements Insertable<TaskCacheData> {
   final String id;
   final String taskType;
-  final String entityId;
+  final String title;
   final String objectName;
+  final String address;
   final String status;
-  final String assignedTo;
-  final DateTime? dueDate;
-  final String payload;
+  final String? dueTime;
   final DateTime cachedAt;
   const TaskCacheData(
       {required this.id,
       required this.taskType,
-      required this.entityId,
+      required this.title,
       required this.objectName,
+      required this.address,
       required this.status,
-      required this.assignedTo,
-      this.dueDate,
-      required this.payload,
+      this.dueTime,
       required this.cachedAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['task_type'] = Variable<String>(taskType);
-    map['entity_id'] = Variable<String>(entityId);
+    map['title'] = Variable<String>(title);
     map['object_name'] = Variable<String>(objectName);
+    map['address'] = Variable<String>(address);
     map['status'] = Variable<String>(status);
-    map['assigned_to'] = Variable<String>(assignedTo);
-    if (!nullToAbsent || dueDate != null) {
-      map['due_date'] = Variable<DateTime>(dueDate);
+    if (!nullToAbsent || dueTime != null) {
+      map['due_time'] = Variable<String>(dueTime);
     }
-    map['payload'] = Variable<String>(payload);
     map['cached_at'] = Variable<DateTime>(cachedAt);
     return map;
   }
@@ -6106,14 +6077,13 @@ class TaskCacheData extends DataClass implements Insertable<TaskCacheData> {
     return TaskCacheCompanion(
       id: Value(id),
       taskType: Value(taskType),
-      entityId: Value(entityId),
+      title: Value(title),
       objectName: Value(objectName),
+      address: Value(address),
       status: Value(status),
-      assignedTo: Value(assignedTo),
-      dueDate: dueDate == null && nullToAbsent
+      dueTime: dueTime == null && nullToAbsent
           ? const Value.absent()
-          : Value(dueDate),
-      payload: Value(payload),
+          : Value(dueTime),
       cachedAt: Value(cachedAt),
     );
   }
@@ -6124,12 +6094,11 @@ class TaskCacheData extends DataClass implements Insertable<TaskCacheData> {
     return TaskCacheData(
       id: serializer.fromJson<String>(json['id']),
       taskType: serializer.fromJson<String>(json['taskType']),
-      entityId: serializer.fromJson<String>(json['entityId']),
+      title: serializer.fromJson<String>(json['title']),
       objectName: serializer.fromJson<String>(json['objectName']),
+      address: serializer.fromJson<String>(json['address']),
       status: serializer.fromJson<String>(json['status']),
-      assignedTo: serializer.fromJson<String>(json['assignedTo']),
-      dueDate: serializer.fromJson<DateTime?>(json['dueDate']),
-      payload: serializer.fromJson<String>(json['payload']),
+      dueTime: serializer.fromJson<String?>(json['dueTime']),
       cachedAt: serializer.fromJson<DateTime>(json['cachedAt']),
     );
   }
@@ -6139,12 +6108,11 @@ class TaskCacheData extends DataClass implements Insertable<TaskCacheData> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'taskType': serializer.toJson<String>(taskType),
-      'entityId': serializer.toJson<String>(entityId),
+      'title': serializer.toJson<String>(title),
       'objectName': serializer.toJson<String>(objectName),
+      'address': serializer.toJson<String>(address),
       'status': serializer.toJson<String>(status),
-      'assignedTo': serializer.toJson<String>(assignedTo),
-      'dueDate': serializer.toJson<DateTime?>(dueDate),
-      'payload': serializer.toJson<String>(payload),
+      'dueTime': serializer.toJson<String?>(dueTime),
       'cachedAt': serializer.toJson<DateTime>(cachedAt),
     };
   }
@@ -6152,36 +6120,32 @@ class TaskCacheData extends DataClass implements Insertable<TaskCacheData> {
   TaskCacheData copyWith(
           {String? id,
           String? taskType,
-          String? entityId,
+          String? title,
           String? objectName,
+          String? address,
           String? status,
-          String? assignedTo,
-          Value<DateTime?> dueDate = const Value.absent(),
-          String? payload,
+          Value<String?> dueTime = const Value.absent(),
           DateTime? cachedAt}) =>
       TaskCacheData(
         id: id ?? this.id,
         taskType: taskType ?? this.taskType,
-        entityId: entityId ?? this.entityId,
+        title: title ?? this.title,
         objectName: objectName ?? this.objectName,
+        address: address ?? this.address,
         status: status ?? this.status,
-        assignedTo: assignedTo ?? this.assignedTo,
-        dueDate: dueDate.present ? dueDate.value : this.dueDate,
-        payload: payload ?? this.payload,
+        dueTime: dueTime.present ? dueTime.value : this.dueTime,
         cachedAt: cachedAt ?? this.cachedAt,
       );
   TaskCacheData copyWithCompanion(TaskCacheCompanion data) {
     return TaskCacheData(
       id: data.id.present ? data.id.value : this.id,
       taskType: data.taskType.present ? data.taskType.value : this.taskType,
-      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      title: data.title.present ? data.title.value : this.title,
       objectName:
           data.objectName.present ? data.objectName.value : this.objectName,
+      address: data.address.present ? data.address.value : this.address,
       status: data.status.present ? data.status.value : this.status,
-      assignedTo:
-          data.assignedTo.present ? data.assignedTo.value : this.assignedTo,
-      dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
-      payload: data.payload.present ? data.payload.value : this.payload,
+      dueTime: data.dueTime.present ? data.dueTime.value : this.dueTime,
       cachedAt: data.cachedAt.present ? data.cachedAt.value : this.cachedAt,
     );
   }
@@ -6191,95 +6155,87 @@ class TaskCacheData extends DataClass implements Insertable<TaskCacheData> {
     return (StringBuffer('TaskCacheData(')
           ..write('id: $id, ')
           ..write('taskType: $taskType, ')
-          ..write('entityId: $entityId, ')
+          ..write('title: $title, ')
           ..write('objectName: $objectName, ')
+          ..write('address: $address, ')
           ..write('status: $status, ')
-          ..write('assignedTo: $assignedTo, ')
-          ..write('dueDate: $dueDate, ')
-          ..write('payload: $payload, ')
+          ..write('dueTime: $dueTime, ')
           ..write('cachedAt: $cachedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, taskType, entityId, objectName, status,
-      assignedTo, dueDate, payload, cachedAt);
+  int get hashCode => Object.hash(
+      id, taskType, title, objectName, address, status, dueTime, cachedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is TaskCacheData &&
           other.id == this.id &&
           other.taskType == this.taskType &&
-          other.entityId == this.entityId &&
+          other.title == this.title &&
           other.objectName == this.objectName &&
+          other.address == this.address &&
           other.status == this.status &&
-          other.assignedTo == this.assignedTo &&
-          other.dueDate == this.dueDate &&
-          other.payload == this.payload &&
+          other.dueTime == this.dueTime &&
           other.cachedAt == this.cachedAt);
 }
 
 class TaskCacheCompanion extends UpdateCompanion<TaskCacheData> {
   final Value<String> id;
   final Value<String> taskType;
-  final Value<String> entityId;
+  final Value<String> title;
   final Value<String> objectName;
+  final Value<String> address;
   final Value<String> status;
-  final Value<String> assignedTo;
-  final Value<DateTime?> dueDate;
-  final Value<String> payload;
+  final Value<String?> dueTime;
   final Value<DateTime> cachedAt;
   final Value<int> rowid;
   const TaskCacheCompanion({
     this.id = const Value.absent(),
     this.taskType = const Value.absent(),
-    this.entityId = const Value.absent(),
+    this.title = const Value.absent(),
     this.objectName = const Value.absent(),
+    this.address = const Value.absent(),
     this.status = const Value.absent(),
-    this.assignedTo = const Value.absent(),
-    this.dueDate = const Value.absent(),
-    this.payload = const Value.absent(),
+    this.dueTime = const Value.absent(),
     this.cachedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TaskCacheCompanion.insert({
     required String id,
     required String taskType,
-    required String entityId,
+    required String title,
     this.objectName = const Value.absent(),
+    this.address = const Value.absent(),
     required String status,
-    required String assignedTo,
-    this.dueDate = const Value.absent(),
-    this.payload = const Value.absent(),
+    this.dueTime = const Value.absent(),
     this.cachedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         taskType = Value(taskType),
-        entityId = Value(entityId),
-        status = Value(status),
-        assignedTo = Value(assignedTo);
+        title = Value(title),
+        status = Value(status);
   static Insertable<TaskCacheData> custom({
     Expression<String>? id,
     Expression<String>? taskType,
-    Expression<String>? entityId,
+    Expression<String>? title,
     Expression<String>? objectName,
+    Expression<String>? address,
     Expression<String>? status,
-    Expression<String>? assignedTo,
-    Expression<DateTime>? dueDate,
-    Expression<String>? payload,
+    Expression<String>? dueTime,
     Expression<DateTime>? cachedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (taskType != null) 'task_type': taskType,
-      if (entityId != null) 'entity_id': entityId,
+      if (title != null) 'title': title,
       if (objectName != null) 'object_name': objectName,
+      if (address != null) 'address': address,
       if (status != null) 'status': status,
-      if (assignedTo != null) 'assigned_to': assignedTo,
-      if (dueDate != null) 'due_date': dueDate,
-      if (payload != null) 'payload': payload,
+      if (dueTime != null) 'due_time': dueTime,
       if (cachedAt != null) 'cached_at': cachedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -6288,23 +6244,21 @@ class TaskCacheCompanion extends UpdateCompanion<TaskCacheData> {
   TaskCacheCompanion copyWith(
       {Value<String>? id,
       Value<String>? taskType,
-      Value<String>? entityId,
+      Value<String>? title,
       Value<String>? objectName,
+      Value<String>? address,
       Value<String>? status,
-      Value<String>? assignedTo,
-      Value<DateTime?>? dueDate,
-      Value<String>? payload,
+      Value<String?>? dueTime,
       Value<DateTime>? cachedAt,
       Value<int>? rowid}) {
     return TaskCacheCompanion(
       id: id ?? this.id,
       taskType: taskType ?? this.taskType,
-      entityId: entityId ?? this.entityId,
+      title: title ?? this.title,
       objectName: objectName ?? this.objectName,
+      address: address ?? this.address,
       status: status ?? this.status,
-      assignedTo: assignedTo ?? this.assignedTo,
-      dueDate: dueDate ?? this.dueDate,
-      payload: payload ?? this.payload,
+      dueTime: dueTime ?? this.dueTime,
       cachedAt: cachedAt ?? this.cachedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -6319,23 +6273,20 @@ class TaskCacheCompanion extends UpdateCompanion<TaskCacheData> {
     if (taskType.present) {
       map['task_type'] = Variable<String>(taskType.value);
     }
-    if (entityId.present) {
-      map['entity_id'] = Variable<String>(entityId.value);
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
     }
     if (objectName.present) {
       map['object_name'] = Variable<String>(objectName.value);
     }
+    if (address.present) {
+      map['address'] = Variable<String>(address.value);
+    }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
-    if (assignedTo.present) {
-      map['assigned_to'] = Variable<String>(assignedTo.value);
-    }
-    if (dueDate.present) {
-      map['due_date'] = Variable<DateTime>(dueDate.value);
-    }
-    if (payload.present) {
-      map['payload'] = Variable<String>(payload.value);
+    if (dueTime.present) {
+      map['due_time'] = Variable<String>(dueTime.value);
     }
     if (cachedAt.present) {
       map['cached_at'] = Variable<DateTime>(cachedAt.value);
@@ -6351,12 +6302,11 @@ class TaskCacheCompanion extends UpdateCompanion<TaskCacheData> {
     return (StringBuffer('TaskCacheCompanion(')
           ..write('id: $id, ')
           ..write('taskType: $taskType, ')
-          ..write('entityId: $entityId, ')
+          ..write('title: $title, ')
           ..write('objectName: $objectName, ')
+          ..write('address: $address, ')
           ..write('status: $status, ')
-          ..write('assignedTo: $assignedTo, ')
-          ..write('dueDate: $dueDate, ')
-          ..write('payload: $payload, ')
+          ..write('dueTime: $dueTime, ')
           ..write('cachedAt: $cachedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -9229,24 +9179,22 @@ typedef $$SyncConflictsTableProcessedTableManager = ProcessedTableManager<
 typedef $$TaskCacheTableCreateCompanionBuilder = TaskCacheCompanion Function({
   required String id,
   required String taskType,
-  required String entityId,
+  required String title,
   Value<String> objectName,
+  Value<String> address,
   required String status,
-  required String assignedTo,
-  Value<DateTime?> dueDate,
-  Value<String> payload,
+  Value<String?> dueTime,
   Value<DateTime> cachedAt,
   Value<int> rowid,
 });
 typedef $$TaskCacheTableUpdateCompanionBuilder = TaskCacheCompanion Function({
   Value<String> id,
   Value<String> taskType,
-  Value<String> entityId,
+  Value<String> title,
   Value<String> objectName,
+  Value<String> address,
   Value<String> status,
-  Value<String> assignedTo,
-  Value<DateTime?> dueDate,
-  Value<String> payload,
+  Value<String?> dueTime,
   Value<DateTime> cachedAt,
   Value<int> rowid,
 });
@@ -9266,23 +9214,20 @@ class $$TaskCacheTableFilterComposer
   ColumnFilters<String> get taskType => $composableBuilder(
       column: $table.taskType, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get entityId => $composableBuilder(
-      column: $table.entityId, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get objectName => $composableBuilder(
       column: $table.objectName, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get address => $composableBuilder(
+      column: $table.address, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<String> get status => $composableBuilder(
       column: $table.status, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get assignedTo => $composableBuilder(
-      column: $table.assignedTo, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<DateTime> get dueDate => $composableBuilder(
-      column: $table.dueDate, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get payload => $composableBuilder(
-      column: $table.payload, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get dueTime => $composableBuilder(
+      column: $table.dueTime, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get cachedAt => $composableBuilder(
       column: $table.cachedAt, builder: (column) => ColumnFilters(column));
@@ -9303,23 +9248,20 @@ class $$TaskCacheTableOrderingComposer
   ColumnOrderings<String> get taskType => $composableBuilder(
       column: $table.taskType, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get entityId => $composableBuilder(
-      column: $table.entityId, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get objectName => $composableBuilder(
       column: $table.objectName, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get address => $composableBuilder(
+      column: $table.address, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get status => $composableBuilder(
       column: $table.status, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get assignedTo => $composableBuilder(
-      column: $table.assignedTo, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<DateTime> get dueDate => $composableBuilder(
-      column: $table.dueDate, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get payload => $composableBuilder(
-      column: $table.payload, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get dueTime => $composableBuilder(
+      column: $table.dueTime, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get cachedAt => $composableBuilder(
       column: $table.cachedAt, builder: (column) => ColumnOrderings(column));
@@ -9340,23 +9282,20 @@ class $$TaskCacheTableAnnotationComposer
   GeneratedColumn<String> get taskType =>
       $composableBuilder(column: $table.taskType, builder: (column) => column);
 
-  GeneratedColumn<String> get entityId =>
-      $composableBuilder(column: $table.entityId, builder: (column) => column);
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
 
   GeneratedColumn<String> get objectName => $composableBuilder(
       column: $table.objectName, builder: (column) => column);
 
+  GeneratedColumn<String> get address =>
+      $composableBuilder(column: $table.address, builder: (column) => column);
+
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
-  GeneratedColumn<String> get assignedTo => $composableBuilder(
-      column: $table.assignedTo, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get dueDate =>
-      $composableBuilder(column: $table.dueDate, builder: (column) => column);
-
-  GeneratedColumn<String> get payload =>
-      $composableBuilder(column: $table.payload, builder: (column) => column);
+  GeneratedColumn<String> get dueTime =>
+      $composableBuilder(column: $table.dueTime, builder: (column) => column);
 
   GeneratedColumn<DateTime> get cachedAt =>
       $composableBuilder(column: $table.cachedAt, builder: (column) => column);
@@ -9390,48 +9329,44 @@ class $$TaskCacheTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
             Value<String> taskType = const Value.absent(),
-            Value<String> entityId = const Value.absent(),
+            Value<String> title = const Value.absent(),
             Value<String> objectName = const Value.absent(),
+            Value<String> address = const Value.absent(),
             Value<String> status = const Value.absent(),
-            Value<String> assignedTo = const Value.absent(),
-            Value<DateTime?> dueDate = const Value.absent(),
-            Value<String> payload = const Value.absent(),
+            Value<String?> dueTime = const Value.absent(),
             Value<DateTime> cachedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               TaskCacheCompanion(
             id: id,
             taskType: taskType,
-            entityId: entityId,
+            title: title,
             objectName: objectName,
+            address: address,
             status: status,
-            assignedTo: assignedTo,
-            dueDate: dueDate,
-            payload: payload,
+            dueTime: dueTime,
             cachedAt: cachedAt,
             rowid: rowid,
           ),
           createCompanionCallback: ({
             required String id,
             required String taskType,
-            required String entityId,
+            required String title,
             Value<String> objectName = const Value.absent(),
+            Value<String> address = const Value.absent(),
             required String status,
-            required String assignedTo,
-            Value<DateTime?> dueDate = const Value.absent(),
-            Value<String> payload = const Value.absent(),
+            Value<String?> dueTime = const Value.absent(),
             Value<DateTime> cachedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               TaskCacheCompanion.insert(
             id: id,
             taskType: taskType,
-            entityId: entityId,
+            title: title,
             objectName: objectName,
+            address: address,
             status: status,
-            assignedTo: assignedTo,
-            dueDate: dueDate,
-            payload: payload,
+            dueTime: dueTime,
             cachedAt: cachedAt,
             rowid: rowid,
           ),
