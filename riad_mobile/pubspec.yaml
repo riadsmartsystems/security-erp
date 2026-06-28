@@ -1,0 +1,82 @@
+name: riad_mobile
+description: RIAD Smart System — польовий мобільний застосунок
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+  hooks_riverpod: ^2.5.1
+  flutter_hooks: ^0.20.5
+
+  # Navigation
+  go_router: ^14.2.7
+
+  # HTTP
+  dio: ^5.4.3+1
+
+  # Secure storage (JWT)
+  flutter_secure_storage: ^9.2.2
+
+  # Local database (offline-first)
+  drift: ^2.18.0
+  drift_flutter: ^0.2.1
+  sqlite3_flutter_libs: ^0.5.24
+
+  # Connectivity
+  connectivity_plus: ^6.0.3
+
+  # Camera / media
+  camera: ^0.11.0+2
+  image_picker: ^1.1.2
+
+  # QR / barcode scanner
+  mobile_scanner: ^5.2.3
+
+  # Audio recording
+  record: ^5.1.2
+
+  # Maps (OSM)
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
+  # Location
+  geolocator: ^12.0.0
+
+  # Push notifications
+  firebase_core: ^3.3.0
+  firebase_messaging: ^15.1.0
+  flutter_local_notifications: ^17.2.1
+
+  # QR code display (MFA enrollment)
+  qr_flutter: ^4.1.0
+
+  # Permissions
+  permission_handler: ^11.3.1
+
+  # Utils
+  path_provider: ^2.1.4
+  intl: ^0.19.0
+  equatable: ^2.0.5
+  uuid: ^4.4.2
+  logger: ^2.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  drift_dev: ^2.18.0
+  build_runner: ^2.4.11
+  riverpod_generator: ^2.4.3
+  mocktail: ^1.0.4
+
+flutter:
+  uses-material-design: true
