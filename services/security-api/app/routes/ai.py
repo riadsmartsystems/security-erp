@@ -15,7 +15,6 @@ from app.services.ai_orchestrator_service import (
     _anonymize_payload,
     get_provider_degradation,
     sync_provider_health,
-    write_ai_request_log,
 )
 from app.schemas.ai import AIExecuteRequest, AIExecuteResponse, AIDegradationResponse
 
@@ -39,7 +38,7 @@ async def execute_ai(
                 "params": request.params or {},
             },
         )
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=503,
             detail={

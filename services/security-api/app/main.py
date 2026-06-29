@@ -2,7 +2,6 @@ import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from prometheus_client import make_asgi_app
 
@@ -31,6 +30,7 @@ from app.routes.maps import router as maps_router
 from app.routes.warehouse import router as warehouse_router
 from app.routes.calculator import router as calculator_router
 from app.routes.push import router as push_router
+from app.routes.service_requests import router as service_requests_router
 
 
 @asynccontextmanager
@@ -121,6 +121,7 @@ app.include_router(maps_router)
 app.include_router(warehouse_router)
 app.include_router(calculator_router)
 app.include_router(push_router)
+app.include_router(service_requests_router)
 app.include_router(proxy_router)
 
 

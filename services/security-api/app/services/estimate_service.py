@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import logging
-import time
 
 from app.core.database import frappe_get, frappe_post, frappe_put
 
@@ -52,7 +51,6 @@ async def build_estimate(
     if not estimate_name:
         return {"name": "", "status": "error", "origin": "manual"}
 
-    start = time.monotonic()
     try:
         # FIX 2.4+2.5: thin proxy to Frappe @whitelist — no direct security_erp imports
         brief_text = brief_data.get("brief_text", variant)
@@ -68,11 +66,8 @@ async def build_estimate(
             ),
             timeout=_SYNC_TIMEOUT_S,
         )
-        elapsed_ms = (time.monotonic() - start) * 1000
-
         status_val = result.get("status", "error")
         content = result.get("result", "")
-        origin = result.get("provider_used", "unknown")
 
         _origin_map = {"ok": "ai_primary", "manual_fallback": "manual", "error": "ai_fallback"}
         est_origin = _origin_map.get(status_val, "manual")

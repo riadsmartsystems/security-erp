@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 import uuid
 
 router = APIRouter(prefix="/api/v1/portal", tags=["customer-portal"])
