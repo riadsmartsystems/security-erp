@@ -15,7 +15,7 @@ final dioProvider = Provider<Dio>((ref) {
     baseUrl: _baseUrl,
     connectTimeout: const Duration(seconds: 15),
     receiveTimeout: const Duration(seconds: 30),
-    headers: {'Content-Type': 'application/json'},
+    contentType: Headers.jsonContentType,
   ));
 
   dio.interceptors.addAll([
