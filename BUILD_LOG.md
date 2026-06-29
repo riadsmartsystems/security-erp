@@ -2,6 +2,53 @@
 
 ---
 
+## FL8 — Решта екранів — 2026-06-29
+**Статус:** ✅ DONE
+
+### DoD-докази
+- `flutter analyze --no-fatal-infos`: **0 errors, 0 warnings** (32 info — всі pre-existing з FL4–FL7) ✅
+- `flutter test`: **252/252 passed** (0 failed, +32 нових тестів FL8) ✅
+- 24 GoRoute маршрути (≥18 вимога) ✅
+- ServiceRequest: DTO-driven — фінансових полів немає в DTO монтажника (unit тест) ✅
+- Sessions: список → revoke (IconButton присутній для non-current) ✅
+- Notification settings: toggle → стан змінюється (widget тест) ✅
+- SharedPreferences `setMockInitialValues({})` — всі 5 каналів за замовчуванням enabled ✅
+
+### Нові файли
+| Файл | Призначення |
+|------|-------------|
+| `lib/features/remote_inspection/remote_inspection_screen.dart` | Медіа офлайн + submit звіту online-only |
+| `lib/features/service/service_request_screen.dart` | Actions offline, DTO-driven (без фінансів монтажника) |
+| `lib/features/profile/profile_screen.dart` | Email, role badge, навігація до Sessions/MFA/Notifications |
+| `lib/features/profile/sessions_screen.dart` | Список сесій + revoke |
+| `lib/features/profile/mfa_management_screen.dart` | TOTP info + re-enrollment |
+| `lib/features/profile/notification_settings_screen.dart` | 5 канальних SwitchListTile + SharedPreferences |
+
+### Змінені файли
+| Файл | Що змінено |
+|------|-----------|
+| `pubspec.yaml` | +`shared_preferences: ^2.3.2` |
+| `lib/core/router/app_router.dart` | 6 PlaceholderScreen → реальні екрани |
+
+### Тести (`test/fl8/`, 32 тести)
+| Файл | Кількість | Що тестує |
+|------|-----------|-----------|
+| `remote_inspection_screen_test.dart` | 4 | AppBar, offline message, MediaSection empty/list |
+| `service_request_screen_test.dart` | 5 | DTO-driven (no financial fields), loading state |
+| `profile_screen_test.dart` | 6 | Email, role chip (engineer/installer), nav items, logout, Unauthenticated |
+| `sessions_screen_test.dart` | 6 | AppBar, empty, device_name, current chip, revoke btn, loading |
+| `mfa_management_screen_test.dart` | 4 | AppBar, TOTP text, security icon, re-enrollment button |
+| `notification_settings_screen_test.dart` | 7 | AppBar, disclaimer, 5 toggles, labels, default enabled, toggle |
+
+### Архітектурні рішення FL8
+- `sessionsProvider` зроблено публічним (було `_sessionsProvider`) — доступ з тестів
+- `NotifNotifier` публічний (було `_NotifNotifier`) — архітектурна ясність
+- Completer-pattern для loading-тесту (без pending timer, як FL5)
+- `ctx.mounted` перевірка перед `ScaffoldMessenger.of(ctx)` у `_revoke`
+- DTO-driven rendering підтверджено unit-тестом: `data` без `price/cost/margin` → UI без цих полів
+
+---
+
 ## FL4 — Media + Scan — 2026-06-29
 **Статус:** ✅ DONE
 

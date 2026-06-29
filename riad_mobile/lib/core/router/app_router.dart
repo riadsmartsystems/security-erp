@@ -15,6 +15,12 @@ import '../../features/object/object_passport_screen.dart';
 import '../../features/scan/scan_screen.dart';
 import '../../features/sync/conflict_resolution_screen.dart';
 import '../../features/sync/sync_screen.dart';
+import '../../features/profile/mfa_management_screen.dart';
+import '../../features/profile/notification_settings_screen.dart';
+import '../../features/profile/profile_screen.dart';
+import '../../features/profile/sessions_screen.dart';
+import '../../features/remote_inspection/remote_inspection_screen.dart';
+import '../../features/service/service_request_screen.dart';
 import '../../features/vault/vault_entries_screen.dart';
 import '../../features/visit/visit_detail_screen.dart';
 import '../../features/visit/visit_list_screen.dart';
@@ -164,13 +170,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: Routes.remoteInspection,
-        builder: (_, s) =>
-            PlaceholderScreen('RI ${s.pathParameters["id"]}'),
+        builder: (_, s) => RemoteInspectionScreen(
+            inspectionId: s.pathParameters['id']!),
       ),
       GoRoute(
         path: Routes.serviceRequest,
         builder: (_, s) =>
-            PlaceholderScreen('Service ${s.pathParameters["id"]}'),
+            ServiceRequestScreen(requestId: s.pathParameters['id']!),
       ),
       GoRoute(
         path: Routes.conflictResolution,
@@ -179,19 +185,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: Routes.profile,
-        builder: (_, __) => const PlaceholderScreen('Profile'),
+        builder: (_, __) => const ProfileScreen(),
       ),
       GoRoute(
         path: Routes.sessions,
-        builder: (_, __) => const PlaceholderScreen('Sessions'),
+        builder: (_, __) => const SessionsScreen(),
       ),
       GoRoute(
         path: Routes.mfaManagement,
-        builder: (_, __) => const PlaceholderScreen('MFA Management'),
+        builder: (_, __) => const MfaManagementScreen(),
       ),
       GoRoute(
         path: Routes.notifications,
-        builder: (_, __) => const PlaceholderScreen('Notifications'),
+        builder: (_, __) => const NotificationSettingsScreen(),
       ),
     ],
   );
